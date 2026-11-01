@@ -1,34 +1,20 @@
 package com.science.gtnl.common.block.blocks;
 
-import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-
 import java.util.EnumSet;
 
 import net.minecraft.block.Block;
-import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.IIcon;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.science.gtnl.common.block.blocks.tile.TileEntitySuperInterface;
 import com.science.gtnl.common.gui.GTNLGuiHandler;
-import com.science.gtnl.common.render.tile.SuperInterfaceRenderer;
 import com.science.gtnl.utils.enums.GuiType;
 
 import appeng.api.util.IOrientable;
-import appeng.block.misc.BlockInterface;
-import appeng.client.render.blocks.RenderBlockInterface;
 import appeng.core.features.AEFeature;
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
 
-public class BlockSuperInterface extends BlockInterface {
-
-    @SideOnly(Side.CLIENT)
-    public IIcon iconAlternate;
-    @SideOnly(Side.CLIENT)
-    public IIcon iconAlternateArrow;
+public class BlockSuperInterface extends BlockSuperInterfaceBase {
 
     public BlockSuperInterface() {
         super();
@@ -42,20 +28,6 @@ public class BlockSuperInterface extends BlockInterface {
     @Override
     public String getUnlocalizedName() {
         return "gtnl.block.super_interface";
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public void registerBlockIcons(IIconRegister register) {
-        this.iconAlternate = register.registerIcon(RESOURCE_ROOT_ID + ":super_interface_alternate");
-        this.iconAlternateArrow = register.registerIcon(RESOURCE_ROOT_ID + ":super_interface_alternate_arrow");
-        super.registerBlockIcons(register);
-    }
-
-    @Override
-    @SideOnly(Side.CLIENT)
-    public RenderBlockInterface getRenderer() {
-        return new SuperInterfaceRenderer();
     }
 
     @Override
