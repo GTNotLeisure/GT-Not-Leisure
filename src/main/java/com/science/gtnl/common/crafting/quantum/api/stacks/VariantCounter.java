@@ -9,6 +9,7 @@ import java.util.function.Consumer;
 import java.util.function.ObjLongConsumer;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import appeng.api.config.FuzzyMode;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
@@ -19,10 +20,19 @@ import it.unimi.dsi.fastutil.objects.Object2LongMaps;
  */
 public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AEKey>> {
 
-    private final boolean saturating;
+    private final KeyCounter.OverflowPolicy overflowPolicy;
 
-    protected VariantCounter(boolean saturating) {
-        this.saturating = saturating;
+    protected VariantCounter(KeyCounter.OverflowPolicy overflowPolicy) {
+        this.overflowPolicy = overflowPolicy;
+    }
+
+    protected final long sum(AEKey key, long left, long right) {
+        if (overflowPolicy == KeyCounter.OverflowPolicy.REJECT) return KeyAmounts.add(key, left, right);
+        long result = left + right;
+        if (overflowPolicy == KeyCounter.OverflowPolicy.SATURATE && ((left ^ result) & (right ^ result)) < 0) {
+            return right < 0 ? Long.MIN_VALUE : Long.MAX_VALUE;
+        }
+        return result;
     }
 
     public long get(AEKey key) {
@@ -32,18 +42,10 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
 
     public void add(AEKey key, long amount) {
         var records = getRecords();
-        if (saturating) {
-            long newAmount;
-            long left = records.getLong(key);
-            long result = left + amount;
-            if (((left ^ result) & (amount ^ result)) < 0) {
-                newAmount = result < 0 ? Long.MAX_VALUE : Long.MIN_VALUE;
-            } else {
-                newAmount = result;
-            }
-            records.put(key, newAmount);
-        } else {
+        if (overflowPolicy == KeyCounter.OverflowPolicy.WRAP) {
             records.addTo(key, amount);
+        } else {
+            records.put(key, sum(key, records.getLong(key), amount));
         }
     }
 
@@ -62,6 +64,7 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
     public void removeAll(VariantCounter other) {
         other.forEachEntry((key, amount) -> {
             if (amount == Long.MIN_VALUE) {
+                if (overflowPolicy == KeyCounter.OverflowPolicy.REJECT) KeyAmounts.subtract(key, 0, amount);
                 add(key, Long.MAX_VALUE);
             } else {
                 add(key, -amount);
@@ -105,20 +108,21 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
      * Sets all amounts to zero.
      */
     public void reset() {
-        forEach(entry -> entry.setValue(0L));
+        forEachEntry((key, amount) -> set(key, 0L));
     }
 
     public void clear() {
         getRecords().clear();
     }
 
-    public abstract VariantCounter copy(boolean saturating);
+    public abstract VariantCounter copy(KeyCounter.OverflowPolicy overflowPolicy);
 
     public void invert() {
-        forEach(entry -> {
-            long amount = entry.getLongValue();
-            entry.setValue(amount == Long.MIN_VALUE ? Long.MAX_VALUE : -amount);
-        });
+        forEachEntry(
+            (key, amount) -> set(
+                key,
+                overflowPolicy == KeyCounter.OverflowPolicy.REJECT ? KeyAmounts.subtract(key, 0, amount)
+                    : amount == Long.MIN_VALUE ? Long.MAX_VALUE : -amount));
     }
 
     public void removeZeros() {
@@ -138,16 +142,88 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
      */
     public static class UnorderedVariantMap extends VariantCounter {
 
-        // Most primary keys have only one variant. Do not allocate 32 buckets for each such counter.
-        private final AEKey2LongMap records;
+        // Most temporary crafting counters have one variant per primary key. Keep that pair inline until
+        // another variant or a mutable entry view needs the map. Once exposed, retain the map for live views.
+        private @Nullable AEKey2LongMap records;
+        private @Nullable AEKey singleKey;
+        private long singleAmount;
 
-        UnorderedVariantMap(boolean saturating) {
-            this(saturating, 1);
+        UnorderedVariantMap(KeyCounter.OverflowPolicy overflowPolicy) {
+            this(overflowPolicy, 1);
         }
 
-        private UnorderedVariantMap(boolean saturating, int expected) {
-            super(saturating);
-            this.records = new AEKey2LongMap.OpenHashMap(expected);
+        private UnorderedVariantMap(KeyCounter.OverflowPolicy overflowPolicy, int expected) {
+            super(overflowPolicy);
+            if (expected > 1) this.records = new AEKey2LongMap.OpenHashMap(expected);
+        }
+
+        @Override
+        public long get(AEKey key) {
+            return records != null ? records.getLong(key) : key.equals(singleKey) ? singleAmount : 0;
+        }
+
+        @Override
+        public void add(AEKey key, long amount) {
+            if (records != null) {
+                super.add(key, amount);
+            } else if (singleKey == null) {
+                singleKey = key;
+                singleAmount = amount;
+            } else if (singleKey.equals(key)) {
+                singleAmount = sum(key, singleAmount, amount);
+            } else {
+                getRecords();
+                super.add(key, amount);
+            }
+        }
+
+        @Override
+        public void set(AEKey key, long amount) {
+            if (records != null) records.put(key, amount);
+            else if (singleKey == null || singleKey.equals(key)) {
+                singleKey = key;
+                singleAmount = amount;
+            } else getRecords().put(key, amount);
+        }
+
+        @Override
+        public long remove(AEKey key) {
+            if (records != null) return records.removeLong(key);
+            if (!key.equals(singleKey)) return 0;
+            long previous = singleAmount;
+            singleKey = null;
+            singleAmount = 0;
+            return previous;
+        }
+
+        @Override
+        public void forEachEntry(ObjLongConsumer<? super AEKey> action) {
+            Objects.requireNonNull(action, "action");
+            if (records != null) records.forEachEntry(action);
+            else if (singleKey != null) action.accept(singleKey, singleAmount);
+        }
+
+        @Override
+        public int size() {
+            return records != null ? records.size() : singleKey == null ? 0 : 1;
+        }
+
+        @Override
+        public boolean isEmpty() {
+            return records != null ? records.isEmpty() : singleKey == null;
+        }
+
+        @Override
+        public void clear() {
+            if (records != null) records.clear();
+            singleKey = null;
+            singleAmount = 0;
+        }
+
+        @Override
+        public void removeZeros() {
+            if (records != null) super.removeZeros();
+            else if (singleAmount == 0) singleKey = null;
         }
 
         /**
@@ -156,23 +232,29 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
          */
         @Override
         public Collection<Object2LongMap.Entry<AEKey>> findFuzzy(AEKey filter, FuzzyMode fuzzy) {
-            return records.object2LongEntrySet();
+            return getRecords().object2LongEntrySet();
         }
 
         @Override
         public void forEachFuzzy(AEKey filter, FuzzyMode fuzzy, ObjLongConsumer<? super AEKey> action) {
-            records.forEachEntry(action);
+            forEachEntry(action);
         }
 
         @Override
         AEKey2LongMap getRecords() {
+            if (records == null) {
+                records = new AEKey2LongMap.OpenHashMap(1);
+                if (singleKey != null) records.put(singleKey, singleAmount);
+                singleKey = null;
+                singleAmount = 0;
+            }
             return records;
         }
 
         @Override
-        public VariantCounter copy(boolean saturating) {
-            var result = new UnorderedVariantMap(saturating, records.size());
-            result.records.putAll(records);
+        public VariantCounter copy(KeyCounter.OverflowPolicy overflowPolicy) {
+            var result = new UnorderedVariantMap(overflowPolicy, size());
+            forEachEntry(result::set);
             return result;
         }
     }
@@ -185,8 +267,8 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
 
         private final AEKey2LongMap.AVLTreeMap records = FuzzySearch.createMap2Long();
 
-        FuzzyVariantMap(boolean saturating) {
-            super(saturating);
+        FuzzyVariantMap(KeyCounter.OverflowPolicy overflowPolicy) {
+            super(overflowPolicy);
         }
 
         @Override
@@ -279,8 +361,8 @@ public abstract class VariantCounter implements Iterable<Object2LongMap.Entry<AE
         }
 
         @Override
-        public VariantCounter copy(boolean saturating) {
-            var result = new FuzzyVariantMap(saturating);
+        public VariantCounter copy(KeyCounter.OverflowPolicy overflowPolicy) {
+            var result = new FuzzyVariantMap(overflowPolicy);
             result.records.putAll(records);
             return result;
         }

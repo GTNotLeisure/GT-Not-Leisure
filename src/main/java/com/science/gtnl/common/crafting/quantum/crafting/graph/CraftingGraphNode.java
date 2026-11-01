@@ -4,10 +4,10 @@ import java.util.List;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
@@ -169,7 +169,7 @@ public class CraftingGraphNode {
     }
 
     public void addDemandAmount(long amount) {
-        this.demandAmount = LongMath.saturatedAdd(this.demandAmount, amount);
+        this.demandAmount = KeyAmounts.add(this.what, this.demandAmount, amount);
     }
 
     public long getCraftTimes() {

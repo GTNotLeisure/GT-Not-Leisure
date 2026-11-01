@@ -21,6 +21,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.reavaritia.utils.item.ItemStackWrapper;
 import com.reavaritia.utils.item.ToolHelper;
 import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.gui.modularui.multiblock.FurnaceArrayGui;
@@ -45,6 +46,7 @@ import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -283,14 +285,24 @@ public class FurnaceArray extends SteamMultiMachineBase<FurnaceArray> implements
         double y = te.getYCoord();
         double z = te.getZCoord();
 
-        Object2LongOpenHashMap<ItemStackWrapper> mergedDrops = new Object2LongOpenHashMap<>();
+        Object2IntOpenHashMap<ItemStackWrapper> mergedDrops = new Object2IntOpenHashMap<>();
 
         if (furnaceCount > 1) {
-            mergedDrops.addTo(new ItemStackWrapper(FURNACE_STACK), furnaceCount - 1);
+            long count = furnaceCount - 1;
+            while (count > 0) {
+                int amount = (int) Math.min(count, Integer.MAX_VALUE);
+                mergedDrops.addTo(new ItemStackWrapper(FURNACE_STACK), amount);
+                count -= amount;
+            }
         }
 
         if (coalCount >= 2) {
-            mergedDrops.addTo(new ItemStackWrapper(COAL_STACK), coalCount / 2);
+            long count = coalCount / 2;
+            while (count > 0) {
+                int amount = (int) Math.min(count, Integer.MAX_VALUE);
+                mergedDrops.addTo(new ItemStackWrapper(COAL_STACK), amount);
+                count -= amount;
+            }
         }
 
         if (!mergedDrops.isEmpty()) {

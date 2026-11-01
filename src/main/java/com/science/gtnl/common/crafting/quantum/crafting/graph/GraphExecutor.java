@@ -1,7 +1,9 @@
 package com.science.gtnl.common.crafting.quantum.crafting.graph;
 
-import com.gtnllib.utils.LongMath;
+import java.util.Objects;
+
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
 
@@ -43,7 +45,7 @@ public class GraphExecutor {
         }
     }
 
-    private void applyNode(CraftingGraphNode node, CraftingSimulationState inv) {
+    private void applyNode(CraftingGraphNode node, CraftingSimulationState inv) throws InterruptedException {
         long times = node.getCraftTimes();
         var pattern = node.getPattern();
 
@@ -63,12 +65,16 @@ public class GraphExecutor {
         for (var edge : node.getInputs()) {
             if (cycleCut == null && edge.cycleCut()) cycleCut = edge;
             long needed = edge.cycleCut() ? edge.seedDemand()
-                : LongMath.saturatedMultiply(edge.amountPerCraft(), times);
+                : KeyAmounts.multiply(edge.inputKey(), edge.amountPerCraft(), times);
             if (!edge.cycleCut()) {
                 inv.addStackBytes(edge.inputKey(), edge.amountPerCraft(), times);
             }
             if (edge.cycleCut() && needed == 0) {
                 continue;
+            }
+            long stockedSeed = edge.cycleCut() ? inv.extract(edge.inputKey(), needed, Actionable.SIMULATE) : 0;
+            if (edge.cycleCut() && !ring && stockedSeed < needed) {
+                calc.craftGraphSeed(edge.inputKey(), needed - stockedSeed, pattern, inv);
             }
             long got = inv.extract(edge.inputKey(), needed, Actionable.MODULATE);
             long shortfall = needed - got;
@@ -96,20 +102,20 @@ public class GraphExecutor {
         }
 
         for (GenericStack output : node.getOutputs()) {
-            long outputAmount = LongMath.saturatedMultiply(output.amount(), times);
+            long outputAmount = KeyAmounts.multiply(output.what(), output.amount(), times);
             if (ring && output.what()
                 .equals(node.getWhat())) {
                 // A node of the ring applied before this one already took its share by a cut input
-                outputAmount = Math.max(0, outputAmount - sccPlan.takenByCycle(node));
+                outputAmount = Math.max(
+                    0,
+                    outputAmount - Objects.requireNonNull(sccPlan)
+                        .takenByCycle(node));
             } else if (cycleCut != null && output.what()
                 .equals(node.getWhat())) {
                     if (sccPlan != null) {
-                        // Replace the planned seed portion with the amount actually allocated. Missing seeds must not
-                        // become synthetic output; the remaining planned amount is the real net gain of crafted
-                        // batches.
-                        long planned = sccPlan.plannedOutput(node);
-                        long netGain = Math.max(0, planned - cycleCut.seedRequired());
-                        outputAmount = LongMath.saturatedAdd(cycleCut.seedAllocated(), netGain);
+                        // Missing seed is already recorded separately. As with other missing inputs, downstream
+                        // accounting assumes it will be supplied; otherwise the same shortage is charged twice.
+                        outputAmount = sccPlan.plannedOutput(node);
                     }
                 }
             inv.insert(output.what(), outputAmount, Actionable.MODULATE);
@@ -118,9 +124,9 @@ public class GraphExecutor {
         inv.addCrafting(pattern, times);
         inv.addBytes(times);
 
-        if (ring && node == graph.getRootNode()) {
+        if ((ring || cycleCut != null) && node == graph.getRootNode()) {
             // The ring takes back what was crafted of the requested item beyond the request; the CPU keeps it
-            long crafted = LongMath.saturatedMultiply(node.getOutputPerCraft(), times);
+            long crafted = KeyAmounts.multiply(node.getWhat(), node.getOutputPerCraft(), times);
             calc.addGraphIntermediateFinalOutput(Math.max(0, crafted - node.getDemandAmount()));
         }
     }

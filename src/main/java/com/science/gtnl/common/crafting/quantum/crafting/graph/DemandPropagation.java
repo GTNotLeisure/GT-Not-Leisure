@@ -7,6 +7,7 @@ import java.util.List;
 import org.jetbrains.annotations.Nullable;
 
 import com.gtnllib.utils.LongMath;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
 
@@ -63,7 +64,7 @@ public class DemandPropagation {
                 if (!edge.cycleCut() && edge.producer() != null
                     && !(cyclic && topology.getComponentId(edge.producer()) == topology.getComponentId(node))) {
                     edge.producer()
-                        .addDemandAmount(LongMath.saturatedMultiply(times, edge.amountPerCraft()));
+                        .addDemandAmount(KeyAmounts.multiply(edge.inputKey(), times, edge.amountPerCraft()));
                 }
             }
         }
@@ -108,7 +109,9 @@ public class DemandPropagation {
             return;
         }
 
-        long demand = Math.max(0, node.getDemandAmount());
+        long totalDemand = Math.max(0, node.getDemandAmount());
+        long demand = totalDemand;
+        long stock = inventory == null ? 0 : inventory.extract(node.getWhat(), Long.MAX_VALUE, Actionable.SIMULATE);
         if (inventory != null && node != graph.getRootNode()) {
             long available = inventory.extract(node.getWhat(), demand, Actionable.MODULATE);
             demand = Math.max(0, demand - available);
@@ -130,10 +133,13 @@ public class DemandPropagation {
         // transaction; execution records the actually allocated/missing seed amounts.
         if (expandedNet <= 0 && !calculation.hasPositiveRecursiveNet(pattern)) {
             node.setCraftTimes(0);
-            feedback.markCycleCut(demand);
-            long reserve = Math.max(1, feedback.amountPerCraft());
+            // Intermediate demand can use stock directly. A root request must be newly produced; a zero-gain
+            // loop cannot fulfill it from stock. An empty root plan is reported missing by final validation.
+            long seedDemand = node == graph.getRootNode() ? 0 : totalDemand;
+            feedback.markCycleCut(seedDemand);
+            long reserve = seedDemand == 0 ? 0 : Math.max(1, feedback.amountPerCraft());
             feedback.setReserveDemand(reserve);
-            graph.setSccPlan(component.id(), nativePlan(node, 0));
+            graph.setSccPlan(component.id(), nativePlan(node, seedDemand));
             return;
         }
 
@@ -148,10 +154,14 @@ public class DemandPropagation {
         // From here on the direct net is positive: non-positive nets never pass the expanded/batch guard above,
         // because getRecursivePatternBatch falls back to a positive direct output for them.
         long seedCapacity = feedback.amountPerCraft();
-        long seedRequired = Math.min(demand, seedCapacity);
-        long batches = divideCeil(demand - seedRequired, directNet);
-        long plannedOutput = batches == 0 ? 0
-            : LongMath.saturatedAdd(seedRequired, LongMath.saturatedMultiply(batches, directNet));
+        boolean root = node == graph.getRootNode();
+        long seedRequired = root ? seedCapacity : Math.min(totalDemand, seedCapacity);
+        // Stock already includes the seed. Only a seed we must supply externally reduces the deficit again.
+        // The requested output is new production: even when it is also the seed, stock cannot satisfy the request.
+        long missingSeed = Math.max(0, seedRequired - stock);
+        long batches = divideCeil(root ? demand : Math.max(0, demand - missingSeed), directNet);
+        long plannedOutput = KeyAmounts
+            .add(node.getWhat(), seedRequired, KeyAmounts.multiply(node.getWhat(), batches, directNet));
         node.setCraftTimes(batches);
         feedback.markCycleCut(seedRequired);
         feedback.setReserveDemand(directNet);
@@ -253,10 +263,10 @@ public class DemandPropagation {
         for (int i = 0; i < count; i++) {
             var node = nodes.get(i);
             node.setCraftTimes(runs[i]);
-            plannedOutput.put(node, LongMath.saturatedMultiply(node.getOutputPerCraft(), runs[i]));
+            plannedOutput.put(node, KeyAmounts.multiply(node.getWhat(), node.getOutputPerCraft(), runs[i]));
             int producer = indexes.getInt(ring[i].producer());
             if (i > producer) {
-                long taken = LongMath.saturatedMultiply(ring[i].amountPerCraft(), runs[i]);
+                long taken = KeyAmounts.multiply(ring[i].inputKey(), ring[i].amountPerCraft(), runs[i]);
                 long fromStorage = Math.min(LongMath.saturatedAdd(stock[producer], seed[producer]), taken);
                 ring[i].markCycleCut(fromStorage);
                 ring[i].setReserveDemand(0);
@@ -281,12 +291,29 @@ public class DemandPropagation {
             }
             boolean changed = false;
             for (int i = 0; i < runs.length; i++) {
-                long taken = LongMath.saturatedMultiply(ring[consumer[i]].amountPerCraft(), runs[consumer[i]]);
-                long internal = LongMath.saturatedAdd(taken, reserve[i]);
+                long taken = KeyAmounts.multiply(
+                    nodes.get(i)
+                        .getWhat(),
+                    ring[consumer[i]].amountPerCraft(),
+                    runs[consumer[i]]);
+                long internal = KeyAmounts.add(
+                    nodes.get(i)
+                        .getWhat(),
+                    taken,
+                    reserve[i]);
                 long supply = LongMath.saturatedAdd(stock[i], seed[i]);
-                long needed = nodes.get(i) == root ? LongMath.saturatedAdd(demand[i], Math.max(0, internal - supply))
-                    : Math.max(0, LongMath.saturatedAdd(demand[i], internal) - supply);
-                if (needed == Long.MAX_VALUE) return false;
+                long needed = nodes.get(i) == root ? KeyAmounts.add(
+                    nodes.get(i)
+                        .getWhat(),
+                    demand[i],
+                    Math.max(0, internal - supply))
+                    : Math.max(
+                        0,
+                        KeyAmounts.add(
+                            nodes.get(i)
+                                .getWhat(),
+                            demand[i],
+                            internal) - supply);
                 long times = divideCeil(
                     needed,
                     nodes.get(i)

@@ -21,10 +21,10 @@ import java.util.Set;
 
 import net.minecraft.world.World;
 
-import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.ICraftingInventory;
 
 import appeng.api.config.Actionable;
@@ -108,13 +108,13 @@ public class CraftingCpuHelper {
      * Extract a whole number of templates, and return how many were extracted.
      */
     public static long extractTemplates(ICraftingInventory inv, InputTemplate template, long multiplier) {
-        long maxTotal = LongMath.saturatedMultiply(template.amount(), multiplier);
+        long maxTotal = KeyAmounts.multiply(template.key(), template.amount(), multiplier);
         // Extract as much as possible.
         var extracted = inv.extract(template.key(), maxTotal, Actionable.SIMULATE);
         if (extracted == 0) return 0;
         // Adjust to have a whole number of templates.
         multiplier = extracted / template.amount();
-        maxTotal = LongMath.saturatedMultiply(template.amount(), multiplier);
+        maxTotal = KeyAmounts.multiply(template.key(), template.amount(), multiplier);
         if (maxTotal == 0) return 0;
         extracted = inv.extract(template.key(), maxTotal, Actionable.MODULATE);
         if (extracted == 0 || extracted != maxTotal) {
