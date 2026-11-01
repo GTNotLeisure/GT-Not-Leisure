@@ -561,34 +561,30 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     private List<ItemStack> scanInputBuses() {
         ArrayList<ItemStack> inputs = getStoredInputs();
-        List<ItemStack> toRemove = new ArrayList<>();
+        boolean consumed = false;
+        boolean archiveChanged = false;
 
         for (ItemStack stack : inputs) {
             if (stack == null || stack.stackSize <= 0) continue;
+            boolean princess = BeeBreedingHelper.isPrincess(stack);
+            if (!princess && !BeeBreedingHelper.isDrone(stack)) continue;
+            String uid = BeeBreedingHelper.getBeeUID(stack);
+            if (uid == null || uid.isEmpty()) continue;
 
-            if (BeeBreedingHelper.isDrone(stack)) {
-                speciesArchive.unlockSpecies(BeeBreedingHelper.getBeeUID(stack));
-                toRemove.add(stack);
-            } else if (BeeBreedingHelper.isPrincess(stack)) {
-
-                String uid = BeeBreedingHelper.getBeeUID(stack);
-                if (uid != null) {
-                    speciesArchive.unlockSpecies(uid);
-                    long newPending = (long) pendingPrincessOutputs + Math.max(1, stack.stackSize);
-                    pendingPrincessOutputs = (int) Math.min(Integer.MAX_VALUE, newPending);
-                }
-                toRemove.add(stack);
+            archiveChanged |= speciesArchive.unlockSpecies(uid);
+            if (princess) {
+                long newPending = (long) pendingPrincessOutputs + stack.stackSize;
+                pendingPrincessOutputs = (int) Math.min(Integer.MAX_VALUE, newPending);
             }
+            stack.stackSize = 0;
+            consumed = true;
         }
 
-        for (ItemStack stack : toRemove) {
-            stack.stackSize = 0;
-        }
-        if (!toRemove.isEmpty()) {
+        if (consumed) {
             updateSlots();
             markBaseTileDirty();
-            invalidateBreedingPlan();
-            markBreedingChanged();
+            if (archiveChanged) invalidateBreedingPlan();
+            else markBreedingChanged();
         }
         if (isFoundationScanDue()) refreshFoundationInputs(inputs);
         return inputs;
