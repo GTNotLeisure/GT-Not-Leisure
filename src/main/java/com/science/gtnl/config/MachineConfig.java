@@ -59,6 +59,23 @@ public class MachineConfig {
     @DefaultDouble(2.5)
     public static double recipeOutputChance = 2.5;
 
+    @Name("bee_breeder")
+    public static final BeeBreeder bee_breeder = new BeeBreeder();
+
+    @Sync
+    @Comment("Large Bee Breeder")
+    public static class BeeBreeder {
+
+        @Comment({ "Optional overrides for automatic bee tiers: species UID=HV, EV, IV, LuV, ZPM, UV or UHV.",
+            "Leave empty to use breeding depth, parent tiers, foundation materials and GT comb processing tiers.",
+            "Each three breeding generations adds one tier. Overrides also affect descendant tiers.",
+            "Missing or disabled species are ignored. Duplicate UIDs use the last valid entry. Restart to apply." })
+        @LangKey("gtnl.gui.config.machine.bee_breeder.species_voltage_overrides")
+        @RequiresMcRestart
+        public String[] speciesVoltageOverrides = {};
+
+    }
+
     public static final QuantumComputer quantum_computer = new QuantumComputer();
 
     @Comment("Quantum Computer")

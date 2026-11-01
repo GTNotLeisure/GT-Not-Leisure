@@ -3360,6 +3360,19 @@ public class AssemblerRecipes implements IRecipePool {
             .eut(TierEU.RECIPE_LV)
             .addTo(As);
 
+        if (Mods.Gendustry.isModLoaded()) {
+            RecipeBuilder.builder()
+                .itemInputs(
+                    ItemList.Machine_IndustrialApiary.get(32),
+                    ModsItemlist.GendustryMutatron.get(1),
+                    GregtechItemList.HiveFrameMutagenic.get(16))
+                .itemOutputs(GTNLItemList.LargeBeeBreeder.get(1))
+                .fluidInputs(FluidRegistry.getFluidStack("mutagen", 560000))
+                .duration(16000 * SECONDS)
+                .eut(TierEU.RECIPE_LuV)
+                .addTo(As);
+        }
+
         loadLampRecipes();
         loadWirelessHatch();
         loadLaserHatch();
