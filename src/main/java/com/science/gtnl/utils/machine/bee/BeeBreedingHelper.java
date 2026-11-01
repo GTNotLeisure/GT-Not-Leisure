@@ -279,6 +279,11 @@ public final class BeeBreedingHelper {
         return cached != null ? new ArrayList<>(cached) : new ArrayList<>();
     }
 
+    public static List<IAlleleBeeSpecies> getRegisteredSpecies() {
+        ensureCaches();
+        return uidSpeciesCache == null ? Collections.emptyList() : new ArrayList<>(uidSpeciesCache.values());
+    }
+
     public static List<MutationData> getAllMutations() {
         ensureCaches();
         List<MutationData> mutations = new ArrayList<>();

@@ -2,6 +2,7 @@ package com.science.gtnl.loader;
 
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.utils.machine.bee.BeeBreedingTiers;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
@@ -43,6 +44,7 @@ public class LoadCompleteRecipeScheduler {
         RecipeMaps.cutterFakeRecipes.getBackend()
             .clearRecipes();
         new FakeCuttingRecipes().run();
+        BeeBreedingTiers.initialize();
         GTMod.proxy.reloadNEICache();
     }
 }
