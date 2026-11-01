@@ -565,6 +565,9 @@ public enum ModsItemlist {
     // 天域使魔
     GadomancyItemEtherealFamiliar(Mods.Gadomancy.ID, "ItemEtherealFamiliar", 0),
 
+    // 诱变机
+    GendustryMutatron(Mods.Gendustry.ID, "Mutatron", 0),
+
     // 轻质合金板
     AmunRaLightweightAlloyPlate(Mods.GalacticraftAmunRa.ID, "item.baseItem", 15),
     // 暗物质碎片
