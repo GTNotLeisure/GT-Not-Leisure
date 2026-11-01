@@ -28,6 +28,7 @@ import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingPlan;
@@ -80,13 +81,13 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
     private double bytes = 0;
 
     protected CraftingSimulationState() {
-        this.unmodifiedCache = new KeyCounter();
-        this.modifiableCache = new KeyCounter();
+        this.unmodifiedCache = KeyCounter.checked();
+        this.modifiableCache = KeyCounter.checked();
         this.loadedFuzzyGroups = new ReferenceOpenHashSet<>(1);
-        this.emittedItems = new KeyCounter();
-        this.pseudoItems = new KeyCounter();
-        this.boundaryItems = new KeyCounter();
-        this.requiredExtract = new KeyCounter();
+        this.emittedItems = KeyCounter.checked();
+        this.pseudoItems = KeyCounter.checked();
+        this.boundaryItems = KeyCounter.checked();
+        this.requiredExtract = KeyCounter.checked();
         this.crafts.defaultReturnValue(0);
     }
 
@@ -237,7 +238,13 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
 
     @Override
     public void addCrafting(IPatternDetails details, long crafts) {
-        this.crafts.addTo(details, crafts);
+        this.crafts.put(
+            details,
+            KeyAmounts.add(
+                details.getPrimaryOutput()
+                    .what(),
+                this.crafts.getLong(details),
+                crafts));
     }
 
     public long getOriginalAmount(AEKey what) {
@@ -253,7 +260,7 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
     }
 
     public InventorySnapshot snapshotInventoryReads() {
-        var amounts = new KeyCounter();
+        var amounts = KeyCounter.checked();
         amounts.addAll(this.unmodifiedCache);
         return new InventorySnapshot(amounts, List.copyOf(Objects.requireNonNull(this.recordedReads)));
     }
@@ -311,7 +318,7 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
             long net = 0;
             for (var output : pattern.getOutputs()) {
                 if (what.matches(output)) {
-                    net = LongMath.saturatedAdd(net, output.amount());
+                    net = KeyAmounts.add(what, net, output.amount());
                 }
             }
             if (net <= 0) {
@@ -320,13 +327,14 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
             for (var input : pattern.getInputs()) {
                 var possibleInputs = input.possibleInputs();
                 if (possibleInputs.length > 0 && what.matches(possibleInputs[0])) {
-                    net = LongMath.saturatedSubtract(
+                    net = KeyAmounts.subtract(
+                        what,
                         net,
-                        LongMath.saturatedMultiply(possibleInputs[0].amount(), input.getMultiplier()));
+                        KeyAmounts.multiply(what, possibleInputs[0].amount(), input.getMultiplier()));
                 }
             }
             if (net > 0) {
-                amount = LongMath.saturatedAdd(amount, LongMath.saturatedMultiply(net, entry.getLongValue()));
+                amount = KeyAmounts.add(what, amount, KeyAmounts.multiply(what, net, entry.getLongValue()));
             }
         }
         return amount;
@@ -342,7 +350,7 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
      * How much of each key this state holds more or less than its parent.
      */
     public KeyCounter getInventoryDelta() {
-        var inventoryDelta = new KeyCounter();
+        var inventoryDelta = KeyCounter.checked();
         modifiableCache.forEach((ObjLongConsumer<? super AEKey>) (key, amount) -> {
             long delta = amount - unmodifiedCache.get(key);
             if (delta != 0) {
@@ -375,7 +383,7 @@ public abstract class CraftingSimulationState implements ICraftingSimulationStat
         required.forEach((ObjLongConsumer<? super AEKey>) (key, amount) -> {
             // To compute the new parent max difference during the processing of the child's queries:
             // Take current parent difference, and add required extract (= max difference observed in the child).
-            long delta = this.unmodifiedCache.get(key) - this.modifiableCache.get(key) + amount;
+            long delta = KeyAmounts.add(key, this.unmodifiedCache.get(key) - this.modifiableCache.get(key), amount);
             this.updateRequiredExtract(key, delta);
         });
     }

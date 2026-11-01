@@ -7,6 +7,7 @@ import com.science.gtnl.common.crafting.quantum.core.localization.PlayerMessages
 public class CraftingCalculationFailure extends RuntimeException {
 
     private final PlayerMessages messageKey;
+    private final Object[] messageArguments;
     @Nullable
     private final NoNetOutputCycle cycle;
 
@@ -15,9 +16,19 @@ public class CraftingCalculationFailure extends RuntimeException {
     }
 
     public CraftingCalculationFailure(PlayerMessages messageKey, @Nullable NoNetOutputCycle cycle) {
+        this(messageKey, cycle, new Object[0]);
+    }
+
+    private CraftingCalculationFailure(PlayerMessages messageKey, @Nullable NoNetOutputCycle cycle,
+        Object[] arguments) {
         super(messageKey.getTranslationKey());
         this.messageKey = messageKey;
         this.cycle = cycle;
+        this.messageArguments = arguments.clone();
+    }
+
+    public static CraftingCalculationFailure withDetails(PlayerMessages messageKey, Object... arguments) {
+        return new CraftingCalculationFailure(messageKey, null, arguments);
     }
 
     /**
@@ -32,4 +43,7 @@ public class CraftingCalculationFailure extends RuntimeException {
         return this.messageKey;
     }
 
+    public Object[] getMessageArguments() {
+        return this.messageArguments.clone();
+    }
 }

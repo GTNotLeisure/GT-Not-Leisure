@@ -23,6 +23,7 @@ import com.science.gtnl.common.crafting.quantum.core.localization.PlayerMessages
 public class CraftBranchFailure extends Exception {
 
     private final AEKey what;
+    private final long howMany;
     @Nullable
     private final PlayerMessages messageKey;
     @Nullable
@@ -31,6 +32,7 @@ public class CraftBranchFailure extends Exception {
     public CraftBranchFailure(AEKey what, long howMany) {
         super("Failed: " + what + " x " + howMany);
         this.what = what;
+        this.howMany = howMany;
         this.messageKey = null;
         this.cycle = null;
     }
@@ -42,6 +44,7 @@ public class CraftBranchFailure extends Exception {
     public CraftBranchFailure(AEKey what, long howMany, PlayerMessages messageKey, @Nullable NoNetOutputCycle cycle) {
         super("Failed: " + what + " x " + howMany + " (" + messageKey.getTranslationKey() + ")");
         this.what = what;
+        this.howMany = howMany;
         this.messageKey = messageKey;
         this.cycle = cycle;
     }
@@ -56,7 +59,11 @@ public class CraftBranchFailure extends Exception {
     }
 
     public PlayerMessages getLocalizedMessageKey() {
-        return this.messageKey != null ? this.messageKey : PlayerMessages.CraftingNoPlan;
+        return this.messageKey != null ? this.messageKey : PlayerMessages.CraftingMissingIngredient;
+    }
+
+    public long getMissingAmount() {
+        return this.howMany;
     }
 
     public boolean hasExplicitMessageKey() {

@@ -4,7 +4,13 @@ public enum PlayerMessages {
 
     CraftingNoPlan,
     CraftingNoNetOutput,
-    CraftingTooLong;
+    CraftingTooLong,
+    CraftingMissingIngredient,
+    CraftingAmountOverflow,
+    CraftingPlanUnbalanced,
+    CraftingReplayLimit,
+    CraftingRecipeStalled,
+    CraftingShortageResolutionLimit;
 
     public String getTranslationKey() {
         return "gtnl.quantum_crafting.message." + name();

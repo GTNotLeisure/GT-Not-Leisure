@@ -21,11 +21,11 @@ import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.networking.crafting.ICraftingService;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.ChildCraftingSimulationState;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
@@ -93,8 +93,8 @@ public class CraftingTreeProcess {
      * <p>
      * The catalyst of a precise input, which the pattern gives back, and the container a precise input leaves are
      * batched instead, see {@link #slotUnits}: one at a time, the calculation costs as much as the requested amount.
-     * What the request itself is made of, and the inputs of substituting patterns, whose variant decides what comes
-     * back, are still crafted one at a time.
+     * A precise growing input can also be the requested output: only the first craft needs its seed. The inputs of
+     * substituting patterns, whose variant decides what comes back, are still crafted one at a time.
      */
     private void updateLimitQty() {
         var requested = this.parent == null ? null : this.parent.getWhat();
@@ -125,7 +125,8 @@ public class CraftingTreeProcess {
             }
 
             if (returned > 0) {
-                if (precise && container == null && !key.equals(requested) && countSlots(key) == 1) {
+                boolean grows = returned > KeyAmounts.multiply(key, primaryInput.amount(), input.getMultiplier());
+                if (precise && container == null && (!key.equals(requested) || grows) && countSlots(key) == 1) {
                     if (this.catalystReturns == null) this.catalystReturns = new long[this.inputs.length];
                     this.catalystReturns[x] = returned;
                     this.batchedSlots = true;
@@ -160,13 +161,16 @@ public class CraftingTreeProcess {
      */
     private long slotUnits(int slot, long multiplier, long times) {
         if (this.catalystReturns == null || this.catalystReturns[slot] <= 0 || times <= 0) {
-            return LongMath.saturatedMultiply(multiplier, times);
+            return KeyAmounts.multiply(this.slotNodes[slot].getWhat(), multiplier, times);
         }
         long unit = this.inputs[slot].possibleInputs()[0].amount();
-        long perCraft = LongMath.saturatedMultiply(unit, multiplier);
+        long perCraft = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), unit, multiplier);
         long lost = Math.max(0, perCraft - this.catalystReturns[slot]);
-        long items = LongMath.saturatedAdd(perCraft, LongMath.saturatedMultiply(lost, times - 1));
-        return LongMath.saturatedAdd(items / unit, items % unit == 0 ? 0 : 1);
+        long items = KeyAmounts.add(
+            this.slotNodes[slot].getWhat(),
+            perCraft,
+            KeyAmounts.multiply(this.slotNodes[slot].getWhat(), lost, times - 1));
+        return KeyAmounts.add(this.slotNodes[slot].getWhat(), items / unit, items % unit == 0 ? 0 : 1);
     }
 
     /**
@@ -177,13 +181,14 @@ public class CraftingTreeProcess {
             return units / multiplier;
         }
         long unit = this.inputs[slot].possibleInputs()[0].amount();
-        long perCraft = LongMath.saturatedMultiply(unit, multiplier);
-        long items = LongMath.saturatedMultiply(units, unit);
+        long perCraft = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), unit, multiplier);
+        long items = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), units, unit);
         if (items < perCraft) {
             return 0;
         }
         long lost = perCraft - this.catalystReturns[slot];
-        return lost <= 0 ? Long.MAX_VALUE : LongMath.saturatedAdd(1, (items - perCraft) / lost);
+        return lost <= 0 ? Long.MAX_VALUE
+            : KeyAmounts.add(this.slotNodes[slot].getWhat(), 1, (items - perCraft) / lost);
     }
 
     /**
@@ -192,10 +197,10 @@ public class CraftingTreeProcess {
     private long catalystReturned(int slot, long times) {
         long unit = this.inputs[slot].possibleInputs()[0].amount();
         long multiplier = this.inputs[slot].getMultiplier();
-        long perCraft = LongMath.saturatedMultiply(unit, multiplier);
-        long requested = LongMath.saturatedMultiply(slotUnits(slot, multiplier, times), unit);
-        long net = LongMath.saturatedMultiply(this.catalystReturns[slot] - perCraft, times);
-        return Math.max(0, LongMath.saturatedAdd(requested, net));
+        long perCraft = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), unit, multiplier);
+        long requested = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), slotUnits(slot, multiplier, times), unit);
+        long net = KeyAmounts.multiply(this.slotNodes[slot].getWhat(), this.catalystReturns[slot] - perCraft, times);
+        return Math.max(0, KeyAmounts.add(this.slotNodes[slot].getWhat(), requested, net));
     }
 
     private boolean isCatalyst(AEKey key) {
@@ -220,9 +225,9 @@ public class CraftingTreeProcess {
         for (int x = 0; x < this.inputs.length; x++) {
             var container = this.slotContainers[x];
             if (container == null) continue;
-            long amount = LongMath.saturatedMultiply(this.inputs[x].getMultiplier(), times - 1);
+            long amount = KeyAmounts.multiply(container, this.inputs[x].getMultiplier(), times - 1);
             inv.insert(container, amount, Actionable.MODULATE);
-            if (credited == null) credited = new KeyCounter();
+            if (credited == null) credited = KeyCounter.checked();
             credited.add(container, amount);
         }
         return credited;
@@ -255,7 +260,7 @@ public class CraftingTreeProcess {
                 long requiredPerPattern = this.inputs[0].getMultiplier();
                 long availableInputs = this.slotNodes[0].extractAvailableForCrafting(
                     sharedInputs,
-                    LongMath.saturatedMultiply(requiredPerPattern, craftableTimes));
+                    KeyAmounts.multiply(this.slotNodes[0].getWhat(), requiredPerPattern, craftableTimes));
                 craftableTimes = availableInputs / requiredPerPattern;
                 // Availability may include an incomplete final craft. Reusing its diff would consume that
                 // remainder as well, hiding usable stock from subsequent crafts and overstating missing inputs.
@@ -286,7 +291,7 @@ public class CraftingTreeProcess {
                 long requiredPerPattern = this.inputs[slot].getMultiplier();
                 long availableInputs = this.slotNodes[slot].extractAvailableForCrafting(
                     sharedInputs,
-                    LongMath.saturatedMultiply(requiredPerPattern, craftableTimes));
+                    KeyAmounts.multiply(this.slotNodes[slot].getWhat(), requiredPerPattern, craftableTimes));
                 craftableTimes = Math.min(craftableTimes, availableInputs / requiredPerPattern);
                 if (craftableTimes == 0) {
                     return 0;
@@ -385,7 +390,7 @@ public class CraftingTreeProcess {
         for (int i = 0, size = this.outputs.size(); i < size; i++) {
             var out = this.outputs.get(i);
             preview.state()
-                .insert(out.what(), LongMath.saturatedMultiply(out.amount(), times), Actionable.MODULATE);
+                .insert(out.what(), KeyAmounts.multiply(out.what(), out.amount(), times), Actionable.MODULATE);
         }
 
         preview.state()
@@ -428,7 +433,7 @@ public class CraftingTreeProcess {
 
         this.job.pushProcess(this);
         try {
-            var containerItems = this.containerItems ? new KeyCounter() : null;
+            var containerItems = this.containerItems ? KeyCounter.checked() : null;
             long intermediateFinalOutputMarker = this.job.getIntermediateFinalOutputMarker();
             var credited = creditContainers(inv, times);
 
@@ -458,7 +463,7 @@ public class CraftingTreeProcess {
             for (int outputIndex = 0; outputIndex < this.outputs.size(); outputIndex++) {
                 var out = this.outputs.get(outputIndex);
                 if (!isCatalyst(out.what())) {
-                    inv.insert(out.what(), LongMath.saturatedMultiply(out.amount(), times), Actionable.MODULATE);
+                    inv.insert(out.what(), KeyAmounts.multiply(out.what(), out.amount(), times), Actionable.MODULATE);
                 }
             }
             for (int x = 0; x < this.inputs.length; x++) {
@@ -504,13 +509,16 @@ public class CraftingTreeProcess {
             }
             long multiplier = this.inputs[x].getMultiplier();
             long units = skippedInput == null ? slotUnits(x, multiplier, times)
-                : LongMath.saturatedMultiply(multiplier, times);
+                : KeyAmounts.multiply(node.getWhat(), multiplier, times);
             node.request(inv, units, containerItems);
         }
     }
 
     private void requestIntermediateFinalOutputReplacements(CraftingSimulationState inv, long intermediateAmount)
         throws CraftBranchFailure, InterruptedException {
+        // A batched growing output already accounts for its returned seed and delivers the net gain.
+        // Charging another craft for that seed can exceed the very fuel bound established by the preview.
+        if (isCatalyst(this.job.getOutput())) return;
         long outputCount = getOutputCount(this.job.getOutput());
         if (intermediateAmount <= 0 || outputCount <= 0
             || !this.parent.getWhat()
@@ -572,7 +580,7 @@ public class CraftingTreeProcess {
         for (int i = 0, size = this.outputs.size(); i < size; i++) {
             var output = this.outputs.get(i);
             if (what.matches(output)) {
-                tot += output.amount();
+                tot = KeyAmounts.add(what, tot, output.amount());
             }
         }
 
@@ -594,8 +602,8 @@ public class CraftingTreeProcess {
         for (var input : this.inputs) {
             for (var possibleInput : input.possibleInputs()) {
                 if (what.matches(possibleInput)) {
-                    total = LongMath
-                        .saturatedAdd(total, LongMath.saturatedMultiply(possibleInput.amount(), input.getMultiplier()));
+                    total = KeyAmounts
+                        .add(what, total, KeyAmounts.multiply(what, possibleInput.amount(), input.getMultiplier()));
                     break;
                 }
             }
@@ -611,17 +619,19 @@ public class CraftingTreeProcess {
     void accumulateNet(KeyCounter netByKey, long times) {
         for (int i = 0, size = this.outputs.size(); i < size; i++) {
             var output = this.outputs.get(i);
-            netByKey.add(output.what(), LongMath.saturatedMultiply(output.amount(), times));
+            netByKey.add(output.what(), KeyAmounts.multiply(output.what(), output.amount(), times));
         }
         for (int slot = 0; slot < this.slotNodes.length; slot++) {
             var node = this.slotNodes[slot];
             netByKey.add(
                 node.getWhat(),
-                LongMath.saturatedSubtract(
+                KeyAmounts.subtract(
+                    node.getWhat(),
                     0,
-                    LongMath.saturatedMultiply(
+                    KeyAmounts.multiply(
+                        node.getWhat(),
                         node.getTemplateAmount(),
-                        LongMath.saturatedMultiply(this.inputs[slot].getMultiplier(), times))));
+                        KeyAmounts.multiply(node.getWhat(), this.inputs[slot].getMultiplier(), times))));
         }
     }
 

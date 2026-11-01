@@ -25,6 +25,7 @@ import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.networking.crafting.ICraftingService;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.core.localization.PlayerMessages;
 import com.science.gtnl.common.crafting.quantum.crafting.execution.CraftingCpuHelper;
@@ -221,7 +222,7 @@ public class CraftingTreeNode {
                     addContainerItems(template.key(), extracted, containerItems);
                     this.job.addIntermediateFinalOutputInput(
                         template.key(),
-                        LongMath.saturatedMultiply(extracted, template.amount()));
+                        KeyAmounts.multiply(template.key(), extracted, template.amount()));
 
                     if (requestedAmount == 0) {
                         return;
@@ -292,7 +293,7 @@ public class CraftingTreeNode {
         var recursiveBatch = this.job.getRecursivePatternBatch(pro.details, this.what);
 
         while (totalRequestedItems > 0) {
-            long times = getRequestedPatternTimes(pro, totalRequestedItems, craftedPerPattern, recursiveBatch);
+            long times = getRequestedPatternTimes(inv, pro, totalRequestedItems, craftedPerPattern, recursiveBatch);
             var marker = this.job.createCalculationMarker();
             var child = new ChildCraftingSimulationState(inv);
             try {
@@ -356,7 +357,12 @@ public class CraftingTreeNode {
         var craftedPerPattern = getEffectiveOutputCount(pro);
         while (totalRequestedItems > 0) {
             var recursiveBatch = this.job.getRecursivePatternBatch(pro.details, this.what);
-            long requestedTimes = getRequestedPatternTimes(pro, totalRequestedItems, craftedPerPattern, recursiveBatch);
+            long requestedTimes = getRequestedPatternTimes(
+                inv,
+                pro,
+                totalRequestedItems,
+                craftedPerPattern,
+                recursiveBatch);
             long times;
             if (this.job.isPerformanceTrackingEnabled()) {
                 times = this.job
@@ -399,10 +405,12 @@ public class CraftingTreeNode {
                     this.job.popMissingSuppression();
                 }
 
-                available = extractCraftedBranchOutput(child, totalRequestedItems);
-                if (craftedPerPattern > 0) {
-                    available = Math.min(available, LongMath.saturatedMultiply(craftedPerPattern, times));
-                }
+                // Apply the net-output bound before extracting. Taking the entire gross output first would
+                // discard a returning seed even though only the net gain counts toward this request.
+                long branchOutput = craftedPerPattern > 0
+                    ? Math.min(totalRequestedItems, KeyAmounts.multiply(this.what, craftedPerPattern, times))
+                    : totalRequestedItems;
+                available = extractCraftedBranchOutput(child, branchOutput);
                 if (available > 0) {
                     child.applyDiff(inv);
                 } else {
@@ -447,7 +455,7 @@ public class CraftingTreeNode {
                 available = LongMath.saturatedAdd(available, extracted);
                 this.job.addIntermediateFinalOutputInput(
                     template.key(),
-                    LongMath.saturatedMultiply(extracted, template.amount()));
+                    KeyAmounts.multiply(template.key(), extracted, template.amount()));
                 if (available >= maxAmount) {
                     return maxAmount;
                 }
@@ -488,7 +496,12 @@ public class CraftingTreeNode {
             }
             long craftedPerPattern = getEffectiveOutputCount(pro);
             var recursiveBatch = this.job.getRecursivePatternBatch(pro.details, this.what);
-            long requestedTimes = getRequestedPatternTimes(pro, totalRequestedItems, craftedPerPattern, recursiveBatch);
+            long requestedTimes = getRequestedPatternTimes(
+                inv,
+                pro,
+                totalRequestedItems,
+                craftedPerPattern,
+                recursiveBatch);
             long times;
             if (this.job.isPerformanceTrackingEnabled()) {
                 times = this.job.timed(
@@ -579,17 +592,19 @@ public class CraftingTreeNode {
         return !this.what.equals(this.job.getOutput()) && pro.getInputCount(this.job.getOutput()) > 0;
     }
 
-    private long getRequestedPatternTimes(CraftingTreeProcess pro, long totalRequestedItems, long craftedPerPattern,
-        CraftingCalculation.RecursivePatternBatch recursiveBatch) {
+    private long getRequestedPatternTimes(CraftingSimulationState inventory, CraftingTreeProcess pro,
+        long totalRequestedItems, long craftedPerPattern, CraftingCalculation.RecursivePatternBatch recursiveBatch) {
+        long times;
         if (pro.limitsQuantity()) {
-            return 1;
+            times = 1;
+        } else if (usesFinalOutputAsIntermediateInput(pro)) {
+            times = divideCeil(totalRequestedItems, craftedPerPattern);
+        } else {
+            long netOutput = recursiveBatch.netOutput() > 0 ? recursiveBatch.netOutput() : craftedPerPattern;
+            long rootTimes = Math.max(1, recursiveBatch.rootTimes());
+            times = KeyAmounts.multiply(this.what, divideCeil(totalRequestedItems, netOutput), rootTimes);
         }
-        if (usesFinalOutputAsIntermediateInput(pro)) {
-            return divideCeil(totalRequestedItems, craftedPerPattern);
-        }
-        long netOutput = recursiveBatch.netOutput() > 0 ? recursiveBatch.netOutput() : craftedPerPattern;
-        long rootTimes = Math.max(1, recursiveBatch.rootTimes());
-        return LongMath.saturatedMultiply(divideCeil(totalRequestedItems, netOutput), rootTimes);
+        return times;
     }
 
     int getDepth() {
@@ -663,7 +678,7 @@ public class CraftingTreeNode {
     }
 
     private long getTotalRequestedItems(long requestedAmount) {
-        return LongMath.saturatedMultiply(requestedAmount, this.amount);
+        return KeyAmounts.multiply(this.what, requestedAmount, this.amount);
     }
 
     private boolean isTopLevelRequestedOutput() {

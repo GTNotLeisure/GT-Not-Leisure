@@ -4001,6 +4001,12 @@ gtnl.gui.recursive_patterns.tooltip.machines=§7%s machines, press %s to highlig
 gtnl.recursive_patterns.blocked=§c[Recursive Patterns]§r %s cannot start due to %s cycles; their machines are highlighted. Press %s on another cycle to highlight it.
 gtnl.recursive_patterns.highlighted=§b[Recursive Patterns]§r Cycle %1$s: %3$s machines highlighted (%2$s)
 gtnl.quantum_crafting.message.CraftingTooLong=The quantum crafting calculation took longer than this server allows. Request a smaller amount, or raise calculationLimitSeconds in the config.
+gtnl.quantum_crafting.message.CraftingMissingIngredient=An ingredient of the quantum crafting plan could not be crafted or found.
+gtnl.quantum_crafting.message.CraftingAmountOverflow=The quantum crafting plan needs more of an item than can be counted (over 9,223,372,036,854,775,807). Request a smaller amount.
+gtnl.quantum_crafting.message.CraftingPlanUnbalanced=The quantum crafting plan does not balance: its patterns cannot make what they consume.
+gtnl.quantum_crafting.message.CraftingReplayLimit=Checking the quantum crafting plan took too many crafting passes. Request a smaller amount.
+gtnl.quantum_crafting.message.CraftingRecipeStalled=The quantum crafting plan would leave a crafting step waiting for inputs that never arrive.
+gtnl.quantum_crafting.message.CraftingShortageResolutionLimit=The quantum crafting calculation could not settle what the plan is missing. Request a smaller amount.
 gtnl.machine.assembler_matrix.pattern_exists=A similar pattern exists. Upload skipped and blank pattern returned!
 
 gtnl.tooltip.craft_complete.0=§5Auto-Crafting Complete

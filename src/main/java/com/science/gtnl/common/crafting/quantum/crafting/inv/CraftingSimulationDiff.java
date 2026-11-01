@@ -101,7 +101,7 @@ public class CraftingSimulationDiff {
     }
 
     private static KeyCounter copy(KeyCounter source) {
-        var result = new KeyCounter();
+        var result = KeyCounter.checked();
         result.addAll(source);
         return result;
     }

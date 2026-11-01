@@ -4,7 +4,6 @@ import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.util.List;
 
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
@@ -22,6 +21,8 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.reavaritia.utils.item.ItemStackWrapper;
+import com.reavaritia.utils.item.ToolHelper;
 import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.gui.modularui.multiblock.FurnaceArrayGui;
 import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
@@ -45,6 +46,7 @@ import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -279,28 +281,32 @@ public class FurnaceArray extends SteamMultiMachineBase<FurnaceArray> implements
         if (te.isClientSide()) return;
 
         World world = te.getWorld();
-        int x = te.getXCoord();
-        int y = te.getYCoord();
-        int z = te.getZCoord();
+        double x = te.getXCoord();
+        double y = te.getYCoord();
+        double z = te.getZCoord();
 
-        long remainingFurnace = furnaceCount - 1;
-        while (remainingFurnace > 0) {
-            int dropAmount = (int) Math.min(64, remainingFurnace);
-            ItemStack drop = FURNACE_STACK.copy();
-            drop.stackSize = dropAmount;
-            EntityItem ent = new EntityItem(world, x, y, z, drop);
-            world.spawnEntityInWorld(ent);
-            remainingFurnace -= dropAmount;
+        Object2IntOpenHashMap<ItemStackWrapper> mergedDrops = new Object2IntOpenHashMap<>();
+
+        if (furnaceCount > 1) {
+            long count = furnaceCount - 1;
+            while (count > 0) {
+                int amount = (int) Math.min(count, Integer.MAX_VALUE);
+                mergedDrops.addTo(new ItemStackWrapper(FURNACE_STACK), amount);
+                count -= amount;
+            }
         }
 
-        long remainingCoal = coalCount / 2;
-        while (remainingCoal > 0) {
-            int dropAmount = (int) Math.min(64, remainingCoal);
-            ItemStack drop = COAL_STACK.copy();
-            drop.stackSize = dropAmount;
-            EntityItem ent = new EntityItem(world, x, y, z, drop);
-            world.spawnEntityInWorld(ent);
-            remainingCoal -= dropAmount;
+        if (coalCount >= 2) {
+            long count = coalCount / 2;
+            while (count > 0) {
+                int amount = (int) Math.min(count, Integer.MAX_VALUE);
+                mergedDrops.addTo(new ItemStackWrapper(COAL_STACK), amount);
+                count -= amount;
+            }
+        }
+
+        if (!mergedDrops.isEmpty()) {
+            ToolHelper.generateMatterCluster(world, x + 0.5, y + 0.5, z + 0.5, mergedDrops);
         }
     }
 

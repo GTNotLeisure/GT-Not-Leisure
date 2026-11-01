@@ -4001,6 +4001,12 @@ gtnl.gui.recursive_patterns.tooltip.machines=§7存放在 %s 台机器中，按 
 gtnl.recursive_patterns.blocked=§c[递归样板]§r %s：计划因 %s 个合成循环无法开始，已高亮存放这些样板的机器。在合成树中悬停其他循环的合成并按 %s 可高亮它们。
 gtnl.recursive_patterns.highlighted=§b[递归样板]§r 循环 %1$s：已高亮 %3$s 台机器（%2$s）
 gtnl.quantum_crafting.message.CraftingTooLong=量子合成计算超出了本服务器允许的计算时间。请减少请求数量，或在配置中调高 calculationLimitSeconds。
+gtnl.quantum_crafting.message.CraftingMissingIngredient=量子合成计划中有原料既无法合成也无法找到。
+gtnl.quantum_crafting.message.CraftingAmountOverflow=量子合成计划所需某物品的数量超出了可计数的上限（9,223,372,036,854,775,807）。请减少请求数量。
+gtnl.quantum_crafting.message.CraftingPlanUnbalanced=量子合成计划无法平衡：样板产出不足以抵消其消耗。
+gtnl.quantum_crafting.message.CraftingReplayLimit=校验量子合成计划所需的合成轮数过多。请减少请求数量。
+gtnl.quantum_crafting.message.CraftingRecipeStalled=量子合成计划会让某个合成步骤一直等待永远不会到达的原料。
+gtnl.quantum_crafting.message.CraftingShortageResolutionLimit=量子合成计算无法确定计划缺少的物品。请减少请求数量。
 gtnl.machine.assembler_matrix.pattern_exists=网络已有类似的合成样板,已跳过上传并返还空白样板！
 
 gtnl.tooltip.craft_complete.0=§5自动合成完毕！
