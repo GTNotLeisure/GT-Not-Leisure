@@ -4,7 +4,6 @@ import static com.gtnewhorizon.structurelib.structure.StructureUtility.error;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofBlock;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.ofChain;
 import static com.gtnewhorizon.structurelib.structure.StructureUtility.onElementPass;
-import static com.gtnewhorizon.structurelib.structure.StructureUtility.transpose;
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.ExoticEnergy;
@@ -30,6 +29,7 @@ import java.util.Set;
 
 import javax.annotation.Nonnull;
 
+import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
@@ -95,10 +95,9 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":multiblock/large_bee_breeder";
     private static final int HORIZONTAL_OFFSET = 5;
-    private static final int VERTICAL_OFFSET = 9;
-    private static final int DEPTH_OFFSET = 3;
-
-    private static final String[][] SHAPE = StructureUtils.readStructureFromFile(STRUCTURE_FILE_PATH);
+    private static final int VERTICAL_OFFSET = 3;
+    private static final int DEPTH_OFFSET = 9;
+    private static final String[][] shape = StructureUtils.readStructureFromFile(STRUCTURE_FILE_PATH);
 
     private static int getParallelForVoltageTier(int voltageTier) {
         int upgrades = Math.max(0, Math.min(voltageTier, VoltageIndex.MAX) - BASE_VOLTAGE_TIER);
@@ -193,7 +192,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     public IStructureDefinition<LargeBeeBreeder> getStructureDefinition() {
         if (structureDefinition == null) {
             structureDefinition = StructureDefinition.<LargeBeeBreeder>builder()
-                .addShape(STRUCTURE_PIECE_MAIN, transpose(SHAPE))
+                .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
                 .addElement('A', chainAllGlasses(-1, (te, t) -> te.mGlassTier = t, te -> te.mGlassTier))
                 .addElement('B', ofStructureBlock(ModsItemlist.ChiselYellowHempcrete))
                 .addElement('C', ofStructureBlock(ModsItemlist.ChiselBrownHempcrete))
