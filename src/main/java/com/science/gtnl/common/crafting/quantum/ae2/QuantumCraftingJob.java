@@ -237,6 +237,11 @@ public class QuantumCraftingJob<StackType extends IAEStack<StackType>>
     }
 
     @Override
+    public boolean supportsOptimization() {
+        return true;
+    }
+
+    @Override
     public void startCrafting(MECraftingInventory storage, ICraftingCPU craftingCPUCluster, BaseActionSource src) {
         final CraftingPlan result = this.plan;
         if (result == null) {
