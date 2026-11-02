@@ -18,6 +18,8 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
+import com.gtnewhorizon.structurelib.alignment.enumerable.Flip;
+import com.gtnewhorizon.structurelib.alignment.enumerable.Rotation;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.gtnllib.utils.StructureFileCodec;
 import com.science.gtnl.ScienceNotLeisure;
@@ -64,7 +66,7 @@ public class StructureExportTask {
         this.originY = origin.getYCoord();
         this.originZ = origin.getZCoord();
         this.selection = selection;
-        this.facing = ExtendedFacing.of(selection.direction());
+        this.facing = selection.facing();
         if (selection.sizeA() < 1 || selection.sizeB() < 1
             || selection.sizeC() < 1
             || selection.sizeA() > Short.MAX_VALUE
@@ -300,15 +302,24 @@ public class StructureExportTask {
         return value == '\'' ? "\\'" : Character.toString(value);
     }
 
-    public record Selection(ForgeDirection direction, int offsetA, int offsetB, int offsetC, int sizeA, int sizeB,
-        int sizeC, boolean transpose) {
+    public record Selection(ForgeDirection direction, Rotation rotation, Flip flip, int offsetA, int offsetB,
+        int offsetC, int sizeA, int sizeB, int sizeC, boolean transpose) {
+
+        public Selection(ForgeDirection direction, int offsetA, int offsetB, int offsetC, int sizeA, int sizeB,
+            int sizeC, boolean transpose) {
+            this(direction, Rotation.NORMAL, Flip.NONE, offsetA, offsetB, offsetC, sizeA, sizeB, sizeC, transpose);
+        }
+
+        public ExtendedFacing facing() {
+            return ExtendedFacing.of(direction, rotation, flip);
+        }
 
         public long volume() {
             return (long) sizeA * sizeB * sizeC;
         }
 
         public Bounds bounds(int x, int y, int z) {
-            ExtendedFacing facing = ExtendedFacing.of(direction);
+            ExtendedFacing facing = facing();
             int[] first = new int[3];
             int[] last = new int[3];
             facing.getWorldOffset(new int[] { -offsetA, -offsetB, -offsetC }, first);

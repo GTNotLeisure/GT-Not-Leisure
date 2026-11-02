@@ -12,6 +12,11 @@ import com.cleanroommc.modularui.factory.PosGuiData;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.gtnewhorizon.structurelib.alignment.IAlignment;
+import com.gtnewhorizon.structurelib.alignment.IAlignmentLimits;
+import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
+import com.gtnewhorizon.structurelib.alignment.enumerable.Flip;
+import com.gtnewhorizon.structurelib.alignment.enumerable.Rotation;
 import com.science.gtnl.common.gui.modularui.singleblock.StructureCompilerGui;
 import com.science.gtnl.utils.structure.StructureExportTask;
 import com.science.gtnl.utils.structure.StructureExportTask.Bounds;
@@ -24,10 +29,12 @@ import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
 import gregtech.api.render.TextureFactory;
 
-public class StructureCompiler extends MTETieredMachineBlock {
+public class StructureCompiler extends MTETieredMachineBlock implements IAlignment {
 
     private final short[] numbers = { 0, 0, 0, 1, 1, 1 };
     private boolean transpose = true;
+    private Rotation rotation = Rotation.NORMAL;
+    private Flip flip = Flip.NONE;
     private boolean showHighlightBox = true;
     private String exportName = "structure";
     private String generatedCode = "";
@@ -70,6 +77,50 @@ public class StructureCompiler extends MTETieredMachineBlock {
 
     public boolean getShowHighlightBox() {
         return showHighlightBox;
+    }
+
+    @Override
+    public ExtendedFacing getExtendedFacing() {
+        return ExtendedFacing.of(getBaseMetaTileEntity().getFrontFacing(), rotation, flip);
+    }
+
+    @Override
+    public void setExtendedFacing(ExtendedFacing alignment) {
+        if (getExtendedFacing() == alignment) return;
+        IGregTechTileEntity base = getBaseMetaTileEntity();
+        rotation = alignment.getRotation();
+        flip = alignment.getFlip();
+        if (base.getFrontFacing() != alignment.getDirection()) base.setFrontFacing(alignment.getDirection());
+        invalidateSelection();
+        base.issueTextureUpdate();
+    }
+
+    @Override
+    public IAlignmentLimits getAlignmentLimits() {
+        return (direction, rotation, flip) -> direction != ForgeDirection.UNKNOWN;
+    }
+
+    @Override
+    public boolean onWrenchRightClick(ForgeDirection side, ForgeDirection wrenchingSide, EntityPlayer player, float x,
+        float y, float z, ItemStack tool) {
+        if (wrenchingSide != getBaseMetaTileEntity().getFrontFacing()) {
+            return super.onWrenchRightClick(side, wrenchingSide, player, x, y, z, tool);
+        }
+        return player.isSneaking() ? toolSetFlip(getFlip().isHorizontallyFlipped() ? Flip.NONE : Flip.HORIZONTAL)
+            : toolSetRotation(null);
+    }
+
+    @Override
+    public byte getUpdateData() {
+        return (byte) (rotation.getIndex() * Flip.VALUES.length + flip.getIndex());
+    }
+
+    @Override
+    public void onValueUpdate(byte value) {
+        rotation = Rotation.byIndex((value & 0xF) / Flip.VALUES.length);
+        flip = Flip.byIndex((value & 0xF) % Flip.VALUES.length);
+        cachedBounds = null;
+        getBaseMetaTileEntity().issueTextureUpdate();
     }
 
     public void setShowHighlightBox(boolean showHighlightBox) {
@@ -130,6 +181,8 @@ public class StructureCompiler extends MTETieredMachineBlock {
     public Selection getSelection() {
         return new Selection(
             getBaseMetaTileEntity().getFrontFacing(),
+            rotation,
+            flip,
             numbers[0],
             numbers[1],
             numbers[2],
@@ -148,6 +201,8 @@ public class StructureCompiler extends MTETieredMachineBlock {
     public void saveNBTData(NBTTagCompound nbt) {
         for (int index = 0; index < numbers.length; index++) nbt.setShort("eData" + index, numbers[index]);
         nbt.setBoolean("Transpose", transpose);
+        nbt.setInteger("Rotation", rotation.getIndex());
+        nbt.setInteger("Flip", flip.getIndex());
         nbt.setBoolean("HighlightBox", showHighlightBox);
         nbt.setString("ExportName", exportName);
     }
@@ -159,6 +214,8 @@ public class StructureCompiler extends MTETieredMachineBlock {
                 : (short) Math.max(1, nbt.getShort("eData" + index));
         }
         transpose = !nbt.hasKey("Transpose") || nbt.getBoolean("Transpose");
+        rotation = Rotation.VALUES[Math.floorMod(nbt.getInteger("Rotation"), Rotation.VALUES.length)];
+        flip = Flip.VALUES[Math.floorMod(nbt.getInteger("Flip"), Flip.VALUES.length)];
         showHighlightBox = !nbt.hasKey("HighlightBox") || nbt.getBoolean("HighlightBox");
         String savedName = nbt.getString("ExportName");
         exportName = !savedName.isEmpty() && FILE_NAME_PATTERN.matcher(savedName)
@@ -177,6 +234,7 @@ public class StructureCompiler extends MTETieredMachineBlock {
         return new ITexture[] { Textures.BlockIcons.MACHINE_CASINGS[mTier][color + 1], TextureFactory.builder()
             .addIcon(
                 side == facing ? Textures.BlockIcons.STRUCTURE_MARK : Textures.BlockIcons.OVERLAY_TELEPORTER_ACTIVE)
+            .extFacing()
             .glow()
             .build() };
     }
