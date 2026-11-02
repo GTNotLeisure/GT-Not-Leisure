@@ -1,0 +1,38 @@
+ME Mini Portable Terminal AE2 theme textures
+
+Local assets:
+  assets/sciencenotleisure/textures/gui/meminiterminal/ae2_light/states.png
+  assets/sciencenotleisure/textures/gui/meminiterminal/ae2_light/terminal.png
+  assets/sciencenotleisure/textures/gui/meminiterminal/ae2_dark/states.png
+  assets/sciencenotleisure/textures/gui/meminiterminal/ae2_dark/terminal.png
+Original assets:
+  assets/appliedenergistics2/textures/guis/states.png
+  assets/appliedenergistics2/textures/guis/terminal.png
+
+Light files
+Source project: Modernity-GTNH-UI
+Project: https://github.com/ModernityGTNH/Modernity-GTNH-UI
+Source revision: 7693280fa60aea237a58b2da46a718d017c68151
+Source assets:
+  https://github.com/ModernityGTNH/Modernity-GTNH-UI/tree/7693280fa60aea237a58b2da46a718d017c68151/assets/appliedenergistics2/textures/guis
+Upstream license: https://github.com/ModernityGTNH/Modernity-GTNH-UI/blob/7693280fa60aea237a58b2da46a718d017c68151/LICENSE.txt
+
+Dark files
+Source project: Modernity-GTNH-Dark-UI
+Project: https://github.com/ModernityGTNH/Modernity-GTNH-Dark-UI
+Source revision: 44e2e50a97443a064efe3794b2e0f1a8ebf9fcea
+Source assets:
+  https://github.com/ModernityGTNH/Modernity-GTNH-Dark-UI/tree/44e2e50a97443a064efe3794b2e0f1a8ebf9fcea/assets/appliedenergistics2/textures/guis
+Upstream license: https://github.com/ModernityGTNH/Modernity-GTNH-Dark-UI/blob/44e2e50a97443a064efe3794b2e0f1a8ebf9fcea/LICENSE.txt
+
+Credit: Modernity-GTNH-UI and Modernity-GTNH-Dark-UI contributors.
+
+The PNGs are copied unchanged; only the resource paths are adapted. No
+endorsement by the original authors is implied.
+
+These assets are licensed separately from this project's source code under the
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License
+(CC BY-NC-SA 4.0). Attribution and noncommercial use are required; adaptations
+must follow the license's ShareAlike conditions.
+License: https://creativecommons.org/licenses/by-nc-sa/4.0/
+Legal code: https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode

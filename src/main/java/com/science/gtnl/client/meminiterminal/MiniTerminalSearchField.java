@@ -2,6 +2,9 @@ package com.science.gtnl.client.meminiterminal;
 
 import java.util.function.Consumer;
 
+import org.jetbrains.annotations.Nullable;
+import org.lwjgl.opengl.GL11;
+
 import com.cleanroommc.modularui.ModularUI;
 import com.cleanroommc.modularui.api.widget.IFocusedWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
@@ -10,10 +13,14 @@ import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widget.Widget;
+import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.science.gtnl.common.gui.ScreenThemes;
 
 import appeng.client.gui.ScreenColor;
 import appeng.client.gui.widgets.MEGuiTextField;
 import appeng.core.localization.ButtonToolTips;
+import appeng.core.localization.ColorUtils;
 import appeng.integration.modules.NEI;
 import cpw.mods.fml.common.Optional;
 import me.eigenraven.lwjgl3ify.api.InputEvents;
@@ -61,10 +68,16 @@ public class MiniTerminalSearchField extends Widget<MiniTerminalSearchField>
 
     @Override
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-        ScreenColor.setGuiColor();
-        BACKGROUND.draw(0, 0, getArea().width, getArea().height);
-        ScreenColor.resetGuiColor();
-        field.drawTextBox();
+        Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
+        if (variant != null) {
+            GL11.glColor4f(1, 1, 1, 1);
+            variant.textField.draw(0, 0, getArea().width, getArea().height);
+        } else {
+            ScreenColor.setGuiColor();
+            BACKGROUND.draw(0, 0, getArea().width, getArea().height);
+            ScreenColor.resetGuiColor();
+        }
+        field.draw(variant);
         ScreenColor.resetGuiColor();
     }
 
@@ -171,6 +184,16 @@ public class MiniTerminalSearchField extends Widget<MiniTerminalSearchField>
             h = height;
             setDimensionsAndColor();
             field.setSelectionPos(field.getSelectionEnd());
+        }
+
+        void draw(@Nullable Variant variant) {
+            field.setTextColor(variant == null ? ColorUtils.searchboxText.getColor() : variant.colors.fieldText());
+            if (variant == null) {
+                drawTextBox();
+                return;
+            }
+            setDimensionsAndColor();
+            field.drawTextBox();
         }
 
         void tickCursor() {

@@ -4,7 +4,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.gtnllib.gui.theme.AE2Theme;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
-import com.science.gtnl.config.ClientConfig;
+import com.science.gtnl.config.ScreenThemeConfig;
 import com.science.gtnl.utils.enums.EquipmentScreenTheme;
 import com.science.gtnl.utils.enums.ScreenTheme;
 
@@ -17,19 +17,23 @@ public class ScreenThemes {
     private ScreenThemes() {}
 
     public static @Nullable String celestweave() {
-        return of(ClientConfig.celestweaveScreenTheme);
+        return of(ScreenThemeConfig.celestweave);
     }
 
     public static @Nullable String railgun() {
-        return of(ClientConfig.railgunScreenTheme);
+        return of(ScreenThemeConfig.railgun);
     }
 
     public static @Nullable String portalGun() {
-        return of(ClientConfig.portalGunScreenTheme);
+        return of(ScreenThemeConfig.portalGun);
     }
 
     public static @Nullable String wirelessCard() {
-        return of(ClientConfig.wirelessCardScreenTheme);
+        return of(ScreenThemeConfig.wirelessCard);
+    }
+
+    public static @Nullable String miniTerminal() {
+        return of(ScreenThemeConfig.miniTerminal);
     }
 
     public static @Nullable String of(ScreenTheme theme) {
