@@ -22,6 +22,7 @@ import com.gtnewhorizon.gtnhlib.util.ServerThreadUtil;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.wireless.WirelessCardClientView;
 import com.science.gtnl.common.item.items.WirelessFrequencyCard;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -38,6 +39,7 @@ public class WirelessCardContainer extends ModularContainer {
     private final boolean heldOnly;
     public final WirelessCardBinding binding;
     private final long session = SESSIONS.incrementAndGet();
+    private final long returnSession;
     public long revision;
     public final WirelessCardViewBuilder view = new WirelessCardViewBuilder();
     private final WirelessCardActionHandler actions = new WirelessCardActionHandler(this);
@@ -62,6 +64,12 @@ public class WirelessCardContainer extends ModularContainer {
         cardSlot = slot == null ? -1 : slot.index();
         card = slot == null ? null : cardInventory.getStackInSlot(cardSlot);
         binding = card == null ? null : WirelessCardBinding.read(card.getTagCompound());
+        var returning = RemoteDeviceSessions.takeReturn(player);
+        returnSession = returning == null ? 0 : returning.id;
+        if (returning != null) {
+            view.detailNode = returning.cluster;
+            view.detailDevices = true;
+        }
         // NetHandlerPlayServer queries this slot after onItemRightClick returns, even for an item GUI.
         if (slot != null) addSlotToContainer(new Slot(cardInventory, cardSlot, -10000, -10000) {
 
@@ -111,12 +119,13 @@ public class WirelessCardContainer extends ModularContainer {
 
     void update(boolean force) {
         if (!(player instanceof EntityPlayerMP)) return;
-        var next = view.build(binding, card);
+        var next = view.build(player, binding, card);
         boolean changed = force || !next.sameView(snapshot);
         snapshot = next;
         if (changed) revision++;
         if (changed || pendingHighlight != null) {
             NBTTagCompound data = next.packet(session, revision, pendingHighlight);
+            if (returnSession != 0) data.setLong("returnSession", returnSession);
             pendingHighlight = null;
             sendSnapshot(data);
         }

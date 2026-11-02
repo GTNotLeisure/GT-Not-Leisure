@@ -21,7 +21,8 @@ public enum Mixins implements IMixins {
     GREGTECH_EARLY(Side.COMMON, "gregtech.AccessorMTETieredMachineBlock", "gregtech.AccessorEyeOfHarmonyRecipe",
         "gregtech.AccessorGTRecipe", "gregtech.AccessorGTRecipeBuilder", "gregtech.AccessorGTRecipeWithAlt",
         "gregtech.MixinGTRecipe", "gregtech.AccessorGTLanguageManager", "gregtech.AccessorMTEHatch",
-        "gregtech.AccessorProcessingLogic", "gregtech.AccessorRecipeDisplayInfo", "gregtech.MixinBaseMetaTileEntity",
+        "gregtech.AccessorProcessingLogic", "gregtech.AccessorRecipeDisplayInfo",
+        "gregtech.AccessorCommonMetaTileEntity", "gregtech.MixinBaseMetaTileEntity",
         "gregtech.MixinCommonMetaTileEntity", "gregtech.MixinMetaTileEntity", "gregtech.assLineRemover.MixinGTMod",
         "gregtech.assLineRemover.MixinGTRecipeBuilder", "gregtech.assLineRemover.MixinTTRecipeAdder",
         "energyMonitor.MixinBaseMetaTileEntityEnergyMonitor", "energyMonitor.MixinCommonMetaTileEntityEnergyMonitor"),
@@ -43,7 +44,8 @@ public enum Mixins implements IMixins {
         "minecraft.MixinInventoryCrafting", "minecraft.MixinItemStack", "minecraft.MixinMinecraftServer",
         "minecraft.MixinNBTTagList", "minecraft.MixinPotionEffect", "minecraft.MixinServerConfigurationManager",
         "minecraft.MixinWorld", "minecraft.MixinWorldGhostlyShape", "minecraft.MixinWorldServer",
-        "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName"),
+        "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName",
+        "minecraft.MixinNetworkManagerRemoteDevice"),
 
     APRIL_FOOL(new MixinBuilder("April Fool Late Mixins")
         .addSidedMixins(Side.CLIENT, "aprilFool.MixinBaseMetaTileEntityRenderer", "aprilFool.MixinCommonMetaTileEntity")
@@ -59,7 +61,7 @@ public enum Mixins implements IMixins {
         "minecraft.MixinMinecraft", "minecraft.MixinModelBiped", "minecraft.MixinMinecraftRailgunClick",
         "minecraft.MixinRenderPlayerFirstPersonArm", "minecraft.MixinWorldClient", "minecraft.MixinItemRendererRailgun",
         // "minecraft.MixinSimpleReloadableResourceManager",
-        "minecraft.MixinGuiContainer", "minecraft.MixinGuiFlatPresets"),
+        "minecraft.MixinGuiContainer", "minecraft.MixinGuiFlatPresets", "minecraft.AccessorGuiContainer"),
 
     NEI_CHEAT_ICON(new MixinBuilder("Mixins for NEI Special Cheat Icon")
         .addCommonMixins(
@@ -403,7 +405,15 @@ public enum Mixins implements IMixins {
         new MixinBuilder("InfinityElytra EtFuturum Mixin").addCommonMixins("etFuturum.MixinStartElytraFlyingHandler")
             .addClientMixins("etFuturum.MixinLayerBetterElytra")
             .setPhase(Phase.LATE)
-            .addRequiredMod(ModList.EtFuturumRequiem)),;
+            .addRequiredMod(ModList.EtFuturumRequiem)),
+
+    WIRELESS_REMOTE_DEVICE(new MixinBuilder("Wireless card keeps remotely opened device screens in their session")
+        .addCommonMixins(
+            "appliedEnergistics.MixinPlatformRemoteDevice",
+            "aeFluidCraft.MixinInventoryHandlerRemoteDevice")
+        .addClientMixins("aeFluidCraft.AccessorTileGuiFactory")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.AppliedEnergistics)),;
 
     private final MixinBuilder builder;
 

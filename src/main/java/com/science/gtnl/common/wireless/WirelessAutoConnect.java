@@ -122,7 +122,10 @@ public class WirelessAutoConnect {
 
     public static void openGui(EntityPlayer player) {
         ItemStack card = shortcutCard(player, false, 0);
-        if (card == null) return;
+        if (card != null) openGui(player, card);
+    }
+
+    public static void openGui(EntityPlayer player, ItemStack card) {
         int location = WirelessCardInventory.location(player, card);
         if (location == Integer.MIN_VALUE) return;
         var factory = GuiFactories.playerInventory();

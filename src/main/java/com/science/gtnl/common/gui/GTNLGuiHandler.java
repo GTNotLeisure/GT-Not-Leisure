@@ -42,6 +42,7 @@ import com.science.gtnl.common.part.PartUniversalExportBus;
 import com.science.gtnl.common.part.PartUniversalImportBus;
 import com.science.gtnl.common.part.PartUniversalStorageBus;
 import com.science.gtnl.common.part.universal.UniversalBusPrimaryGui;
+import com.science.gtnl.common.wireless.remote.GTNLRemoteDeviceGui;
 import com.science.gtnl.loader.ItemLoader;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.GuiType;
@@ -60,8 +61,8 @@ public class GTNLGuiHandler {
 
     public static Object serverElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
         ForgeDirection side = ForgeDirection.getOrientation(ID & 7);
-        int guiID = ID >> 3;
-        return switch (GuiType.getGuiType(guiID)) {
+        GuiType type = GuiType.getGuiType(ID >> 3);
+        return switch (type) {
             case DetravScannerGUI -> null;
             case PortableBasicWorkBenchGUI -> new ContainerPortableBasicWorkbench(player, world, player.getHeldItem());
             case PortableAdvancedWorkBenchGUI -> new ContainerPortableAdvancedWorkbench(
@@ -125,29 +126,32 @@ public class GTNLGuiHandler {
             case PortableCellWorkbenchOreFilterGUI -> createPortableCellWorkbenchOreFilter(player, x);
             case PortableCellWorkbenchRestrictionGUI -> createPortableCellWorkbenchRestriction(player, x);
             case CelestweaveBackpackGUI -> CelestweaveBackpack.serverContainer(player);
+            default -> tileElement(type, side, player, world.getTileEntity(x, y, z));
+        };
+    }
+
+    public static Object tileElement(GuiType type, ForgeDirection side, EntityPlayer player, TileEntity t) {
+        return switch (type) {
             case DirePatternEncoderGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntityDirePatternEncoder d) {
                     yield new ContainerDirePatternEncoder(player.inventory, d);
                 }
                 yield null;
             }
             case MEChiselGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntityMEChisel d) {
                     yield new ContainerMEChisel(player.inventory, d);
                 }
                 yield null;
             }
             case SuperInterfaceGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperInterface si) {
                     var container = new ContainerSuperInterface(player.inventory, si);
                     ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
@@ -157,10 +161,10 @@ public class GTNLGuiHandler {
                     if (part instanceof PartSuperInterface si) {
                         var container = new ContainerSuperInterface(player.inventory, si);
                         ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(world);
-                        ctx.setX(x);
-                        ctx.setY(y);
-                        ctx.setZ(z);
+                        ctx.setWorld(t.getWorldObj());
+                        ctx.setX(t.xCoord);
+                        ctx.setY(t.yCoord);
+                        ctx.setZ(t.zCoord);
                         ctx.setSide(side);
                         container.setOpenContext(ctx);
                         yield container;
@@ -169,14 +173,13 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case SuperDualInterfaceGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperDualInterface si) {
                     var container = new ContainerSuperInterface(player.inventory, si);
                     ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
@@ -186,10 +189,10 @@ public class GTNLGuiHandler {
                     if (part instanceof PartSuperDualInterface si) {
                         var container = new ContainerSuperInterface(player.inventory, si);
                         ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(world);
-                        ctx.setX(x);
-                        ctx.setY(y);
-                        ctx.setZ(z);
+                        ctx.setWorld(t.getWorldObj());
+                        ctx.setX(t.xCoord);
+                        ctx.setY(t.yCoord);
+                        ctx.setZ(t.zCoord);
                         ctx.setSide(side);
                         container.setOpenContext(ctx);
                         yield container;
@@ -198,14 +201,13 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case SuperDualInterfaceFluidGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperDualInterface si) {
                     var container = new ContainerSuperDualInterfaceFluid(player.inventory, si);
                     ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
@@ -214,10 +216,10 @@ public class GTNLGuiHandler {
                     if (part instanceof PartSuperDualInterface si) {
                         var container = new ContainerSuperDualInterfaceFluid(player.inventory, si);
                         ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(world);
-                        ctx.setX(x);
-                        ctx.setY(y);
-                        ctx.setZ(z);
+                        ctx.setWorld(t.getWorldObj());
+                        ctx.setX(t.xCoord);
+                        ctx.setY(t.yCoord);
+                        ctx.setZ(t.zCoord);
                         ctx.setSide(side);
                         container.setOpenContext(ctx);
                         yield container;
@@ -226,16 +228,15 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case ActiveFormationPlaneGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartActiveFormationPlane si) {
                         var container = new ContainerActiveFormationPlane(player.inventory, si);
                         ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(world);
-                        ctx.setX(x);
-                        ctx.setY(y);
-                        ctx.setZ(z);
+                        ctx.setWorld(t.getWorldObj());
+                        ctx.setX(t.xCoord);
+                        ctx.setY(t.yCoord);
+                        ctx.setZ(t.zCoord);
                         ctx.setSide(side);
                         container.setOpenContext(ctx);
                         yield container;
@@ -244,14 +245,13 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case UniversalStorageBusGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartUniversalStorageBus bus) {
                     var container = new ContainerUniversalStorageBus(player.inventory, bus);
                     ContainerOpenContext ctx = new ContainerOpenContext(bus);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
@@ -259,15 +259,14 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case UniversalBusGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartSharedItemBus<?>bus
                     && (bus instanceof PartUniversalImportBus || bus instanceof PartUniversalExportBus)) {
                     var container = new ContainerUniversalBusIO(player.inventory, bus);
                     ContainerOpenContext ctx = new ContainerOpenContext(bus);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
@@ -275,7 +274,6 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case UniversalOreFilterGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof IOreFilterable filterable
                     && host.getPart(side) instanceof PartUpgradeable part
                     && part.getInstalledUpgrades(Upgrades.ORE_FILTER) > 0) {
@@ -295,10 +293,10 @@ public class GTNLGuiHandler {
                     }
                     var container = new ContainerOreFilter(player.inventory, filterable);
                     ContainerOpenContext ctx = new ContainerOpenContext(part);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     container.setPrimaryGui(new UniversalBusPrimaryGui(returnGui, icon, t, side));
@@ -307,16 +305,15 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case MECellDockGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartMECellDock dock) {
                         var container = new ContainerMECellDock(player.inventory, dock);
                         ContainerOpenContext ctx = new ContainerOpenContext(dock);
-                        ctx.setWorld(world);
-                        ctx.setX(x);
-                        ctx.setY(y);
-                        ctx.setZ(z);
+                        ctx.setWorld(t.getWorldObj());
+                        ctx.setX(t.xCoord);
+                        ctx.setY(t.yCoord);
+                        ctx.setZ(t.zCoord);
                         ctx.setSide(side);
                         container.setOpenContext(ctx);
                         yield container;
@@ -325,7 +322,6 @@ public class GTNLGuiHandler {
                 yield null;
             }
             case CustomPriorityGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 IPriorityHost priorityHost = null;
                 if (t instanceof TileEntitySuperInterface si) {
                     priorityHost = si;
@@ -348,16 +344,17 @@ public class GTNLGuiHandler {
                 if (priorityHost != null) {
                     var container = new ContainerCustomPriority(player.inventory, priorityHost);
                     ContainerOpenContext ctx = new ContainerOpenContext(priorityHost);
-                    ctx.setWorld(world);
-                    ctx.setX(x);
-                    ctx.setY(y);
-                    ctx.setZ(z);
+                    ctx.setWorld(t.getWorldObj());
+                    ctx.setX(t.xCoord);
+                    ctx.setY(t.yCoord);
+                    ctx.setZ(t.zCoord);
                     ctx.setSide(side);
                     container.setOpenContext(ctx);
                     yield container;
                 }
                 yield null;
             }
+            default -> null;
         };
     }
 
@@ -370,6 +367,7 @@ public class GTNLGuiHandler {
         int z) {
         if (player == null || world == null) return;
         if (side == null) side = ForgeDirection.UNKNOWN;
+        if (GTNLRemoteDeviceGui.openInSession(player, type, side, world, x, y, z)) return;
 
         int fullID = (type.getID() << 3) | (side.ordinal() & 7);
 

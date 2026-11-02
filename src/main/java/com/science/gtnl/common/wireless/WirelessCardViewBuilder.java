@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -21,6 +22,8 @@ import com.science.gtnl.common.me.InterfaceNameLocalization;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 import com.science.gtnl.common.wireless.WirelessMachineGroups.Row;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
@@ -46,7 +49,7 @@ public class WirelessCardViewBuilder {
         return nameRevision;
     }
 
-    WirelessCardSnapshot build(WirelessCardBinding binding, ItemStack card) {
+    WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card) {
         var interfaces = new WirelessInterfaceView();
         List<IWirelessLinkView> all = binding == null ? List.of()
             : new ObjectArrayList<>(WirelessClusterManager.links(binding.frequency()));
@@ -115,7 +118,7 @@ public class WirelessCardViewBuilder {
         for (Row row : rows) entries.appendTag(writeRow(row, interfaces, dimensions, nextIds, targets, focus != null));
         Object2LongOpenHashMap<IGridNode> nextDeviceIds = new Object2LongOpenHashMap<>();
         Long2ObjectLinkedOpenHashMap<Device> deviceTargets = new Long2ObjectLinkedOpenHashMap<>();
-        if (devices) for (Listed device : devices(focus))
+        if (devices) for (Listed device : devices(player, binding.frequency(), focus))
             entries.appendTag(writeDevice(focus, device, dimensions, nextDeviceIds, deviceTargets));
         targetIds = nextIds;
         deviceIds = nextDeviceIds;
@@ -134,16 +137,18 @@ public class WirelessCardViewBuilder {
         return id;
     }
 
-    private static List<Listed> devices(IWirelessLinkView link) {
+    private static List<Listed> devices(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
         boolean channels = WirelessChannelManager.channelsEnabled();
         List<Listed> devices = new ObjectArrayList<>();
         for (IGridNode node : link.members()) {
-            if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL)) continue;
+            var remote = RemoteDeviceSessions.probe(player, frequency, node);
+            if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !remote.hasScreen()) continue;
             Address address = WirelessClusterManager.deviceAddress(node);
             if (address == null) continue;
-            String state = channels && !node.meetsChannelRequirements() ? "missing"
+            String state = channels && node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !node.meetsChannelRequirements()
+                ? "missing"
                 : node.isActive() ? "online" : "offline";
-            devices.add(new Listed(node, address, state));
+            devices.add(new Listed(node, address, state, remote.state()));
         }
         devices.sort(
             Comparator.comparingInt((Listed device) -> DEVICE_STATES.indexOf(device.state()))
@@ -171,6 +176,10 @@ public class WirelessCardViewBuilder {
             link.deviceNames()
                 .getOrDefault(node, ""));
         entry.setString("deviceState", device.state());
+        entry.setString(
+            "remote",
+            device.remote()
+                .key());
         writeIcon(
             entry,
             "icon",
@@ -273,7 +282,7 @@ public class WirelessCardViewBuilder {
 
     private record Target(IGridNode node, Set<IGridNode> members, boolean entrance) {}
 
-    private record Listed(IGridNode node, Address address, String state) {}
+    private record Listed(IGridNode node, Address address, String state, RemoteDeviceState remote) {}
 
     private record RenameState(Set<IGridNode> members, Map<IGridNode, String> names) {}
 }

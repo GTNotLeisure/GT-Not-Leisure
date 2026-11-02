@@ -8,6 +8,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALI
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
@@ -93,8 +94,20 @@ public class WirelessCardGui extends ModularPanel {
         PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000, AE2_HIGHLIGHT_TOP = 0xFFDAFFFF;
     private static final int TREE_X = 15, INDENT = 12, ARROW_X = 8, CHILD_ARROW_X = 20, ICON_X = 24, CHILD_ICON_X = 28,
         ICON_SPACE = 18, ARROW_SIZE = 16, ARROW_INSET = 3, ARROW_DOWN = 49, ARROW_RIGHT = 50, DEVICE_TEXT_END = 92;
-    private static final Set<String> FAILURES = Set
-        .of("denied", "stale", "teleport_unavailable", "teleport_no_space", "teleport_failed", "highlight_dimension");
+    private static final Set<String> FAILURES = Set.of(
+        "denied",
+        "stale",
+        "teleport_unavailable",
+        "teleport_no_space",
+        "teleport_failed",
+        "highlight_dimension",
+        "remote.no_gui",
+        "remote.unsupported",
+        "remote.unloaded",
+        "remote.stale",
+        "remote.denied",
+        "remote.card",
+        "remote.failed");
     public final Minecraft mc = Minecraft.getMinecraft();
     public final FontRenderer fontRendererObj = mc.fontRenderer;
     public final WirelessCardContainer container;
@@ -122,7 +135,7 @@ public class WirelessCardGui extends ModularPanel {
     public WirelessCardGui(WirelessCardContainer container) {
         super(NAME);
         this.container = container;
-        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, COPY_POSITION, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES);
+        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, COPY_POSITION, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE);
         for (int id : new int[] { PREVIOUS_PAGE, NEXT_PAGE, REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING })
             addButton(id);
         search = textField(64).hintText(tr("search_placeholder"));
@@ -224,6 +237,7 @@ public class WirelessCardGui extends ModularPanel {
             return;
         }
         if (clientView().navigate(id)) return;
+        if (type(id) == OPEN_DEVICE) RemoteDeviceClient.rememberCard(clientView().save(searchText));
         long target = isRowAction(id) ? row(rowIndex(id)).getLong("targetId") : 0;
         container.sync.request(type(id), target, "", 0);
     }
@@ -509,6 +523,8 @@ public class WirelessCardGui extends ModularPanel {
                         .size(16, 16);
                     case OPEN_ENTRANCES -> button.pos(xSize - 106, y + 4)
                         .size(16, 16);
+                    case OPEN_DEVICE -> button.pos(xSize - 28, y + 4)
+                        .size(16, 16);
                 }
             } else switch (id) {
                 case TOGGLE_AUTO -> button.pos(xSize - 10 - autoWidth(), 12)
@@ -573,6 +589,13 @@ public class WirelessCardGui extends ModularPanel {
 
     @Override
     public void onUpdate() {
+        var returning = RemoteDeviceClient.takeCardState(container.display.getLong("returnSession"));
+        if (returning != null) {
+            searchText = returning.search();
+            clientView().restore(returning);
+            clientView().resize(visibleRows);
+            clientView().rebuild();
+        }
         super.onUpdate();
         if (closingDetail && !container.display.getBoolean("detail")) closingDetail = false;
         NBTTagCompound data = view();

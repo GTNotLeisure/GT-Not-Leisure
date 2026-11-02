@@ -19,6 +19,7 @@ public class WirelessCardActions {
     public static final int TOGGLE_GROUPING = 61;
     public static final int SET_VISUALISATION = 62;
     public static final int OPEN_ENTRANCES = 70;
+    public static final int OPEN_DEVICE = 80;
     private static final int ROW_STRIDE = 10;
 
     public static int type(int id) {
@@ -31,6 +32,6 @@ public class WirelessCardActions {
 
     public static boolean isRowAction(int id) {
         return id >= TOGGLE_PAUSE && id < TELEPORT + ROW_STRIDE
-            || id >= OPEN_ENTRANCES && id < OPEN_ENTRANCES + ROW_STRIDE;
+            || id >= OPEN_ENTRANCES && id < OPEN_DEVICE + ROW_STRIDE;
     }
 }

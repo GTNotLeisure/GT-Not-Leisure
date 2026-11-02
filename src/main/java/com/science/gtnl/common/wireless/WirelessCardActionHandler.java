@@ -4,6 +4,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.CLOSE_DETAILS
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
@@ -26,6 +27,8 @@ import net.minecraft.util.ChatComponentTranslation;
 
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 public class WirelessCardActionHandler {
 
@@ -49,6 +52,7 @@ public class WirelessCardActionHandler {
         }
         if (isRowAction(action) && action != OPEN_DETAILS
             && action != OPEN_ENTRANCES
+            && action != OPEN_DEVICE
             && action != TOGGLE_PAUSE
             && action != TELEPORT
             && action != HIGHLIGHT) return;
@@ -59,6 +63,12 @@ public class WirelessCardActionHandler {
             return;
         }
         var device = session.view.detailDevices && session.snapshot != null ? session.snapshot.device(targetId) : null;
+        if (action == OPEN_DEVICE) {
+            if (device == null || binding == null || !(player instanceof EntityPlayerMP serverPlayer)) message("stale");
+            else if (openDevice(serverPlayer, card, binding, device)) return;
+            session.update(true);
+            return;
+        }
         if (device != null && (action == TELEPORT || action == HIGHLIGHT)) {
             if (binding == null) message("stale");
             else if (action == TELEPORT ? teleportDevice(device, binding) : highlightDevice(device, binding)) return;
@@ -153,6 +163,21 @@ public class WirelessCardActionHandler {
             }
         } else if (action != REFRESH) return;
         session.update(true);
+    }
+
+    private boolean openDevice(EntityPlayerMP player, ItemStack card, WirelessCardBinding binding, Device device) {
+        // The session follows the card by identity while it moves through the device screen's inventory.
+        if (WirelessCardBinding.identify(card)) WirelessCardInventory.sync(player, card);
+        var state = RemoteDeviceSessions.open(
+            player,
+            new WirelessCardInventory.TrackedCard(card, binding),
+            binding,
+            device.link()
+                .node(),
+            device.node());
+        if (state == RemoteDeviceState.OPEN) return true;
+        message("remote." + state.key());
+        return false;
     }
 
     private boolean teleportDevice(Device device, WirelessCardBinding binding) {

@@ -6,6 +6,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.COPY_POSITION
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
@@ -36,6 +37,7 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -90,6 +92,7 @@ public class WirelessCardButton {
                 case HIGHLIGHT -> styleIcon(Icon.VISIBLE);
                 case COPY_POSITION -> styleIcon(Icon.COPY);
                 case OPEN_ENTRANCES -> styleIcon(Icon.MORE);
+                case OPEN_DEVICE -> styleIcon(Icon.GEAR);
                 default -> styleButton();
             }
         }
@@ -178,6 +181,15 @@ public class WirelessCardButton {
                 tooltip.addLine(tr("entrances_tip"));
                 tooltip.addLine(gray + row.getString("positionLabel"));
             }
+            case OPEN_DEVICE -> {
+                String remote = row.getString("remote");
+                tooltip.addLine(tr("remote.open_tip"));
+                tooltip.addLine(
+                    remote.equals("open") ? gray + tr("remote.open_hint")
+                        : EnumChatFormatting.RED + tr(
+                            "remote." + RemoteDeviceState.byKey(remote)
+                                .key()));
+            }
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
                     tr("merge_types") + ": "
@@ -213,6 +225,11 @@ public class WirelessCardButton {
                 || actionType == COPY_POSITION) visible = !row.getBoolean("group");
             if (actionType == TOGGLE_PAUSE) visible &= !row.getBoolean("device");
             if (actionType == OPEN_ENTRANCES) visible = !detail && !row.getBoolean("group");
+            if (actionType == OPEN_DEVICE) {
+                visible = row.getBoolean("device");
+                available &= row.getString("remote")
+                    .equals("open");
+            }
             if (actionType == OPEN_DETAILS) visible = !detail;
             if (actionType == HIGHLIGHT) available &= sameDimension(row);
         } else switch (id) {
