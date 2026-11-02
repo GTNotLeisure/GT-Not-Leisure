@@ -3,6 +3,8 @@ package com.science.gtnl.common.wireless.remote;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.science.gtnl.common.wireless.WirelessCardBinding;
 import com.science.gtnl.common.wireless.WirelessCardInventory.TrackedCard;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
@@ -15,18 +17,21 @@ public class RemoteDeviceSession {
     public final EntityPlayerMP player;
     public final TrackedCard card;
     public final WirelessCardBinding binding;
-    public final IGridNode cluster, node;
+    public final @Nullable IGridNode returnNode;
+    public final boolean returnDevices;
+    public final IGridNode node;
     public final Address address;
     public final RemoteDeviceHost host;
     public Container container;
 
     public RemoteDeviceSession(long id, EntityPlayerMP player, TrackedCard card, WirelessCardBinding binding,
-        IGridNode cluster, IGridNode node, Address address, RemoteDeviceHost host) {
+        @Nullable IGridNode returnNode, boolean returnDevices, IGridNode node, Address address, RemoteDeviceHost host) {
         this.id = id;
         this.player = player;
         this.card = card;
         this.binding = binding;
-        this.cluster = cluster;
+        this.returnNode = returnNode;
+        this.returnDevices = returnDevices;
         this.node = node;
         this.address = address;
         this.host = host;

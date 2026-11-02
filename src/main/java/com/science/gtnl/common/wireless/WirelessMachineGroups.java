@@ -137,6 +137,11 @@ public class WirelessMachineGroups {
                 summarize(links));
         }
 
+        static Row machine(MTEMultiBlockBase machine, List<IWirelessLinkView> links) {
+            Row group = new Row(machine, links);
+            return links.size() == 1 ? cluster(links.get(0), group.type()) : group;
+        }
+
         static Row cluster(IWirelessLinkView link) {
             return cluster(link, null);
         }
@@ -217,7 +222,7 @@ public class WirelessMachineGroups {
             else machines.computeIfAbsent(classification.machine(), ignored -> new ObjectArrayList<>())
                 .add(link);
         }
-        machines.forEach((machine, members) -> rows.add(new Row(machine, members)));
+        machines.forEach((machine, members) -> rows.add(Row.machine(machine, members)));
         return rows;
     }
 

@@ -12,7 +12,6 @@ public class WirelessCardActions {
 
     public static final int TOGGLE_PAUSE = 10;
     public static final int OPEN_DETAILS = 20;
-    public static final int COPY_POSITION = 30;
     public static final int HIGHLIGHT = 40;
     public static final int TELEPORT = 50;
     public static final int CLOSE_DETAILS = 60;

@@ -64,9 +64,7 @@ public class WirelessCardActionHandler {
         }
         var device = session.view.detailDevices && session.snapshot != null ? session.snapshot.device(targetId) : null;
         if (action == OPEN_DEVICE) {
-            if (device == null || binding == null || !(player instanceof EntityPlayerMP serverPlayer)) message("stale");
-            else if (openDevice(serverPlayer, card, binding, device)) return;
-            session.update(true);
+            if (!openDevice(player, card, binding, device, targetId)) session.update(true);
             return;
         }
         if (device != null && (action == TELEPORT || action == HIGHLIGHT)) {
@@ -165,16 +163,25 @@ public class WirelessCardActionHandler {
         session.update(true);
     }
 
-    private boolean openDevice(EntityPlayerMP player, ItemStack card, WirelessCardBinding binding, Device device) {
+    private boolean openDevice(EntityPlayer player, ItemStack card, WirelessCardBinding binding, Device device,
+        long targetId) {
+        boolean devicePage = session.view.detailNode != null && session.view.detailDevices;
+        var row = devicePage || session.snapshot == null ? null : session.snapshot.target(targetId);
+        if (binding == null || device == null && row == null || !(player instanceof EntityPlayerMP serverPlayer)) {
+            message("stale");
+            return false;
+        }
+        var node = device != null ? device.node()
+            : WirelessCardViewBuilder.remoteTarget(player, binding.frequency(), row);
         // The session follows the card by identity while it moves through the device screen's inventory.
-        if (WirelessCardBinding.identify(card)) WirelessCardInventory.sync(player, card);
+        if (WirelessCardBinding.identify(card)) WirelessCardInventory.sync(serverPlayer, card);
         var state = RemoteDeviceSessions.open(
-            player,
+            serverPlayer,
             new WirelessCardInventory.TrackedCard(card, binding),
             binding,
-            device.link()
-                .node(),
-            device.node());
+            session.view.detailNode,
+            session.view.detailDevices,
+            node);
         if (state == RemoteDeviceState.OPEN) return true;
         message("remote." + state.key());
         return false;

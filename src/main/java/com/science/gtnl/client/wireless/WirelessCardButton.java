@@ -2,7 +2,6 @@ package com.science.gtnl.client.wireless;
 
 import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
 import static com.science.gtnl.common.wireless.WirelessCardActions.BACK;
-import static com.science.gtnl.common.wireless.WirelessCardActions.COPY_POSITION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
@@ -90,7 +89,6 @@ public class WirelessCardButton {
                     .hoverBackground(IDrawable.EMPTY);
                 case TELEPORT -> styleIcon(Icon.MOVE_TO);
                 case HIGHLIGHT -> styleIcon(Icon.VISIBLE);
-                case COPY_POSITION -> styleIcon(Icon.COPY);
                 case OPEN_ENTRANCES -> styleIcon(Icon.MORE);
                 case OPEN_DEVICE -> styleIcon(Icon.GEAR);
                 default -> styleButton();
@@ -156,7 +154,8 @@ public class WirelessCardButton {
                         ? tr(
                             "row_expand_hint",
                             row.getBoolean("category") ? row.getInteger("items") : row.getInteger("clusters"))
-                        : tr("row_open_hint")));
+                        : tr(row.getBoolean("singleDevice") ? "row_open_device_hint" : "row_open_hint")));
+                if (!row.getBoolean("group") && row.getBoolean("singleDevice")) remoteState(tooltip, row);
             }
             case TELEPORT -> {
                 tooltip.addLine(tr("teleport_tip"));
@@ -165,16 +164,13 @@ public class WirelessCardButton {
             case HIGHLIGHT -> {
                 tooltip.addLine(tr("highlight_tip"));
                 tooltip.addLine(
+                    gray + row.getString("position")
+                        + (row.getString("side")
+                            .isEmpty() ? "" : " / " + row.getString("side")));
+                tooltip.addLine(
                     sameDimension(row) ? gray + tr("highlight_range")
                         : EnumChatFormatting.RED
                             + tr("highlight_other_dimension", panel.dimensionName(row.getInteger("dimension"))));
-            }
-            case COPY_POSITION -> {
-                tooltip.addLine(tr("copy_tip"));
-                tooltip.addLine(
-                    gray + row.getString("position")
-                        + (row.getBoolean("group") || row.getString("side")
-                            .isEmpty() ? "" : " / " + row.getString("side")));
             }
             case TOGGLE_PAUSE -> tooltip.addLine(tr(row.getBoolean("paused") ? "resume_tip" : "pause_tip"));
             case OPEN_ENTRANCES -> {
@@ -182,13 +178,8 @@ public class WirelessCardButton {
                 tooltip.addLine(gray + row.getString("positionLabel"));
             }
             case OPEN_DEVICE -> {
-                String remote = row.getString("remote");
                 tooltip.addLine(tr("remote.open_tip"));
-                tooltip.addLine(
-                    remote.equals("open") ? gray + tr("remote.open_hint")
-                        : EnumChatFormatting.RED + tr(
-                            "remote." + RemoteDeviceState.byKey(remote)
-                                .key()));
+                remoteState(tooltip, row);
             }
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
@@ -204,6 +195,14 @@ public class WirelessCardButton {
             case BACK -> tooltip.addLine(tr("back_hint"));
             default -> {}
         }
+    }
+
+    private static void remoteState(RichTooltip tooltip, NBTTagCompound row) {
+        String remote = row.getString("remote");
+        if (!remote.equals("open")) tooltip.addLine(
+            EnumChatFormatting.RED + tr(
+                "remote." + RemoteDeviceState.byKey(remote)
+                    .key()));
     }
 
     void update(NBTTagCompound data, boolean ready, int visibleRows) {
@@ -222,16 +221,13 @@ public class WirelessCardButton {
             if (actionType == TOGGLE_PAUSE) on = !row.getBoolean("paused");
             if (actionType == TOGGLE_PAUSE || actionType == HIGHLIGHT
                 || actionType == TELEPORT
-                || actionType == COPY_POSITION) visible = !row.getBoolean("group");
+                || actionType == OPEN_DEVICE) visible = !row.getBoolean("group");
             if (actionType == TOGGLE_PAUSE) visible &= !row.getBoolean("device");
-            if (actionType == OPEN_ENTRANCES) visible = !detail && !row.getBoolean("group");
-            if (actionType == OPEN_DEVICE) {
-                visible = row.getBoolean("device");
-                available &= row.getString("remote")
-                    .equals("open");
-            }
+            if (actionType == OPEN_ENTRANCES)
+                visible = !detail && !row.getBoolean("group") && row.getInteger("entrances") > 1;
+            if (actionType == OPEN_DEVICE) available &= row.getString("remote")
+                .equals("open");
             if (actionType == OPEN_DETAILS) visible = !detail;
-            if (actionType == HIGHLIGHT) available &= sameDimension(row);
         } else switch (id) {
             case TOGGLE_AUTO -> on = data.getBoolean("auto");
             case BACK -> visible = detail;
