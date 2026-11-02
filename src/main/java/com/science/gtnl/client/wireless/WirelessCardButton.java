@@ -17,56 +17,34 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.isRowAction;
 import static com.science.gtnl.common.wireless.WirelessCardActions.rowIndex;
 import static com.science.gtnl.common.wireless.WirelessCardActions.type;
 
-import java.util.function.BooleanSupplier;
-
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.NotNull;
-import org.lwjgl.opengl.GL11;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
-import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.layout.IViewportStack;
-import com.cleanroommc.modularui.drawable.GuiDraw;
-import com.cleanroommc.modularui.drawable.GuiTextures;
-import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.RichTooltip;
-import com.cleanroommc.modularui.screen.viewport.GuiContext;
-import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.value.BoolValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
-import com.science.gtnl.utils.ColorUtils;
+import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.AE2Theme.Icon;
 
-import appeng.client.gui.ScreenColor;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
 public class WirelessCardButton {
 
-    public static final UITexture[] BUTTON_TEXTURES = { buttonTexture(0), buttonTexture(1), buttonTexture(2) };
-    private static final UITexture TOGGLE_BACKGROUND = toggleTexture(255), TOGGLE_ON = toggleTexture(129),
-        TOGGLE_OFF = toggleTexture(128);
-    private static final UITexture TELEPORT_ICON = itemIcon("ender_pearl"), HIGHLIGHT_ICON = itemIcon("glowstone_dust"),
-        COPY_ICON = itemIcon("paper");
-    private static final IDrawable[] TINTED_BUTTONS = { tinted(BUTTON_TEXTURES[0]), tinted(BUTTON_TEXTURES[1]),
-        tinted(BUTTON_TEXTURES[2]) };
-    private static final IDrawable TINTED_PRESSED = tinted(GuiTextures.MC_BUTTON_PRESSED),
-        TINTED_TOGGLE = tinted(TOGGLE_BACKGROUND);
-    private static final int FADED_ICON = 0xA0C6C6C6, CHECK_COLOR = 0xFF55FF55, CHECK_WELL = 0xFF373737;
     public final int id;
     public final Widget<?> widget;
     private final WirelessCardGui panel;
-    private final FontRenderer fontRendererObj = Minecraft.getMinecraft().fontRenderer;
     private boolean available, on;
     private String label = "";
 
@@ -75,7 +53,7 @@ public class WirelessCardButton {
         this.panel = panel;
         int actionType = type(id);
         if (id == TOGGLE_AUTO || actionType == TOGGLE_PAUSE) {
-            widget = new ToggleButton() {
+            ToggleButton toggle = new ToggleButton() {
 
                 @Override
                 public boolean canBeSeen(IViewportStack stack) {
@@ -87,13 +65,17 @@ public class WirelessCardButton {
                     if (button != 0) return Result.ACCEPT;
                     return available ? super.onMousePressed(button) : Result.STOP;
                 }
-            }.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
-                .background(false, TINTED_TOGGLE)
-                .background(true, TINTED_TOGGLE)
-                .hoverBackground(false, TINTED_TOGGLE)
-                .hoverBackground(true, TINTED_TOGGLE)
-                .overlay(false, TOGGLE_OFF)
-                .overlay(true, TOGGLE_ON);
+            };
+            IDrawable look = id == TOGGLE_AUTO
+                ? AE2Theme.toggleSwitch(toggle, () -> on, () -> tr(on ? "auto_on" : "auto_off"), () -> available)
+                : AE2Theme.iconButton(toggle, () -> on ? Icon.PAUSE : Icon.PLAY, () -> available);
+            widget = toggle.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
+                .background(false, IDrawable.EMPTY)
+                .background(true, IDrawable.EMPTY)
+                .hoverBackground(false, IDrawable.EMPTY)
+                .hoverBackground(true, IDrawable.EMPTY)
+                .overlay(false, look)
+                .overlay(true, look);
         } else {
             widget = new ActionButton().onMousePressed(button -> {
                 if (button != 0) return false;
@@ -103,10 +85,10 @@ public class WirelessCardButton {
             switch (actionType) {
                 case OPEN_DETAILS -> widget.background(IDrawable.EMPTY)
                     .hoverBackground(IDrawable.EMPTY);
-                case TELEPORT -> styleIcon(TELEPORT_ICON);
-                case HIGHLIGHT -> styleIcon(HIGHLIGHT_ICON);
-                case COPY_POSITION -> styleIcon(COPY_ICON);
-                default -> styleTextButton();
+                case TELEPORT -> styleIcon(Icon.MOVE_TO);
+                case HIGHLIGHT -> styleIcon(Icon.VISIBLE);
+                case COPY_POSITION -> styleIcon(Icon.COPY);
+                default -> styleButton();
             }
         }
         if (isRowAction(id) || id == TOGGLE_GROUPING || id == REFRESH || id == BACK)
@@ -128,63 +110,24 @@ public class WirelessCardButton {
         }
     }
 
-    public static IDrawable background(Widget<?> widget, BooleanSupplier available, BooleanSupplier selected) {
-        return (context, x, y, width, height, theme) -> {
-            IDrawable texture = !available.getAsBoolean() ? TINTED_BUTTONS[0]
-                : selected.getAsBoolean() ? TINTED_PRESSED : TINTED_BUTTONS[widget.isHovering() ? 2 : 1];
-            texture.draw(context, x, y, width, height, theme);
-        };
+    private void styleButton() {
+        widget.background(IDrawable.EMPTY)
+            .hoverBackground(IDrawable.EMPTY);
+        if (id == REFRESH) widget.overlay(AE2Theme.tabButton(widget, () -> Icon.REFRESH, () -> available));
+        else if (id == TOGGLE_GROUPING)
+            widget.overlay(AE2Theme.toggleSwitch(widget, () -> on, () -> label, () -> available));
+        else {
+            IDrawable background = AE2Theme.button(widget, () -> available, () -> false);
+            widget.background(background)
+                .hoverBackground(background)
+                .overlay(AE2Theme.label(widget, () -> label, () -> available, () -> false));
+        }
     }
 
-    public static int labelColor(boolean hovered, boolean available) {
-        return !available ? ColorUtils.guiButtonDisabled.getColor()
-            : hovered ? ColorUtils.guiButtonHover.getColor() : ColorUtils.guiButtonNormal.getColor();
-    }
-
-    private void styleTextButton() {
-        IDrawable background = background(widget, () -> available, () -> false);
-        widget.background(background)
-            .hoverBackground(background);
-        if (id == REFRESH) widget.overlay(
-            (context, x, y, width, height, theme) -> GuiTextures.REFRESH
-                .draw(context, x + (width - 16) / 2, y + (height - 16) / 2, 16, 16, theme));
-        else if (id == TOGGLE_GROUPING) widget.overlay(this::drawCheckBox);
-        else widget.overlay(
-            IKey.dynamic(() -> fontRendererObj.trimStringToWidth(label, Math.max(0, widget.getArea().width - 4)))
-                .color(() -> labelColor(widget.isHovering(), available))
-                .shadow(true));
-    }
-
-    private void drawCheckBox(GuiContext context, int x, int y, int width, int height, WidgetTheme theme) {
-        int color = labelColor(widget.isHovering(), available), boxY = y + (height - 8) / 2;
-        GuiDraw.drawRect(x + 4, boxY, 8, 8, 0xFF000000 | color);
-        GuiDraw.drawRect(x + 5, boxY + 1, 6, 6, CHECK_WELL);
-        if (on) GuiDraw.drawRect(x + 6, boxY + 2, 4, 4, CHECK_COLOR);
-        panel.shadowText(fontRendererObj.trimStringToWidth(label, Math.max(0, width - 19)), x + 15, boxY, color);
-    }
-
-    private void styleIcon(UITexture icon) {
+    private void styleIcon(Icon icon) {
         widget.background(IDrawable.EMPTY)
             .hoverBackground(IDrawable.EMPTY)
-            .overlay((context, x, y, width, height, theme) -> {
-                if (available && widget.isHovering()) TINTED_TOGGLE.draw(context, x, y, width, height, theme);
-                icon.draw(x, y, width, height);
-                if (!available) GuiDraw.drawRect(x, y, width, height, FADED_ICON);
-            });
-    }
-
-    private static IDrawable tinted(UITexture texture) {
-        return (context, x, y, width, height, theme) -> {
-            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
-            try {
-                GL11.glDisable(GL11.GL_LIGHTING);
-                GL11.glDisable(GL11.GL_DEPTH_TEST);
-                ScreenColor.setGuiColor();
-                texture.draw(x, y, width, height);
-            } finally {
-                GL11.glPopAttrib();
-            }
-        };
+            .overlay(AE2Theme.iconButton(widget, () -> icon, () -> available));
     }
 
     private static boolean sameDimension(NBTTagCompound row) {
@@ -286,26 +229,5 @@ public class WirelessCardButton {
             case TOGGLE_GROUPING -> tr("merge_types");
             default -> "";
         };
-    }
-
-    private static UITexture buttonTexture(int state) {
-        return UITexture.builder()
-            .location(new ResourceLocation("minecraft", "textures/gui/widgets.png"))
-            .imageSize(256, 256)
-            .subAreaXYWH(0, 46 + state * 20, 200, 20)
-            .adaptable(2)
-            .build();
-    }
-
-    private static UITexture toggleTexture(int icon) {
-        return UITexture.builder()
-            .location(new ResourceLocation("appliedenergistics2", "textures/guis/states.png"))
-            .imageSize(256, 256)
-            .subAreaXYWH(icon % 16 * 16, icon / 16 * 16, 16, 16)
-            .build();
-    }
-
-    private static UITexture itemIcon(String item) {
-        return new UITexture(new ResourceLocation("minecraft", "items/" + item), 0, 0, 1, 1, null, true);
     }
 }

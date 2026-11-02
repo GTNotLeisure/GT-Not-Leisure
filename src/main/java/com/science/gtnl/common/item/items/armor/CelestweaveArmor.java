@@ -34,9 +34,9 @@ import com.science.gtnl.common.celestweave.CelestweaveModule;
 import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.equipment.IEquipmentElectricItem;
 import com.science.gtnl.common.equipment.IEquipmentItem;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.CelestweaveGui;
 import com.science.gtnl.common.gui.equipment.EquipmentContainer;
-import com.science.gtnl.common.gui.equipment.EquipmentTheme;
 import com.science.gtnl.common.item.GTNLCreativeTabs;
 import com.science.gtnl.compat.holoinventory.HoloGlasses;
 import com.science.gtnl.compat.thaumcraft.CelestweaveVis;
@@ -292,7 +292,7 @@ public class CelestweaveArmor extends ItemArmor implements IEquipmentElectricIte
     @Override
     @SideOnly(Side.CLIENT)
     public ModularScreen createScreen(PlayerInventoryGuiData data, ModularPanel panel) {
-        return new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(EquipmentTheme.selected());
+        return new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(ScreenThemes.celestweave());
     }
 
     @Override

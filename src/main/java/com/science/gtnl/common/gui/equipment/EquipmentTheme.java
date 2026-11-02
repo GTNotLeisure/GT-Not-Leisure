@@ -1,5 +1,7 @@
 package com.science.gtnl.common.gui.equipment;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.cleanroommc.modularui.api.IThemeApi;
 import com.cleanroommc.modularui.theme.ThemeBuilder;
 import com.cleanroommc.modularui.theme.WidgetTheme;
@@ -9,11 +11,14 @@ import com.cleanroommc.modularui.utils.JsonBuilder;
 import com.cleanroommc.modularui.utils.JsonHelper;
 import com.google.gson.JsonObject;
 import com.gtnllib.client.hud.HudColor;
+import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.AE2Theme.Variant;
 import com.gtnllib.gui.theme.LivePalette;
 import com.gtnllib.gui.theme.MetalSkin;
 import com.gtnllib.gui.theme.PaletteThemes;
 import com.gtnllib.gui.theme.ThemePalette;
 import com.gtnllib.gui.theme.ThemeStyle;
+import com.gtnllib.gui.wheel.WheelStyle;
 import com.gtnllib.gui.widget.LayoutTheme;
 import com.science.gtnl.config.ClientConfig;
 
@@ -60,6 +65,13 @@ public class EquipmentTheme {
         MILESTONE,
         DANGER);
     public static final WidgetThemeKey<Colors> COLORS = registerColors(new Colors(PALETTE));
+    private static final int DEFAULT_ACCENT = 0xFF2F72A8, DEFAULT_ACCENT_DIM = 0x802F72A8, DEFAULT_HINT = 0xFF8B8B8B,
+        DEFAULT_TEXT = 0xFF404040;
+    private static final Colors DEFAULT_COLORS = new Colors(
+        DEFAULT_ACCENT,
+        DEFAULT_ACCENT_DIM,
+        DEFAULT_HINT,
+        DEFAULT_TEXT);
     public static final LivePalette LIVE = PaletteThemes
         .live(EquipmentTheme::selected, () -> ClientConfig.enableEquipmentThemeGlowColor);
 
@@ -77,16 +89,36 @@ public class EquipmentTheme {
         HudColor.editor(() -> colors().accentDim, () -> colors().accent);
     }
 
-    public static LayoutTheme layout() {
-        return LayoutTheme.of(
-            IThemeApi.get()
-                .getTheme(selected()));
+    public static LayoutTheme layout(@Nullable String themeId) {
+        return themeId == null ? LayoutTheme.DEFAULT
+            : LayoutTheme.of(
+                IThemeApi.get()
+                    .getTheme(themeId));
     }
 
     public static Colors colors() {
         return LIVE.theme()
             .getWidgetTheme(COLORS)
             .getTheme();
+    }
+
+    public static Colors colors(@Nullable String themeId) {
+        if (themeId == null) return DEFAULT_COLORS;
+        if (themeId.equals(selected())) return colors();
+        return IThemeApi.get()
+            .getTheme(themeId)
+            .getWidgetTheme(COLORS)
+            .getTheme();
+    }
+
+    public static int titleColor(@Nullable String themeId) {
+        Variant variant = AE2Theme.variant(themeId);
+        return variant != null ? variant.colors.text() : colors(themeId).accent;
+    }
+
+    public static WheelStyle.Builder wheel(@Nullable String themeId, WheelStyle.Builder style) {
+        Variant variant = AE2Theme.variant(themeId);
+        return variant != null ? variant.wheel(style) : style.highlightColor(colors(themeId).accent);
     }
 
     private static void addColors(ThemeBuilder<?> theme, ThemePalette palette) {
@@ -118,6 +150,13 @@ public class EquipmentTheme {
             accent = palette.accent();
             accentDim = palette.accentDim();
             hint = palette.hint();
+        }
+
+        private Colors(int accent, int accentDim, int hint, int text) {
+            super(0, 0, null, Color.WHITE.main, text, false, Color.WHITE.main);
+            this.accent = accent;
+            this.accentDim = accentDim;
+            this.hint = hint;
         }
 
         public Colors(Colors parent, JsonObject json, JsonObject fallback) {

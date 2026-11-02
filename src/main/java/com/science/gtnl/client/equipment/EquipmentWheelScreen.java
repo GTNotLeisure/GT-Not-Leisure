@@ -22,6 +22,7 @@ import com.gtnllib.gui.widget.LayoutTheme;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.celestweave.CelestweaveClientEvents;
 import com.science.gtnl.common.equipment.IEquipmentItem;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentGui;
 import com.science.gtnl.common.gui.equipment.EquipmentSoundScreen;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
@@ -49,12 +50,12 @@ public class EquipmentWheelScreen extends WheelScreen {
     public EquipmentWheelScreen(KeyBinding key, int[] slots) {
         super(menu(slots), WheelOpenMode.HOLD, key);
         this.slots = slots;
-        useTheme(EquipmentTheme.selected());
+        useTheme(themeId(slots));
         below(
             IKey.str(EquipmentGui.tr(LANG + "title"))
                 .asWidget(),
             TITLE_GAP);
-        LayoutTheme style = EquipmentTheme.layout();
+        LayoutTheme style = EquipmentTheme.layout(themeId(slots));
         int width = Layout.buttonWidth(style, BUTTON_WIDTH, EquipmentGui.tr(HUD), EquipmentGui.tr(SOUND));
         belowPair(
             button(HUD, HudEditor::open, width, style),
@@ -120,6 +121,10 @@ public class EquipmentWheelScreen extends WheelScreen {
         if (equipment(inventory.getStackInSlot(slot)) && !found.contains(slot)) found.add(slot);
     }
 
+    private static String themeId(int[] slots) {
+        return hasCelestweave(slots) ? ScreenThemes.celestweave() : ScreenThemes.railgun();
+    }
+
     private static boolean equipment(ItemStack stack) {
         return stack != null && stack.getItem() instanceof IEquipmentItem;
     }
@@ -137,8 +142,7 @@ public class EquipmentWheelScreen extends WheelScreen {
         WheelMenuBuilder builder = WheelMenuBuilder.create()
             .slotsPerPage(Math.max(MIN_SLOTS, Math.min(MAX_SLOTS, slots.length)))
             .style(
-                WheelStyle.builder()
-                    .highlightColor(EquipmentTheme.colors().accent)
+                EquipmentTheme.wheel(themeId(slots), WheelStyle.builder())
                     .build());
         for (int slot : slots) builder.entry(
             WheelEntry.action("slot_" + slot, stackAt(slot).getDisplayName(), icon(slot), context -> open(slot))

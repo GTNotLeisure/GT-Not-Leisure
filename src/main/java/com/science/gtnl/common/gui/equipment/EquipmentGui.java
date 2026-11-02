@@ -36,7 +36,9 @@ import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.equipment.EquipmentModules;
 import com.science.gtnl.common.equipment.IEquipmentVariant;
 import com.science.gtnl.common.gui.GTNLMui2Textures;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.item.items.equipment.EnergyModuleItem;
+import com.science.gtnl.utils.enums.EquipmentScreenTheme;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -52,23 +54,30 @@ public abstract class EquipmentGui {
     protected final PanelSyncManager sync;
     protected final ItemStack stack;
     protected final boolean client;
+    protected final String themeId;
     protected final LayoutTheme style;
     private ModularPanel panel;
     private int moduleSlots, heldSlots, energyWidth = -1;
     private IntSupplier energyLabel = () -> 0;
 
-    protected EquipmentGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
+    protected EquipmentGui(PlayerInventoryGuiData data, PanelSyncManager sync, EquipmentScreenTheme theme) {
         this.data = data;
         this.sync = sync;
         this.stack = data.getUsedItemStack();
         if (!holds(stack)) throw new IllegalStateException("Missing equipment for " + getClass().getSimpleName());
         this.client = data.getPlayer().worldObj.isRemote;
-        this.style = client ? themeStyle() : LayoutTheme.DEFAULT;
+        this.themeId = client ? themeId(theme) : null;
+        this.style = client ? themeStyle(themeId) : LayoutTheme.DEFAULT;
     }
 
     @SideOnly(Side.CLIENT)
-    private static LayoutTheme themeStyle() {
-        return EquipmentTheme.layout();
+    private static String themeId(EquipmentScreenTheme theme) {
+        return ScreenThemes.of(theme);
+    }
+
+    @SideOnly(Side.CLIENT)
+    private static LayoutTheme themeStyle(String themeId) {
+        return EquipmentTheme.layout(themeId);
     }
 
     /**
@@ -164,7 +173,7 @@ public abstract class EquipmentGui {
 
     protected int widestSwitch(Iterable<String> labels) {
         int widest = 0;
-        for (String label : labels) widest = Math.max(widest, SlideSwitch.widthFor(textWidth(label)));
+        for (String label : labels) widest = Math.max(widest, SlideSwitch.widthFor(style, textWidth(label)));
         return widest;
     }
 
@@ -186,8 +195,8 @@ public abstract class EquipmentGui {
     }
 
     @SideOnly(Side.CLIENT)
-    private static int dividerColor() {
-        return EquipmentTheme.colors().accentDim;
+    private int dividerColor() {
+        return EquipmentTheme.colors(themeId).accentDim;
     }
 
     protected static ButtonWidget<?> button(ButtonPurpose purpose) {

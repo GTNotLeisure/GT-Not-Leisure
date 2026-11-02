@@ -21,6 +21,7 @@ import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.LayoutTheme;
 import com.gtnllib.gui.widget.StepSlider;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
 import com.science.gtnl.config.ClientConfig;
 import com.science.gtnl.config.ConfigRegistry;
@@ -42,7 +43,7 @@ public class PortalGunLookScreen extends ModularScreen {
 
     private PortalGunLookScreen() {
         super(ScienceNotLeisure.MODID, panel());
-        useTheme(EquipmentTheme.selected());
+        useTheme(ScreenThemes.portalGun());
     }
 
     public static void open() {
@@ -130,9 +131,9 @@ public class PortalGunLookScreen extends ModularScreen {
     }
 
     private static ModularPanel panel() {
-        LayoutTheme style = EquipmentTheme.layout();
+        LayoutTheme style = EquipmentTheme.layout(ScreenThemes.portalGun());
         int pad = style.padding, inner = WIDTH - pad * 2;
-        int color = EquipmentTheme.colors().accent;
+        int color = EquipmentTheme.titleColor(ScreenThemes.portalGun());
         Layout rows = Layout.rows(style, inner)
             .inset(0);
         List<Section> sections = sections();
@@ -159,7 +160,7 @@ public class PortalGunLookScreen extends ModularScreen {
         panel.child(list);
         panel.child(
             IKey.lang(LANG + "hint")
-                .color(EquipmentTheme.colors().hint)
+                .color(EquipmentTheme.colors(ScreenThemes.portalGun()).hint)
                 .shadow(false)
                 .asWidget()
                 .left(pad)
