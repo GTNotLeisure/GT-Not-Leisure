@@ -22,6 +22,7 @@ import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.GhostItemSlot;
 import com.gtnllib.gui.widget.LayoutTheme;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
 import com.science.gtnl.common.item.items.PortalGun;
 import com.science.gtnl.common.packet.PortalGunFavoritePacket;
@@ -41,7 +42,7 @@ public class PortalGunEditScreen extends ModularScreen {
 
     private PortalGunEditScreen(int slot, PortalGunDestination saved) {
         super(ScienceNotLeisure.MODID, panel(slot, saved));
-        useTheme(EquipmentTheme.selected());
+        useTheme(ScreenThemes.portalGun());
     }
 
     public static void open(int slot) {
@@ -52,7 +53,7 @@ public class PortalGunEditScreen extends ModularScreen {
     }
 
     private static ModularPanel panel(int slot, PortalGunDestination saved) {
-        LayoutTheme style = EquipmentTheme.layout();
+        LayoutTheme style = EquipmentTheme.layout(ScreenThemes.portalGun());
         int pad = style.padding, inner = WIDTH - pad * 2, gap = style.spacingMedium;
         Layout rows = Layout.rows(style, inner)
             .inset(0);
@@ -88,7 +89,7 @@ public class PortalGunEditScreen extends ModularScreen {
                 List.of(
                     label(captions[2], style),
                     Layout.label(IKey.str(saved.dimensionLabel()), style)
-                        .color(EquipmentTheme.colors().hint))),
+                        .color(EquipmentTheme.colors(ScreenThemes.portalGun()).hint))),
             rows.line(
                 gap,
                 List.of(
@@ -101,7 +102,7 @@ public class PortalGunEditScreen extends ModularScreen {
                     icon,
                     Layout.button(IKey.str(clear), 0, style, icon::clear),
                     Layout.label(IKey.lang(LANG + "icon_hint"), style)
-                        .color(EquipmentTheme.colors().hint)))
+                        .color(EquipmentTheme.colors(ScreenThemes.portalGun()).hint)))
                 .height(iconRow),
             rows.line(
                 gap,

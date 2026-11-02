@@ -22,6 +22,7 @@ import com.gtnllib.gui.widget.SlideSwitch;
 import com.gtnllib.gui.widget.StepSlider;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.equipment.EquipmentSound;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme.Colors;
 import com.science.gtnl.config.EquipmentSoundConfig;
 import com.science.gtnl.config.EquipmentSoundConfig.Channel;
@@ -41,13 +42,13 @@ public class EquipmentSoundScreen extends ModularScreen {
     private final Arrangement arrangement;
 
     public EquipmentSoundScreen() {
-        this(new Arrangement(EquipmentTheme.layout()));
+        this(new Arrangement(EquipmentTheme.layout(ScreenThemes.celestweave())));
     }
 
     private EquipmentSoundScreen(Arrangement arrangement) {
-        super(ScienceNotLeisure.MODID, panel(arrangement, EquipmentTheme.colors()));
+        super(ScienceNotLeisure.MODID, panel(arrangement, EquipmentTheme.colors(ScreenThemes.celestweave())));
         this.arrangement = arrangement;
-        useTheme(EquipmentTheme.selected());
+        useTheme(ScreenThemes.celestweave());
     }
 
     public static void open() {
@@ -74,7 +75,8 @@ public class EquipmentSoundScreen extends ModularScreen {
         for (int index = 0; index < groups.length; index++) {
             final int card = index;
             panel.child(
-                card(colors, groups[index], arrangement).left(() -> arrangement.x(card), Unit.Measure.PIXEL)
+                card(EquipmentTheme.titleColor(ScreenThemes.celestweave()), groups[index], arrangement)
+                    .left(() -> arrangement.x(card), Unit.Measure.PIXEL)
                     .top(() -> arrangement.y(card), Unit.Measure.PIXEL)
                     .height(() -> arrangement.cardHeight(card), Unit.Measure.PIXEL));
         }
@@ -90,7 +92,7 @@ public class EquipmentSoundScreen extends ModularScreen {
         return panel;
     }
 
-    private static ParentWidget<?> card(Colors colors, EquipmentSound.Group group, Arrangement arrangement) {
+    private static ParentWidget<?> card(int titleColor, EquipmentSound.Group group, Arrangement arrangement) {
         LayoutTheme style = arrangement.style;
         Layout rows = Layout.rows(style, arrangement.cardWidth)
             .inset(style.spacingMedium);
@@ -98,7 +100,7 @@ public class EquipmentSoundScreen extends ModularScreen {
         lines.add(row(rows, arrangement, "gtnl.gui.config.sound.all", group.all, () -> true));
         for (EquipmentSound sound : group.sounds())
             lines.add(row(rows, arrangement, sound.lang(), sound.channel, () -> group.all.enabled));
-        return Layout.card(IKey.lang(group.lang()), colors.accent, style, arrangement.cardWidth, 0)
+        return Layout.card(IKey.lang(group.lang()), titleColor, style, arrangement.cardWidth, 0)
             .child(
                 Flow.column()
                     .pos(0, Layout.cardHeader(style))
@@ -157,7 +159,7 @@ public class EquipmentSoundScreen extends ModularScreen {
             int widest = Layout.textWidth(EquipmentGui.tr("gtnl.gui.config.sound.all"), style);
             for (EquipmentSound.Group group : groups) for (EquipmentSound sound : group.sounds())
                 widest = Math.max(widest, Layout.textWidth(EquipmentGui.tr(sound.lang()), style));
-            labelWidth = Size.content(SlideSwitch.widthFor(widest))
+            labelWidth = Size.content(SlideSwitch.widthFor(style, widest))
                 .atLeast(LABEL_WIDTH)
                 .resolve(0);
             cardWidth = style.spacingMedium * 3 + labelWidth + SLIDER_WIDTH;

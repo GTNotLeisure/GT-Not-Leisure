@@ -35,9 +35,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.EnumChatFormatting;
-import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
@@ -47,10 +47,9 @@ import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.core.mixins.early.minecraft.GuiScreenAccessor;
 import com.cleanroommc.modularui.drawable.GuiDraw;
-import com.cleanroommc.modularui.drawable.Rectangle;
-import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.ModularScreen;
+import com.cleanroommc.modularui.screen.viewport.GuiContext;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Platform;
@@ -58,12 +57,19 @@ import com.cleanroommc.modularui.value.IntValue;
 import com.cleanroommc.modularui.value.StringValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
+import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.AE2Theme.ButtonText;
+import com.gtnllib.gui.theme.AE2Theme.Colors;
+import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.widget.AE2ButtonDrawable;
 import com.gtnllib.gui.widget.Breadcrumb;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.FadingNotice;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 import com.science.gtnl.common.wireless.WirelessCardLayout;
 import com.science.gtnl.common.wireless.WirelessCardVisualisation;
@@ -77,17 +83,21 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 public class WirelessCardGui extends ModularPanel {
 
     public static final int ROW_HEIGHT = 24, CONTENT_X = 34, ROW_TOP = 82;
-    public static final String KEY_PREFIX = "gtnl.wireless.gui.";
+    public static final String KEY_PREFIX = "gtnl.wireless.gui.", NAME = "wireless_card",
+        DIMENSION_MENU = NAME + "_dimension", VISUALISATION_MENU = NAME + "_visualisation";
     private static final int[] CHIP_STATES = { 0, 3, 4, 5, 1, 2 };
-    private static final int[] CHIP_COLORS = { 0xFFFFFF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFFAA00, 0xFF5555 };
-    private static final int CHIP_GAP = 3, CHIP_PADDING = 4, MERGE_WIDTH = 72, DIMENSION_WIDTH = 100, MENU_HEIGHT = 120,
-        NOTICE_MILLIS = 3500, ALL_DIMENSIONS = Integer.MIN_VALUE;
+    private static final int CHIP_GAP = 3, CHIP_PADDING = 4, DIMENSION_WIDTH = 100, MENU_HEIGHT = 120,
+        NOTICE_MILLIS = 3500, ALL_DIMENSIONS = Integer.MIN_VALUE, OPTION_HEIGHT = 14, OPTION_PADDING = 4;
     private static final int SUCCESS_COLOR = 0x55FF55, FAILURE_COLOR = 0xFF5555, HOVERED_ROW = 0x40FFFFFF;
     private static final Set<String> FAILURES = Set
         .of("denied", "stale", "teleport_unavailable", "teleport_no_space", "teleport_failed", "highlight_dimension");
     public final Minecraft mc = Minecraft.getMinecraft();
     public final FontRenderer fontRendererObj = mc.fontRenderer;
     public final WirelessCardContainer container;
+    public final String themeId = ScreenThemes.wirelessCard();
+    public final @Nullable Variant variant = AE2Theme.variant(themeId);
+    public final boolean ae2 = variant != null;
+    public final Palette palette = variant != null ? Palette.ae2(variant.colors) : Palette.standard();
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
     private final List<ButtonWidget<?>> chips = new ObjectArrayList<>();
@@ -102,20 +112,12 @@ public class WirelessCardGui extends ModularPanel {
     public int xSize = 320, ySize = 232, visibleRows = WirelessCardLayout.MIN_ROWS;
 
     public WirelessCardGui(WirelessCardContainer container) {
-        super("wireless_card");
+        super(NAME);
         this.container = container;
-        background(
-            UITexture.builder()
-                .location(new ResourceLocation("appliedenergistics2", "textures/guis/wireless_network_manager.png"))
-                .imageSize(256, 256)
-                .subAreaXYWH(0, 0, 106, 232)
-                .adaptable(4)
-                .build());
         addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, COPY_POSITION, HIGHLIGHT, TELEPORT);
         for (int id : new int[] { PREVIOUS_PAGE, NEXT_PAGE, REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING })
             addButton(id);
-        search = textField(64).hintText(tr("search_placeholder"))
-            .hintColor(ColorUtils.craftingTreeRequest.getColor());
+        search = textField(64).hintText(tr("search_placeholder"));
         search.autoUpdateOnChange(true)
             .value(new StringValue.Dynamic(() -> searchText, text -> {
                 if (searchText.equals(text)) return;
@@ -126,15 +128,14 @@ public class WirelessCardGui extends ModularPanel {
         for (int index = 0; index < CHIP_STATES.length; index++) child(chip(index));
         breadcrumb = new Breadcrumb().segments(this::crumbs)
             .onSelect(this::jump)
-            .colors(textColor(), linkColor(), ColorUtils.craftingTreeTask.getColor());
-        dimension = choice("wireless_card_dimension", this::dimensionLabel, this::dimensionOption)
+            .colors(palette.text, palette.link, palette.hint);
+        dimension = choice(DIMENSION_MENU, this::dimensionLabel, this::dimensionOption)
             .maxVerticalMenuSize(MENU_HEIGHT);
         dimension.value(
             new IntValue.Dynamic(
                 () -> clientView().dimension() == null ? ALL_DIMENSIONS : clientView().dimension(),
                 value -> filter(value == ALL_DIMENSIONS ? null : value, clientView().state())));
-        visualisation = choice("wireless_card_visualisation", this::visualisationLabel, this::visualisationOption)
-            .directionUp()
+        visualisation = choice(VISUALISATION_MENU, this::visualisationLabel, this::visualisationOption).directionUp()
             .maxVerticalMenuSize(MENU_HEIGHT);
         visualisation.value(new IntValue.Dynamic(() -> view().getInteger("visualMode"), this::setVisualisation));
         List<Integer> modes = new ObjectArrayList<>();
@@ -266,11 +267,11 @@ public class WirelessCardGui extends ModularPanel {
 
     private ButtonWidget<?> chip(int index) {
         ButtonWidget<?> chip = new ButtonWidget<>();
-        IDrawable background = WirelessCardButton
-            .background(chip, () -> chipAvailable(index), () -> clientView().state() == CHIP_STATES[index]);
+        IDrawable background = AE2Theme
+            .button(chip, () -> chipAvailable(index), () -> clientView().state() == CHIP_STATES[index]);
         chip.background(background)
             .hoverBackground(background)
-            .overlay((context, x, y, width, height, theme) -> drawChip(index, chip, x, y, width, height))
+            .overlay((context, x, y, width, height, theme) -> drawChip(index, chip, context, x, y, width, height))
             .onMousePressed(button -> {
                 if (button != 0 || !chipAvailable(index) || !layoutReady()) return false;
                 filter(clientView().dimension(), CHIP_STATES[index]);
@@ -304,41 +305,59 @@ public class WirelessCardGui extends ModularPanel {
             + fontRendererObj.getStringWidth(Integer.toString(chipCount(index)));
     }
 
-    private void drawChip(int index, Widget<?> chip, int x, int y, int width, int height) {
+    private void drawChip(int index, Widget<?> chip, GuiContext context, int x, int y, int width, int height) {
         boolean available = chipAvailable(index);
-        boolean selected = clientView().state() == CHIP_STATES[index];
+        AE2ButtonDrawable.State state = AE2ButtonDrawable.State
+            .of(chip, available, clientView().state() == CHIP_STATES[index]);
+        ButtonText style = AE2Theme.buttonText(context, state, height);
         String count = Integer.toString(chipCount(index));
-        int countWidth = fontRendererObj.getStringWidth(count), textY = y + (height - 8) / 2;
-        int labelColor = selected ? 0xFFFFFF : WirelessCardButton.labelColor(chip.isHovering(), available);
+        int countWidth = fontRendererObj.getStringWidth(count), textY = y + style.y();
         String label = fontRendererObj
             .trimStringToWidth(chipLabel(index), Math.max(0, width - CHIP_PADDING * 2 - countWidth - 4));
-        shadowText(label, x + CHIP_PADDING, textY, labelColor);
-        shadowText(
+        drawText(label, x + CHIP_PADDING, textY, style.color(), style.shadow());
+        drawText(
             count,
             x + width - CHIP_PADDING - countWidth,
             textY,
-            available ? CHIP_COLORS[index] : WirelessCardButton.labelColor(false, false));
+            available ? palette.chips[index] : style.color(),
+            style.shadow());
     }
 
     private CycleDropdown<Integer> choice(String name, Supplier<String> label, IntFunction<String> option) {
         CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class);
-        IDrawable background = WirelessCardButton.background(choice, () -> true, () -> false);
+        IDrawable background = AE2Theme.button(choice, () -> true, () -> false);
         return choice.optionToWidget(
             (value, selected) -> selected ? IDrawable.EMPTY.asWidget()
-                .size(0, 0)
-                : IKey.str(option.apply(value))
-                    .asWidget())
+                .size(0, 0) : optionWidget(option.apply(value)))
             .background(background)
             .hoverBackground(background)
-            .overlay((context, x, y, width, height, theme) -> drawChoice(label.get(), choice, x, y, width, height));
+            .overlay(
+                (context, x, y, width, height, theme) -> drawChoice(label.get(), choice, context, x, y, width, height));
     }
 
-    private void drawChoice(String label, Widget<?> choice, int x, int y, int width, int height) {
-        int color = WirelessCardButton.labelColor(choice.isHovering(), true), textY = y + (height - 8) / 2;
-        shadowText(fontRendererObj.trimStringToWidth(label, Math.max(0, width - 16)), x + 4, textY, color);
+    private TextWidget<?> optionWidget(String text) {
+        TextWidget<?> option = IKey.str(text)
+            .asWidget();
+        option.widthRel(1f)
+            .height(OPTION_HEIGHT)
+            .paddingLeft(OPTION_PADDING);
+        if (variant != null)
+            option.color(() -> option.isHovering() ? variant.colors.hoverText() : variant.colors.text());
+        return option;
+    }
+
+    private void drawChoice(String label, Widget<?> choice, GuiContext context, int x, int y, int width, int height) {
+        ButtonText style = AE2Theme.buttonText(context, AE2ButtonDrawable.State.of(choice, true, false), height);
+        int textY = y + style.y();
+        drawText(
+            fontRendererObj.trimStringToWidth(label, Math.max(0, width - 16)),
+            x + 4,
+            textY,
+            style.color(),
+            style.shadow());
         int arrowX = x + width - 10, arrowY = textY + 2;
         for (int row = 0; row < 3; row++)
-            GuiDraw.drawRect(arrowX + row, arrowY + row, 5 - row * 2, 1, 0xFF000000 | color);
+            GuiDraw.drawRect(arrowX + row, arrowY + row, 5 - row * 2, 1, 0xFF000000 | style.color());
     }
 
     private String dimensionLabel() {
@@ -420,6 +439,7 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public ModularScreen screen() {
+        AE2Theme.useMenuTheme(themeId, ScienceNotLeisure.MODID, NAME, DIMENSION_MENU, VISUALISATION_MENU);
         return new ModularScreen(ScienceNotLeisure.MODID, this) {
 
             @Override
@@ -465,7 +485,7 @@ public class WirelessCardGui extends ModularPanel {
             public boolean onMouseRelease(int button) {
                 return super.onMouseRelease(button) || button == 1;
             }
-        };
+        }.useTheme(themeId);
     }
 
     public void resizeLayout(int width, int height) {
@@ -500,12 +520,12 @@ public class WirelessCardGui extends ModularPanel {
                         .size(16, 16);
                 }
             } else switch (id) {
-                case TOGGLE_AUTO -> button.pos(xSize - 28, 10)
-                    .size(16, 16);
+                case TOGGLE_AUTO -> button.pos(xSize - 10 - autoWidth(), 12)
+                    .size(autoWidth(), AE2Theme.SWITCH_HEIGHT);
                 case RENAME -> button.pos(xSize - 76, 47)
                     .size(64, 14);
-                case TOGGLE_GROUPING -> button.pos(xSize - 10 - MERGE_WIDTH, 64)
-                    .size(MERGE_WIDTH, 14);
+                case TOGGLE_GROUPING -> button.pos(xSize - 10 - mergeWidth(), 65)
+                    .size(mergeWidth(), AE2Theme.SWITCH_HEIGHT);
                 case PREVIOUS_PAGE -> button.pos(10, ySize - 27)
                     .size(18, 20);
                 case NEXT_PAGE -> button.pos(76, ySize - 27)
@@ -520,7 +540,7 @@ public class WirelessCardGui extends ModularPanel {
             .size(xSize - 140, 12);
         layoutChips();
         int hint = Math.min(fontRendererObj.getStringWidth(tr("back_hint")), (xSize - 20) / 2);
-        int searchWidth = root ? xSize - 28 - DIMENSION_WIDTH - MERGE_WIDTH : xSize - 26 - hint;
+        int searchWidth = root ? xSize - 28 - DIMENSION_WIDTH - mergeWidth() : xSize - 26 - hint;
         search.pos(10, 65)
             .size(searchWidth, 12);
         dimension.pos(14 + searchWidth, 64)
@@ -543,6 +563,14 @@ public class WirelessCardGui extends ModularPanel {
                 .size(width, 14);
             x += width + CHIP_GAP;
         }
+    }
+
+    private int autoWidth() {
+        return Math.max(AE2Theme.switchWidth(tr("auto_on")), AE2Theme.switchWidth(tr("auto_off")));
+    }
+
+    private int mergeWidth() {
+        return AE2Theme.switchWidth(tr("merge_types"));
     }
 
     private String layoutKey(NBTTagCompound data) {
@@ -580,22 +608,17 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public TextFieldWidget textField(int max) {
-        return new TextFieldWidget().background(
-            new Rectangle().color(0xff000000),
-            new Rectangle().color(0xffa0a0a0)
-                .hollow(1))
-            .setTooltipOverride(true)
+        return new TextFieldWidget().setTooltipOverride(true)
             .value(new StringValue(""))
             .setMaxLength(max)
-            .setTextColor(ColorUtils.searchboxText.getColor())
             .padding(2, 0);
     }
 
-    void shadowText(String text, int x, int y, int color) {
+    void drawText(String text, int x, int y, int color, boolean shadow) {
         GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
         try {
             Platform.setupDrawFont();
-            fontRendererObj.drawStringWithShadow(text, x, y, color);
+            fontRendererObj.drawString(text, x, y, color, shadow);
         } finally {
             GL11.glPopAttrib();
         }
@@ -615,27 +638,23 @@ public class WirelessCardGui extends ModularPanel {
         return row.getInteger("usedChannels") < 0 ? tr("usage_waiting") : tr("usage", row.getInteger("usedChannels"));
     }
 
-    static int textColor() {
-        return ColorUtils.guiTextColorGray.getColor();
+    int textColor() {
+        return palette.text;
     }
 
-    static int linkColor() {
-        return ColorUtils.craftConfirmPercent25.getColor();
+    int goodColor() {
+        return palette.good;
     }
 
-    static int goodColor() {
-        return ColorUtils.craftConfirmPercent50.getColor();
+    int badColor() {
+        return palette.bad;
     }
 
-    static int badColor() {
-        return ColorUtils.reshuffleStatusFailed.getColor();
+    int waitingColor() {
+        return palette.link;
     }
 
-    static int waitingColor() {
-        return ColorUtils.craftConfirmPercent25.getColor();
-    }
-
-    static int stateColor(NBTTagCompound row) {
+    int stateColor(NBTTagCompound row) {
         if (row.getBoolean("paused") || row.getBoolean("conflicted")) return badColor();
         if (row.getBoolean("stable") && row.getInteger("missing") > 0) return badColor();
         if (!row.getBoolean("stable") || !row.getString("state")
@@ -731,7 +750,7 @@ public class WirelessCardGui extends ModularPanel {
         String count = row.getBoolean("category") ? " [" + row.getInteger("items") + "]"
             : row.getBoolean("group") ? " [" + row.getInteger("clusters") + "]" : "";
         int width = contentWidth() - fontRendererObj.getStringWidth(count);
-        int nameColor = ColorUtils.guiTextColorBlack.getColor();
+        int nameColor = palette.name;
         if (data.getBoolean("detail") || name.isEmpty()) {
             fontRendererObj.drawString(trim(position, width), CONTENT_X, y, nameColor);
             return;
@@ -748,7 +767,7 @@ public class WirelessCardGui extends ModularPanel {
             fontRendererObj.drawString(count, nextX, y, stateColor(row));
             nextX += fontRendererObj.getStringWidth(count);
         }
-        fontRendererObj.drawString(suffix, nextX, y, ColorUtils.craftingTreeTask.getColor());
+        fontRendererObj.drawString(suffix, nextX, y, palette.suffix);
     }
 
     private void drawRow(NBTTagCompound data, NBTTagCompound row, int y, boolean hovered) {
@@ -766,8 +785,7 @@ public class WirelessCardGui extends ModularPanel {
             return;
         }
         drawMetrics(row, CONTENT_X, y + 13, contentWidth(), true);
-        int missingColor = row.getBoolean("stable") && row.getInteger("missing") > 0 ? badColor()
-            : ColorUtils.craftingTreeTask.getColor();
+        int missingColor = row.getBoolean("stable") && row.getInteger("missing") > 0 ? badColor() : palette.track;
         ratioBar(
             stateX(),
             y + 19,
@@ -778,8 +796,7 @@ public class WirelessCardGui extends ModularPanel {
             goodColor(),
             missingColor);
         if (!row.getBoolean("group")) return;
-        int color = 0xFF000000
-            | (hovered ? ColorUtils.guiTextColorBlack.getColor() : ColorUtils.craftingTreeTask.getColor());
+        int color = 0xFF000000 | (hovered ? palette.name : palette.suffix);
         for (int step = 0; step < 4; step++) {
             drawRect(xSize - 24 + step, y + 8 + step, xSize - 22 + step, y + 9 + step, color);
             drawRect(xSize - 24 + step, y + 15 - step, xSize - 22 + step, y + 16 - step, color);
@@ -799,12 +816,6 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void drawHeader(NBTTagCompound data, int textColor) {
-        String autoLabel = trim(tr(data.getBoolean("auto") ? "auto_on" : "auto_off"), 94);
-        fontRendererObj.drawString(
-            autoLabel,
-            xSize - 32 - fontRendererObj.getStringWidth(autoLabel),
-            10 + (16 - fontRendererObj.FONT_HEIGHT) / 2,
-            textColor);
         boolean budgetKnown = data.getBoolean("sourceLoaded") && data.getBoolean("channels")
             && data.getBoolean("stable")
             && data.getInteger("used") >= 0
@@ -822,27 +833,27 @@ public class WirelessCardGui extends ModularPanel {
             budgetKnown ? data.getInteger("used") : -1,
             data.getInteger("capacity"),
             budgetColor,
-            ColorUtils.craftingTreeTask.getColor());
+            palette.track);
         String source = data.getBoolean("bound") ? tr("source", data.getString("sourceLabel")) : tr("unbound");
         fontRendererObj.drawString(trim(source, xSize - 92 - budgetWidth), 10, 25, textColor);
         drawMetrics(data, 10, 37, xSize - 20, false);
         String hint = trim(tr("back_hint"), (xSize - 20) / 2);
-        int hintColor = ColorUtils.craftingTreeTask.getColor();
+        int hintColor = palette.hint;
         if (data.getBoolean("detail")) {
-            fontRendererObj
-                .drawString(trim(data.getString("name"), xSize - 96), 10, 51, ColorUtils.guiTextColorBlack.getColor());
+            fontRendererObj.drawString(trim(data.getString("name"), xSize - 96), 10, 51, palette.name);
             fontRendererObj.drawString(hint, 10, 67, hintColor);
         } else if (data.getBoolean("group"))
             fontRendererObj.drawString(hint, xSize - 10 - fontRendererObj.getStringWidth(hint), 67, hintColor);
     }
 
     private void drawFooter(NBTTagCompound data, int textColor) {
+        int y = ySize - 20;
         String page = trim((data.getInteger("page") + 1) + "/" + Math.max(1, data.getInteger("pages")), 40);
-        fontRendererObj.drawString(page, 52 - fontRendererObj.getStringWidth(page) / 2, ySize - 20, textColor);
+        fontRendererObj.drawString(page, 52 - fontRendererObj.getStringWidth(page) / 2, y, textColor);
         int infoX = depth() > 0 ? 146 : 100;
         String info = data.getBoolean("detail") ? tr("entrance_count", data.getInteger("rowCount"))
             : tr(data.getBoolean("filtered") ? "matched" : "loaded", data.getInteger("total"));
-        fontRendererObj.drawString(trim(info, layout.visualisationX() - infoX - 4), infoX, ySize - 20, textColor);
+        fontRendererObj.drawString(trim(info, layout.visualisationX() - infoX - 4), infoX, y, textColor);
     }
 
     private int hoveredRow(ModularGuiContext context, int count) {
@@ -861,15 +872,20 @@ public class WirelessCardGui extends ModularPanel {
             NBTTagCompound data = view();
             NBTTagList rows = data.getTagList("rows", 10);
             int count = Math.min(visibleRows, rows.tagCount()), hovered = hoveredRow(context, count);
+            if (variant != null) {
+                GL11.glColor4f(1, 1, 1, 1);
+                variant.inset.draw(
+                    8,
+                    ROW_TOP - AE2Theme.INSET_TOP,
+                    xSize - 16,
+                    visibleRows * ROW_HEIGHT + AE2Theme.INSET_TOP + AE2Theme.INSET_EDGE);
+            }
             for (int row = 0; row < count; row++) {
                 int y = ROW_TOP + row * ROW_HEIGHT;
                 if (row == hovered) drawRect(9, y, xSize - 9, y + ROW_HEIGHT - 1, HOVERED_ROW);
-                drawRect(
-                    8,
-                    y + ROW_HEIGHT - 1,
-                    xSize - 8,
-                    y + ROW_HEIGHT,
-                    ColorUtils.craftingDiagnosticTerminalLine.getColor());
+                if (!ae2) drawRect(8, y + ROW_HEIGHT - 1, xSize - 8, y + ROW_HEIGHT, palette.line);
+                else if (row < visibleRows - 1)
+                    drawRect(9, y + ROW_HEIGHT - 1, xSize - 9, y + ROW_HEIGHT, palette.line);
             }
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -882,6 +898,56 @@ public class WirelessCardGui extends ModularPanel {
             drawFooter(data, textColor);
         } finally {
             GL11.glPopAttrib();
+        }
+    }
+
+    public static class Palette {
+
+        public final int text, name, hint, suffix, track, link, good, bad, line;
+        public final int[] chips;
+
+        public Palette(int text, int name, int hint, int suffix, int track, int link, int good, int bad, int line,
+            int[] chips) {
+            this.text = text;
+            this.name = name;
+            this.hint = hint;
+            this.suffix = suffix;
+            this.track = track;
+            this.link = link;
+            this.good = good;
+            this.bad = bad;
+            this.line = line;
+            this.chips = chips;
+        }
+
+        public static Palette ae2(Colors colors) {
+            return new Palette(
+                colors.text(),
+                colors.text(),
+                colors.muted(),
+                colors.secondary(),
+                colors.line(),
+                colors.info(),
+                colors.good(),
+                colors.bad(),
+                colors.line(),
+                new int[] { colors.text(), colors.good(), colors.info(), colors.bad(), colors.warning(),
+                    colors.bad() });
+        }
+
+        public static Palette standard() {
+            int faint = ColorUtils.craftingTreeTask.getColor();
+            return new Palette(
+                ColorUtils.guiTextColorGray.getColor(),
+                ColorUtils.guiTextColorBlack.getColor(),
+                faint,
+                faint,
+                faint,
+                ColorUtils.craftConfirmPercent25.getColor(),
+                ColorUtils.craftConfirmPercent50.getColor(),
+                ColorUtils.reshuffleStatusFailed.getColor(),
+                ColorUtils.craftingDiagnosticTerminalLine.getColor(),
+                new int[] { 0xFFFFFF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFFAA00, 0xFF5555 });
         }
     }
 }
