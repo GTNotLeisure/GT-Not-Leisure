@@ -26,10 +26,11 @@ public class CustomDroneDownLinkHatch extends MTEHatchDroneDownLink
     implements IConfigurationMaintenance, IDataCopyable {
 
     public static final String COPIED_DATA_IDENTIFIER = "customDroneDownLinkHatch";
+    private static final int DEFAULT_CONFIG_TIME = 100;
 
     public int mMinConfigTime;
     public int mMaxConfigTime;
-    public int mConfigTime = 100;
+    public int mConfigTime = DEFAULT_CONFIG_TIME;
     @Getter
     @Setter
     public int mCleanroomTier;
@@ -155,16 +156,13 @@ public class CustomDroneDownLinkHatch extends MTEHatchDroneDownLink
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
         aNBT.setInteger("mConfigTime", mConfigTime);
-        aNBT.setInteger("mMinConfigTime", mMinConfigTime);
-        aNBT.setInteger("mMaxConfigTime", mMaxConfigTime);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.loadNBTData(aNBT);
-        mMinConfigTime = aNBT.getInteger("mMinConfigTime");
-        mMaxConfigTime = aNBT.getInteger("mMaxConfigTime");
-        setConfigTimeFromGui(aNBT.getInteger("mConfigTime"));
+        int configTime = aNBT.getInteger("mConfigTime");
+        setConfigTimeFromGui(configTime > 0 ? configTime : DEFAULT_CONFIG_TIME);
     }
 
     @Override
