@@ -4,9 +4,9 @@ import com.gtnewhorizon.gtnhlib.config.Config;
 import com.gtnewhorizon.gtnhlib.config.Config.Comment;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultEnum;
 import com.gtnewhorizon.gtnhlib.config.Config.LangKey;
+import com.gtnllib.gui.theme.ScreenTheme;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.utils.enums.EquipmentScreenTheme;
-import com.science.gtnl.utils.enums.ScreenTheme;
 
 @Config(
     modid = ScienceNotLeisure.MODID,
