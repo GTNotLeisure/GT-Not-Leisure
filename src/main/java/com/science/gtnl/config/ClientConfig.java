@@ -10,9 +10,7 @@ import com.gtnewhorizon.gtnhlib.config.Config.LangKey;
 import com.gtnewhorizon.gtnhlib.config.Config.RangeDouble;
 import com.gtnewhorizon.gtnhlib.config.Config.RangeInt;
 import com.science.gtnl.ScienceNotLeisure;
-import com.science.gtnl.utils.enums.EquipmentScreenTheme;
 import com.science.gtnl.utils.enums.PortalGunPortalEffect;
-import com.science.gtnl.utils.enums.ScreenTheme;
 
 @Config(
     modid = ScienceNotLeisure.MODID,
@@ -98,26 +96,6 @@ public class ClientConfig {
     @LangKey("gtnl.gui.config.client.enable_equipment_theme_glow_color")
     @DefaultBoolean(true)
     public static boolean enableEquipmentThemeGlowColor = true;
-
-    @Comment("Theme of the Celestweave armor screens, the equipment wheel and the equipment sound screen. EQUIPMENT: the equipment theme; DEFAULT: the ModularUI 2 default theme; AE2_LIGHT: the light AE2 1.21 theme; AE2_DARK: the dark AE2 1.21 theme")
-    @LangKey("gtnl.gui.config.client.celestweave_screen_theme")
-    @DefaultEnum("EQUIPMENT")
-    public static EquipmentScreenTheme celestweaveScreenTheme = EquipmentScreenTheme.EQUIPMENT;
-
-    @Comment("Theme of the electromagnetic railgun screens; the equipment wheel follows it when no Celestweave armor is in it. EQUIPMENT: the equipment theme; DEFAULT: the ModularUI 2 default theme; AE2_LIGHT: the light AE2 1.21 theme; AE2_DARK: the dark AE2 1.21 theme")
-    @LangKey("gtnl.gui.config.client.railgun_screen_theme")
-    @DefaultEnum("EQUIPMENT")
-    public static EquipmentScreenTheme railgunScreenTheme = EquipmentScreenTheme.EQUIPMENT;
-
-    @Comment("Theme of the portal gun screens. EQUIPMENT: the equipment theme; DEFAULT: the ModularUI 2 default theme; AE2_LIGHT: the light AE2 1.21 theme; AE2_DARK: the dark AE2 1.21 theme")
-    @LangKey("gtnl.gui.config.client.portal_gun_screen_theme")
-    @DefaultEnum("EQUIPMENT")
-    public static EquipmentScreenTheme portalGunScreenTheme = EquipmentScreenTheme.EQUIPMENT;
-
-    @Comment("Theme of the wireless frequency card screen. DEFAULT: the ModularUI 2 default theme; AE2_LIGHT: the light AE2 1.21 theme; AE2_DARK: the dark AE2 1.21 theme")
-    @LangKey("gtnl.gui.config.client.wireless_card_screen_theme")
-    @DefaultEnum("AE2_LIGHT")
-    public static ScreenTheme wirelessCardScreenTheme = ScreenTheme.AE2_LIGHT;
 
     @Comment("Look of portal gun portals on this client, also switchable from the portal gun wheel. PIXEL_SWIRL: pixel art green swirl; ELECTRIC_DOOR: door with an electric frame and a starry inside; FLUID_VORTEX: oval opened by a swirl of portal fluid; GOLDEN_SWIRL: pixel art golden swirl")
     @LangKey("gtnl.gui.config.client.portal_gun_portal_effect")

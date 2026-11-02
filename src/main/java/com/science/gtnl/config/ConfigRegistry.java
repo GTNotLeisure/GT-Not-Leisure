@@ -31,17 +31,18 @@ public class ConfigRegistry {
 
     @SideOnly(Side.CLIENT)
     public static Class<?>[] client() {
-        return new Class<?>[] { ClientConfig.class, EquipmentSoundConfig.class, MiniTerminalClientConfig.class,
-            QuantumCraftingClientConfig.class, YogTerminalClientConfig.class };
+        return new Class<?>[] { ClientConfig.class, ScreenThemeConfig.class, EquipmentSoundConfig.class,
+            MiniTerminalClientConfig.class, QuantumCraftingClientConfig.class, YogTerminalClientConfig.class };
     }
 
     @SideOnly(Side.CLIENT)
     public static Class<?>[] gui() {
         Class<?>[] common = common();
-        Class<?>[] gui = new Class<?>[common.length + 2];
+        Class<?>[] gui = new Class<?>[common.length + 3];
         gui[0] = ClientConfig.class;
-        gui[1] = EquipmentSoundConfig.class;
-        System.arraycopy(common, 0, gui, 2, common.length);
+        gui[1] = ScreenThemeConfig.class;
+        gui[2] = EquipmentSoundConfig.class;
+        System.arraycopy(common, 0, gui, 3, common.length);
         return gui;
     }
 

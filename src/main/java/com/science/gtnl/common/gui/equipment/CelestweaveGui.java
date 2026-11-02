@@ -53,7 +53,7 @@ import com.science.gtnl.common.celestweave.CelestweaveModule;
 import com.science.gtnl.common.celestweave.CelestweaveModuleSetting;
 import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.item.items.armor.CelestweaveArmor;
-import com.science.gtnl.config.ClientConfig;
+import com.science.gtnl.config.ScreenThemeConfig;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -79,7 +79,7 @@ public class CelestweaveGui extends EquipmentGui {
     private int viewing;
 
     public CelestweaveGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
-        super(data, sync, ClientConfig.celestweaveScreenTheme);
+        super(data, sync, ScreenThemeConfig.celestweave);
         this.piece = ((CelestweaveArmor) stack.getItem()).armorType;
     }
 

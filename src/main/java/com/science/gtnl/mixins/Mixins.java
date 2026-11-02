@@ -107,6 +107,7 @@ public enum Mixins implements IMixins {
 
     ME_MINI_TERMINAL(new MixinBuilder("ME mini portable terminal native terminal adapter")
         .addCommonMixins("appliedEnergistics.meminiterminal.MixinMiniTerminalMonitorableDestination")
+        .addClientMixins("appliedEnergistics.meminiterminal.AccessorGuiImgButton")
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.AppliedEnergistics)),
 
