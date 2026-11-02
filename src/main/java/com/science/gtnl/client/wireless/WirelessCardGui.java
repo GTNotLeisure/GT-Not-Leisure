@@ -3,7 +3,6 @@ package com.science.gtnl.client.wireless;
 import static codechicken.nei.NEIClientUtils.cropText;
 import static com.science.gtnl.common.wireless.WirelessCardActions.BACK;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CLOSE_DETAILS;
-import static com.science.gtnl.common.wireless.WirelessCardActions.COPY_POSITION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
@@ -135,7 +134,7 @@ public class WirelessCardGui extends ModularPanel {
     public WirelessCardGui(WirelessCardContainer container) {
         super(NAME);
         this.container = container;
-        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, COPY_POSITION, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE);
+        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE);
         for (int id : new int[] { PREVIOUS_PAGE, NEXT_PAGE, REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING })
             addButton(id);
         search = textField(64).hintText(tr("search_placeholder"));
@@ -232,14 +231,17 @@ public class WirelessCardGui extends ModularPanel {
             if (view().getBoolean("renameable")) renamePanel.openPanel();
             return;
         }
-        if (type(id) == COPY_POSITION) {
+        if (type(id) == HIGHLIGHT) {
             copy(rowIndex(id));
-            return;
+            if (row(rowIndex(id)).getInteger("dimension") != mc.thePlayer.dimension) return;
         }
         if (clientView().navigate(id)) return;
-        if (type(id) == OPEN_DEVICE) RemoteDeviceClient.rememberCard(clientView().save(searchText));
+        int action = type(id);
+        if (action == OPEN_DETAILS && row(rowIndex(id)).getBoolean("singleDevice") && !GuiScreen.isShiftKeyDown())
+            action = OPEN_DEVICE;
+        if (action == OPEN_DEVICE) RemoteDeviceClient.rememberCard(clientView().save(searchText));
         long target = isRowAction(id) ? row(rowIndex(id)).getLong("targetId") : 0;
-        container.sync.request(type(id), target, "", 0);
+        container.sync.request(action, target, "", 0);
     }
 
     private NBTTagCompound row(int index) {
@@ -517,13 +519,11 @@ public class WirelessCardGui extends ModularPanel {
                         .size(16, 16);
                     case HIGHLIGHT -> button.pos(xSize - 70, y + 4)
                         .size(16, 16);
-                    case COPY_POSITION -> button.pos(xSize - 52, y + 4)
+                    case OPEN_DEVICE -> button.pos(xSize - 52, y + 4)
                         .size(16, 16);
                     case TOGGLE_PAUSE -> button.pos(xSize - 28, y + 4)
                         .size(16, 16);
                     case OPEN_ENTRANCES -> button.pos(xSize - 106, y + 4)
-                        .size(16, 16);
-                    case OPEN_DEVICE -> button.pos(xSize - 28, y + 4)
                         .size(16, 16);
                 }
             } else switch (id) {

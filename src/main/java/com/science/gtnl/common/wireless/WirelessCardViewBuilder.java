@@ -18,6 +18,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.science.gtnl.common.me.InterfaceNameLocalization;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
@@ -115,7 +117,16 @@ public class WirelessCardViewBuilder {
         Long2ObjectLinkedOpenHashMap<IWirelessLinkView> targets = new Long2ObjectLinkedOpenHashMap<>();
         if (focus != null) data.setLong("detailId", identify(focus, nextIds, targets));
         NBTTagList entries = new NBTTagList();
-        for (Row row : rows) entries.appendTag(writeRow(row, interfaces, dimensions, nextIds, targets, focus != null));
+        for (Row row : rows) entries.appendTag(
+            writeRow(
+                player,
+                binding == null ? null : binding.frequency(),
+                row,
+                interfaces,
+                dimensions,
+                nextIds,
+                targets,
+                focus != null));
         Object2LongOpenHashMap<IGridNode> nextDeviceIds = new Object2LongOpenHashMap<>();
         Long2ObjectLinkedOpenHashMap<Device> deviceTargets = new Long2ObjectLinkedOpenHashMap<>();
         if (devices) for (Listed device : devices(player, binding.frequency(), focus))
@@ -156,6 +167,31 @@ public class WirelessCardViewBuilder {
         return devices;
     }
 
+    static @Nullable IGridNode onlyDevice(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
+        if (!(link instanceof IWirelessLinkView.ClusterView)) return null;
+        IGridNode only = null;
+        for (IGridNode node : link.members()) {
+            if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL) || WirelessClusterManager.deviceAddress(node) == null)
+                continue;
+            if (only != null) return null;
+            only = node;
+        }
+        for (IGridNode node : link.members()) {
+            if (node.hasFlag(GridFlags.REQUIRE_CHANNEL) || WirelessClusterManager.deviceAddress(node) == null
+                || !RemoteDeviceSessions.probe(player, frequency, node)
+                    .hasScreen())
+                continue;
+            if (only != null) return null;
+            only = node;
+        }
+        return only;
+    }
+
+    static IGridNode remoteTarget(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
+        IGridNode only = onlyDevice(player, frequency, link);
+        return only == null ? link.node() : only;
+    }
+
     private NBTTagCompound writeDevice(IWirelessLinkView link, Listed device, NBTTagCompound dimensions,
         Object2LongMap<IGridNode> nextIds, Long2ObjectMap<Device> targets) {
         IGridNode node = device.node();
@@ -188,8 +224,9 @@ public class WirelessCardViewBuilder {
         return entry;
     }
 
-    private NBTTagCompound writeRow(Row row, WirelessInterfaceView interfaces, NBTTagCompound dimensions,
-        Object2LongMap<Target> nextIds, Long2ObjectMap<IWirelessLinkView> targets, boolean detail) {
+    private NBTTagCompound writeRow(EntityPlayer player, WirelessFrequency frequency, Row row,
+        WirelessInterfaceView interfaces, NBTTagCompound dimensions, Object2LongMap<Target> nextIds,
+        Long2ObjectMap<IWirelessLinkView> targets, boolean detail) {
         var target = row.target();
         NBTTagCompound entry = new NBTTagCompound();
         writeDimensionName(dimensions, target.dimension());
@@ -242,12 +279,19 @@ public class WirelessCardViewBuilder {
         entry.setString("serverIconName", icon == null ? "" : icon.getDisplayName());
         if (row.group()) {
             NBTTagList children = new NBTTagList();
-            for (var link : row.links())
-                children.appendTag(writeRow(Row.cluster(link), interfaces, dimensions, nextIds, targets, false));
+            for (var link : row.links()) children.appendTag(
+                writeRow(player, frequency, Row.cluster(link), interfaces, dimensions, nextIds, targets, false));
             entry.setTag("children", children);
         } else {
             var link = row.link();
             entry.setLong("targetId", identify(link, nextIds, targets));
+            IGridNode only = onlyDevice(player, frequency, link);
+            entry.setBoolean("singleDevice", only != null);
+            entry.setString(
+                "remote",
+                RemoteDeviceSessions.probe(player, frequency, only == null ? link.node() : only)
+                    .state()
+                    .key());
             if (!detail) {
                 var names = interfaces.names(link);
                 NBTTagList labels = new NBTTagList();

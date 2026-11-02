@@ -79,7 +79,7 @@ public class RemoteDeviceSessions {
     }
 
     public static RemoteDeviceState open(EntityPlayerMP player, TrackedCard card, WirelessCardBinding binding,
-        IGridNode cluster, IGridNode node) {
+        @Nullable IGridNode returnNode, boolean returnDevices, IGridNode node) {
         if (!card.carriedBy(player)) return RemoteDeviceState.CARD;
         var located = locate(node);
         if (located.host() == null) return located.state();
@@ -94,7 +94,8 @@ public class RemoteDeviceSessions {
             player,
             card,
             binding,
-            cluster,
+            returnNode,
+            returnDevices,
             node,
             located.address(),
             located.host());

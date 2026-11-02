@@ -67,8 +67,8 @@ public class WirelessCardContainer extends ModularContainer {
         var returning = RemoteDeviceSessions.takeReturn(player);
         returnSession = returning == null ? 0 : returning.id;
         if (returning != null) {
-            view.detailNode = returning.cluster;
-            view.detailDevices = true;
+            view.detailNode = returning.returnNode;
+            view.detailDevices = returning.returnDevices;
         }
         // NetHandlerPlayServer queries this slot after onItemRightClick returns, even for an item GUI.
         if (slot != null) addSlotToContainer(new Slot(cardInventory, cardSlot, -10000, -10000) {
