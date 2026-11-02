@@ -135,7 +135,7 @@ public enum GTNLCasings implements ICasing {
         GTNLMaterials.Neutronium.getId()),
 
     // Reserve the end of GTNL's texture page for external casing textures.
-    YellowConcrete(() -> ItemUtils.getBlockFromItemStack(ModsItemlist.VillageNamesYellowConcrete.get(1)), 4,
+    YellowConcrete(() -> ItemUtils.getBlockFromItemStack(ModsItemlist.EtFuturumRequiemYellowConcrete.get(1)), 4,
         GTUtility.getTextureId(MetaCasing.TEXTURE_PAGE_INDEX, (byte) 127));
 
     public final BlockSupplier blockGetter;

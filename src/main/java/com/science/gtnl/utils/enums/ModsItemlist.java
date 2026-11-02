@@ -476,6 +476,8 @@ public enum ModsItemlist {
     EtFuturumRequiemCobbledDeepslate(Mods.EtFuturumRequiem.ID, "cobbled_deepslate", 0),
     // 橙色混凝土
     EtFuturumRequiemOrangeConcrete(Mods.EtFuturumRequiem.ID, "concrete", 1),
+    // 黄色混凝土
+    EtFuturumRequiemYellowConcrete(Mods.EtFuturumRequiem.ID, "concrete", 4),
     // 棕色混凝土
     EtFuturumRequiemBrownConcrete(Mods.EtFuturumRequiem.ID, "concrete", 12),
     // 深板岩

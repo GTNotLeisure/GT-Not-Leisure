@@ -94,9 +94,9 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":multiblock/large_bee_breeder";
-    private static final int HORIZONTAL_OFFSET = 5;
-    private static final int VERTICAL_OFFSET = 3;
-    private static final int DEPTH_OFFSET = 9;
+    private static final int HORIZONTAL_OFFSET = 9;
+    private static final int VERTICAL_OFFSET = 9;
+    private static final int DEPTH_OFFSET = 3;
     private static final String[][] shape = StructureUtils.readStructureFromFile(STRUCTURE_FILE_PATH);
 
     private static int getParallelForVoltageTier(int voltageTier) {
@@ -200,10 +200,10 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 .addElement('E', ofStructureBlock(ModsItemlist.ChiselOrangeWoolenClay))
                 .addElement('F', ofStructureBlock(ModsItemlist.ChiselBrownWoolenClay))
                 .addElement('G', ofStructureBlock(ModsItemlist.EtFuturumRequiemOrangeConcrete))
-                .addElement('H', ofStructureBlock(ModsItemlist.EtFuturumRequiemBrownConcrete))
-                .addElement('I', ofStructureBlock(ModsItemlist.ExtraUtilitiesLightBlueLapisCaelestis))
+                .addElement('I', ofStructureBlock(ModsItemlist.EtFuturumRequiemBrownConcrete))
+                .addElement('J', ofStructureBlock(ModsItemlist.ExtraUtilitiesLightBlueLapisCaelestis))
                 .addElement(
-                    'J',
+                    'H',
                     ofChain(
                         buildHatchAdder(LargeBeeBreeder.class)
                             .atLeast(InputBus, OutputBus, Energy.or(ExoticEnergy), Maintenance)
@@ -212,7 +212,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                             .buildAndChain(),
                         onElementPass(
                             x -> ++x.mCountCasing,
-                            ofStructureBlock(ModsItemlist.VillageNamesYellowConcrete))))
+                            ofStructureBlock(ModsItemlist.EtFuturumRequiemYellowConcrete))))
                 .build();
         }
         return structureDefinition;

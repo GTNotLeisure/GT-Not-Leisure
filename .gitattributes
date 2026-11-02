@@ -2,3 +2,5 @@
 
 *.bat text eol=crlf
 *.ini text eol=crlf
+
+*.mbs binary

@@ -1459,7 +1459,7 @@ public class MultiblockLoader {
                 StatCollector.translateToLocal("gtnl.machine.highway_to_hell.name")));
         AnimatedTooltipHandler.addItemTooltip(GTNLItemList.HighwayToHell.get(1), AnimatedText.GT_NOT_LEISURE);
 
-        ItemStack beeCasing = ModsItemlist.VillageNamesYellowConcrete.get(1);
+        ItemStack beeCasing = ModsItemlist.EtFuturumRequiemYellowConcrete.get(1);
         Textures.BlockIcons.setCasingTextureForId(
             GTNLCasings.YellowConcrete.getTextureId(),
             beeCasing != null && beeCasing.getItem() instanceof ItemBlock
