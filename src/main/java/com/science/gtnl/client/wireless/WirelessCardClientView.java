@@ -55,9 +55,38 @@ public class WirelessCardClientView {
     private byte[] incoming;
     private long incomingRevision = -1;
     private int received;
+    private String restoredTarget;
+
+    public record State(String search, Integer dimension, int filter, Set<String> expanded, int page, int detailPage,
+        int pageSize, String detailTarget) {}
 
     public WirelessCardClientView(WirelessCardContainer container) {
         this.container = container;
+    }
+
+    public State save(String search) {
+        return new State(
+            search,
+            dimension,
+            state,
+            Set.copyOf(expanded),
+            page,
+            detailPage,
+            pageSize,
+            source.getString("detailTarget"));
+    }
+
+    public void restore(State saved) {
+        query = saved.search()
+            .strip()
+            .toLowerCase(Locale.ROOT);
+        dimension = saved.dimension();
+        state = saved.filter() >= 0 && saved.filter() < STATES ? saved.filter() : 0;
+        expanded.addAll(saved.expanded());
+        page = saved.page();
+        detailPage = saved.detailPage();
+        pageSize = saved.pageSize();
+        restoredTarget = saved.detailTarget();
     }
 
     public void acceptChunk(long revision, int total, int offset, byte[] chunk) {
@@ -81,8 +110,10 @@ public class WirelessCardClientView {
     }
 
     private void accept(NBTTagCompound data) {
-        if (data.getBoolean("detail") && (!source.getBoolean("detail") || !data.getString("detailTarget")
-            .equals(source.getString("detailTarget")))) detailPage = 0;
+        String target = data.getString("detailTarget");
+        if (data.getBoolean("detail") && !target.equals(restoredTarget)
+            && (!source.getBoolean("detail") || !target.equals(source.getString("detailTarget")))) detailPage = 0;
+        restoredTarget = null;
         if (source.hasKey("session") && data.getBoolean("collapseTypes") != source.getBoolean("collapseTypes"))
             page = 0;
         WirelessCardViewCodec.localizeDimensions(data);

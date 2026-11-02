@@ -33,18 +33,33 @@ public class WirelessCardInventory {
             this.binding = binding;
         }
 
+        public ItemStack stack() {
+            return card;
+        }
+
         boolean present(EntityPlayer player) {
-            return present(WirelessCardInventory.location(player, card) != Integer.MIN_VALUE, () -> carried(player));
+            return follow(WirelessCardInventory.location(player, card) != Integer.MIN_VALUE, () -> carried(player))
+                && WirelessCardBinding.automatic(card.getTagCompound());
         }
 
         boolean present(List<ItemStack> carried) {
-            return present(
+            return follow(
                 carried.stream()
                     .anyMatch(stack -> stack == card),
-                () -> carried);
+                () -> carried) && WirelessCardBinding.automatic(card.getTagCompound());
         }
 
-        private boolean present(boolean originalPresent, Supplier<List<ItemStack>> carried) {
+        public boolean carriedBy(EntityPlayer player) {
+            // A card picked up with the mouse is still the player's; dropping the window would throw it on the ground.
+            List<ItemStack> stacks = carried(player);
+            add(stacks, player.inventory.getItemStack());
+            return follow(
+                stacks.stream()
+                    .anyMatch(stack -> stack == card),
+                () -> stacks) && binding.belongsTo(player.getUniqueID());
+        }
+
+        private boolean follow(boolean originalPresent, Supplier<List<ItemStack>> carried) {
             if (identity == null) return false;
             if (card.stackSize <= 0 || !originalPresent) {
                 // Vanilla inventory moves can replace the stack object; follow only its unique persisted identity.
@@ -59,8 +74,7 @@ public class WirelessCardInventory {
                 card = current;
             }
             return identity.equals(WirelessCardBinding.identity(card.getTagCompound()))
-                && binding.equals(WirelessCardBinding.read(card.getTagCompound()))
-                && WirelessCardBinding.automatic(card.getTagCompound());
+                && binding.equals(WirelessCardBinding.read(card.getTagCompound()));
         }
     }
 

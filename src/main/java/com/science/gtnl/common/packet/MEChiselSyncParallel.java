@@ -7,6 +7,7 @@ import com.gtnewhorizon.gtnhlib.util.ServerThreadUtil;
 import com.gtnllib.network.ClientboundPacket;
 import com.gtnllib.network.ServerboundPacket;
 import com.science.gtnl.common.block.blocks.tile.TileEntityMEChisel;
+import com.science.gtnl.common.gui.container.ContainerMEChisel;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -48,11 +49,11 @@ public class MEChiselSyncParallel extends ServerboundPacket {
 
     @Override
     public void handleServer(EntityPlayerMP player) {
-        var world = player.worldObj;
         ServerThreadUtil.addScheduledTask(() -> {
-            if (world.getTileEntity(x, y, z) instanceof TileEntityMEChisel te) {
-                te.setParallel(parallel);
-            }
+            // The open screen names the chisel; remotely opened ones may sit in another dimension.
+            if (player.openContainer instanceof ContainerMEChisel container && container.tile.xCoord == x
+                && container.tile.yCoord == y
+                && container.tile.zCoord == z) container.tile.setParallel(parallel);
         });
     }
 

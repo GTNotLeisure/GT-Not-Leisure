@@ -1,6 +1,7 @@
 package com.science.gtnl.client.gui;
 
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
 
@@ -49,8 +50,8 @@ public class GTNLClientGuiHandler {
 
     public static Object clientElement(int ID, EntityPlayer player, World world, int x, int y, int z) {
         ForgeDirection side = ForgeDirection.getOrientation(ID & 7);
-        int guiID = ID >> 3;
-        return switch (GuiType.getGuiType(guiID)) {
+        GuiType gui = GuiType.getGuiType(ID >> 3);
+        return switch (gui) {
             case DetravScannerGUI -> new DetravScannerGUI();
             case PortableBasicWorkBenchGUI -> new GuiPortableBasicWorkbench(player.inventory, world);
             case PortableAdvancedWorkBenchGUI -> new GuiPortableAdvancedWorkbench(
@@ -74,27 +75,30 @@ public class GTNLClientGuiHandler {
             case PortableCrystalChestGUI -> new GuiPortableChest.Crystal(player.inventory, player.getHeldItem());
             case PortableObsidianChestGUI -> new GuiPortableChest.Obsidian(player.inventory, player.getHeldItem());
             case PortableNetheriteChestGUI -> new GuiPortableChest.Netherite(player.inventory, player.getHeldItem());
-            case DirePatternEncoderGUI -> {
-                var t = world.getTileEntity(x, y, z);
-                if (t instanceof TileEntityDirePatternEncoder d) {
-                    yield new GuiDirePatternEncoder(player.inventory, d);
-                }
-                yield null;
-            }
             case PortableDarkSteelChestGUI -> new GuiPortableChest.DarkSteel(player.inventory, player.getHeldItem());
             case PortableCellWorkbenchGUI -> createPortableCellWorkbenchGui(player, x);
             case PortableCellWorkbenchOreFilterGUI -> createPortableCellWorkbenchOreFilterGui(player, x);
             case PortableCellWorkbenchRestrictionGUI -> createPortableCellWorkbenchRestrictionGui(player, x);
             case CelestweaveBackpackGUI -> CelestweaveBackpackClient.gui(player);
+            default -> tileElement(gui, side, player, world.getTileEntity(x, y, z));
+        };
+    }
+
+    public static Object tileElement(GuiType gui, ForgeDirection side, EntityPlayer player, TileEntity t) {
+        return switch (gui) {
+            case DirePatternEncoderGUI -> {
+                if (t instanceof TileEntityDirePatternEncoder d) {
+                    yield new GuiDirePatternEncoder(player.inventory, d);
+                }
+                yield null;
+            }
             case MEChiselGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntityMEChisel d) {
                     yield new GuiMEChisel(player.inventory, d);
                 }
                 yield null;
             }
             case SuperInterfaceGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperInterface si) {
                     yield new GuiSuperInterface(player.inventory, si);
                 } else if (t instanceof IPartHost host) {
@@ -106,7 +110,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case SuperDualInterfaceGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperDualInterface si) {
                     yield new GuiSuperDualInterface(player.inventory, si);
                 } else if (t instanceof IPartHost host) {
@@ -118,7 +121,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case SuperDualInterfaceFluidGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof TileEntitySuperDualInterface si) {
                     yield new GuiSuperDualInterfaceFluid(player.inventory, si);
                 } else if (t instanceof IPartHost host) {
@@ -130,7 +132,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case ActiveFormationPlaneGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartActiveFormationPlane si) {
@@ -140,14 +141,12 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case UniversalStorageBusGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartUniversalStorageBus bus) {
                     yield new GuiUniversalStorageBus(player.inventory, bus);
                 }
                 yield null;
             }
             case UniversalBusGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartSharedItemBus<?>bus
                     && (bus instanceof PartUniversalImportBus || bus instanceof PartUniversalExportBus)) {
                     yield new GuiUniversalBusIO(player.inventory, bus);
@@ -155,7 +154,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case UniversalOreFilterGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host && host.getPart(side) instanceof IOreFilterable filterable
                     && (filterable instanceof PartUniversalStorageBus || filterable instanceof PartUniversalImportBus
                         || filterable instanceof PartUniversalExportBus)) {
@@ -164,7 +162,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case MECellDockGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartMECellDock dock) {
@@ -174,7 +171,6 @@ public class GTNLClientGuiHandler {
                 yield null;
             }
             case CustomPriorityGUI -> {
-                var t = world.getTileEntity(x, y, z);
                 IPriorityHost priorityHost = null;
                 GuiType type = null;
 
@@ -209,6 +205,7 @@ public class GTNLClientGuiHandler {
                 }
                 yield null;
             }
+            default -> null;
         };
     }
 

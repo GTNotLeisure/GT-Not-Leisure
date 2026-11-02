@@ -3,6 +3,7 @@ package com.science.gtnl.loader;
 import com.science.gtnl.client.wireless.WirelessCardInput;
 import com.science.gtnl.common.command.CommandWirelessME;
 import com.science.gtnl.common.wireless.WirelessChannelManager;
+import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
 
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -19,6 +20,7 @@ public class WirelessLoader implements IContentLoader {
     public void serverAboutToStart() {
         // Spawn chunks load before ServerStarting. Do not erase their restored-link discoveries afterwards.
         WirelessChannelManager.clear();
+        RemoteDeviceSessions.clear();
     }
 
     @Override
@@ -29,6 +31,7 @@ public class WirelessLoader implements IContentLoader {
     @Override
     public void serverStopping() {
         WirelessChannelManager.clear();
+        RemoteDeviceSessions.clear();
     }
 
     @Override
