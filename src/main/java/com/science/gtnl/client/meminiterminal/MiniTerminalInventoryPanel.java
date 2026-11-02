@@ -45,7 +45,6 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.floatingwindow.FloatingWindowPanel;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.meminiterminal.MiniTerminalPinSettings;
@@ -1015,9 +1014,6 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private static final int BLANK = 255, PIN = 5 * 16 + 14, HALF = 8, CELL = 16, SLOT = 18, SHEET = 256;
         private static final float PIN_OPACITY = 0.4F;
-        private static final ResourceLocation NATIVE_STATES = new ResourceLocation(
-            "appliedenergistics2",
-            "textures/guis/states.png");
         private static final Skin[] THEMED = new Skin[Variant.values().length];
 
         public final Variant variant;
@@ -1026,9 +1022,8 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private Skin(Variant variant) {
             this.variant = variant;
-            String root = "textures/gui/meminiterminal/" + variant.folder + "/";
-            states = new ResourceLocation(ScienceNotLeisure.RESOURCE_ROOT_ID, root + "states.png");
-            terminal = new ResourceLocation(ScienceNotLeisure.RESOURCE_ROOT_ID, root + "terminal.png");
+            states = AE2Theme.legacyStates(variant);
+            terminal = AE2Theme.legacyTerminal(variant);
         }
 
         public static @Nullable Skin current() {
@@ -1048,7 +1043,8 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         public void button(ResourceLocation texture, IIcon icon, boolean enabled, int x, int y) {
             frame(enabled, x, y);
             GuiDraw.drawTexture(
-                NATIVE_STATES.equals(texture) ? states : texture,
+                AE2Theme.legacyStates(null)
+                    .equals(texture) ? states : texture,
                 x,
                 y,
                 x + HALF,
@@ -1062,9 +1058,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         }
 
         public void cell(int index, float x, float y, float size) {
-            float u = index % CELL * CELL / (float) SHEET, v = index / CELL * CELL / (float) SHEET,
-                span = CELL / (float) SHEET;
-            GuiDraw.drawTexture(states, x, y, x + size, y + size, u, v, u + span, v + span, true);
+            AE2Theme.drawLegacyState(variant, index, x, y, size);
         }
 
         public void closeEdges(VirtualMESlot[] slots) {

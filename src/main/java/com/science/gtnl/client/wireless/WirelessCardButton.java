@@ -6,6 +6,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.COPY_POSITION
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
@@ -88,6 +89,7 @@ public class WirelessCardButton {
                 case TELEPORT -> styleIcon(Icon.MOVE_TO);
                 case HIGHLIGHT -> styleIcon(Icon.VISIBLE);
                 case COPY_POSITION -> styleIcon(Icon.COPY);
+                case OPEN_ENTRANCES -> styleIcon(Icon.MORE);
                 default -> styleButton();
             }
         }
@@ -167,9 +169,15 @@ public class WirelessCardButton {
             case COPY_POSITION -> {
                 tooltip.addLine(tr("copy_tip"));
                 tooltip.addLine(
-                    gray + row.getString("position") + (row.getBoolean("group") ? "" : " / " + row.getString("side")));
+                    gray + row.getString("position")
+                        + (row.getBoolean("group") || row.getString("side")
+                            .isEmpty() ? "" : " / " + row.getString("side")));
             }
             case TOGGLE_PAUSE -> tooltip.addLine(tr(row.getBoolean("paused") ? "resume_tip" : "pause_tip"));
+            case OPEN_ENTRANCES -> {
+                tooltip.addLine(tr("entrances_tip"));
+                tooltip.addLine(gray + row.getString("positionLabel"));
+            }
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
                     tr("merge_types") + ": "
@@ -190,7 +198,7 @@ public class WirelessCardButton {
         NBTTagList rows = data.getTagList("rows", 10);
         int rowCount = Math.min(visibleRows, rows.tagCount());
         int actionType = type(id);
-        boolean visible = true, detail = data.getBoolean("detail"), group = data.getBoolean("group");
+        boolean visible = true, detail = data.getBoolean("detail");
         available = ready;
         if (isRowAction(id)) {
             int index = rowIndex(id);
@@ -200,20 +208,22 @@ public class WirelessCardButton {
             }
             NBTTagCompound row = rows.getCompoundTagAt(index);
             if (actionType == TOGGLE_PAUSE) on = !row.getBoolean("paused");
-            if (actionType == TOGGLE_PAUSE || actionType == HIGHLIGHT || actionType == TELEPORT)
-                visible = !row.getBoolean("group");
-            if (actionType == COPY_POSITION) visible = !row.getBoolean("category");
+            if (actionType == TOGGLE_PAUSE || actionType == HIGHLIGHT
+                || actionType == TELEPORT
+                || actionType == COPY_POSITION) visible = !row.getBoolean("group");
+            if (actionType == TOGGLE_PAUSE) visible &= !row.getBoolean("device");
+            if (actionType == OPEN_ENTRANCES) visible = !detail && !row.getBoolean("group");
             if (actionType == OPEN_DETAILS) visible = !detail;
             if (actionType == HIGHLIGHT) available &= sameDimension(row);
         } else switch (id) {
             case TOGGLE_AUTO -> on = data.getBoolean("auto");
-            case BACK -> visible = detail || group;
+            case BACK -> visible = detail;
             case RENAME -> {
                 visible = detail;
                 available &= data.getBoolean("renameable");
             }
             case TOGGLE_GROUPING -> {
-                visible = !detail && !group;
+                visible = !detail;
                 on = data.getBoolean("collapseTypes");
             }
             case PREVIOUS_PAGE -> available &= data.getInteger("page") > 0;
