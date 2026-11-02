@@ -200,8 +200,6 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 .addElement('E', ofStructureBlock(ModsItemlist.ChiselOrangeWoolenClay))
                 .addElement('F', ofStructureBlock(ModsItemlist.ChiselBrownWoolenClay))
                 .addElement('G', ofStructureBlock(ModsItemlist.EtFuturumRequiemOrangeConcrete))
-                .addElement('I', ofStructureBlock(ModsItemlist.EtFuturumRequiemBrownConcrete))
-                .addElement('J', ofStructureBlock(ModsItemlist.ExtraUtilitiesLightBlueLapisCaelestis))
                 .addElement(
                     'H',
                     ofChain(
@@ -213,6 +211,8 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                         onElementPass(
                             x -> ++x.mCountCasing,
                             ofStructureBlock(ModsItemlist.EtFuturumRequiemYellowConcrete))))
+                .addElement('I', ofStructureBlock(ModsItemlist.EtFuturumRequiemBrownConcrete))
+                .addElement('J', ofStructureBlock(ModsItemlist.ExtraUtilitiesLightBlueLapisCaelestis))
                 .build();
         }
         return structureDefinition;
