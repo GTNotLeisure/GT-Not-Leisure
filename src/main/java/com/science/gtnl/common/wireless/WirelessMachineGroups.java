@@ -15,7 +15,7 @@ import com.science.gtnl.api.mixinHelper.IInterfaceNameHatch;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 import appeng.api.implementations.parts.IPartCable;
-import appeng.helpers.IInterfaceHost;
+import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
@@ -137,11 +137,6 @@ public class WirelessMachineGroups {
                 summarize(links));
         }
 
-        static Row machine(MTEMultiBlockBase machine, List<IWirelessLinkView> links) {
-            Row group = new Row(machine, links);
-            return links.size() == 1 ? cluster(links.get(0), group.type()) : group;
-        }
-
         static Row cluster(IWirelessLinkView link) {
             return cluster(link, null);
         }
@@ -160,7 +155,7 @@ public class WirelessMachineGroups {
         }
 
         Address target() {
-            if (machine == null) return links.get(0)
+            if (!group()) return links.get(0)
                 .target();
             var base = machine.getBaseMetaTileEntity();
             return new Address(
@@ -222,8 +217,17 @@ public class WirelessMachineGroups {
             else machines.computeIfAbsent(classification.machine(), ignored -> new ObjectArrayList<>())
                 .add(link);
         }
-        machines.forEach((machine, members) -> rows.add(Row.machine(machine, members)));
+        machines.forEach((machine, members) -> rows.add(new Row(machine, members)));
         return rows;
+    }
+
+    static int[] energyHatches(MTEMultiBlockBase machine) {
+        int[] counts = new int[GTValues.VN.length];
+        Set<MTEHatch> seen = new ReferenceOpenHashSet<>();
+        for (MTEHatch hatch : machine.getExoticAndNormalEnergyHatchList()) {
+            if (seen.add(hatch) && hatch.mTier >= 0 && hatch.mTier < counts.length) counts[hatch.mTier]++;
+        }
+        return counts;
     }
 
     static Classification classify(IWirelessLinkView link, Reference2BooleanMap<MTEMultiBlockBase> validControllers,
@@ -238,7 +242,8 @@ public class WirelessMachineGroups {
             Object host = node.getMachine();
             if (host instanceof IPartCable) continue;
             Object machine = host instanceof IGregTechTileEntity base ? base.getMetaTileEntity() : host;
-            machineDevices &= machine instanceof MTEHatch || host instanceof IInterfaceHost;
+            boolean attached = WirelessInterfaceView.attached(host);
+            machineDevices &= machine instanceof MTEHatch || attached;
             if (pureDevices) {
                 TypeKey next = TypeKey.of(
                     TypeKind.DEVICE,
@@ -253,8 +258,8 @@ public class WirelessMachineGroups {
             if (!(machine instanceof MTEHatch)) pureSharedHatches = false;
             List<MTEHatch> hatches;
             if (machine instanceof MTEHatch hatch) hatches = List.of(hatch);
-            else if (host instanceof IInterfaceHost iface) {
-                hatches = interfaces.hatches(iface);
+            else if (attached) {
+                hatches = interfaces.hatches(host);
                 if (hatches == null) return Classification.UNGROUPED;
             } else continue;
             for (MTEHatch target : hatches) {

@@ -2,12 +2,11 @@ package com.science.gtnl.client.wireless;
 
 import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
 import static com.science.gtnl.common.wireless.WirelessCardActions.BACK;
+import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_DISPLAY;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
-import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
-import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TELEPORT;
@@ -150,11 +149,9 @@ public class WirelessCardButton {
                 tooltip.addLine(targetName.isEmpty() || targetName.equals(name) ? name : name + " - " + targetName);
                 tooltip.addLine(gray + row.getString("positionLabel"));
                 tooltip.addLine(
-                    EnumChatFormatting.YELLOW + (row.getBoolean("group")
-                        ? tr(
-                            "row_expand_hint",
-                            row.getBoolean("category") ? row.getInteger("items") : row.getInteger("clusters"))
-                        : tr(row.getBoolean("singleDevice") ? "row_open_device_hint" : "row_open_hint")));
+                    EnumChatFormatting.YELLOW
+                        + (row.getBoolean("group") ? tr("row_expand_hint", WirelessCardGui.groupContents(row))
+                            : tr(row.getBoolean("singleDevice") ? "row_open_device_hint" : "row_open_hint")));
                 if (!row.getBoolean("group") && row.getBoolean("singleDevice")) remoteState(tooltip, row);
             }
             case TELEPORT -> {
@@ -180,6 +177,12 @@ public class WirelessCardButton {
             case OPEN_DEVICE -> {
                 tooltip.addLine(tr("remote.open_tip"));
                 remoteState(tooltip, row);
+            }
+            case CYCLE_DISPLAY -> {
+                tooltip.addLine(tr("display.mode", tr("display.mode." + row.getInteger("displayMode"))));
+                tooltip.addLine(gray + tr("display.cycle_hint"));
+                tooltip.addLine(gray + tr("display.auto_hint"));
+                tooltip.addLine(gray + tr("display.fallback_hint"));
             }
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
@@ -228,6 +231,7 @@ public class WirelessCardButton {
             if (actionType == OPEN_DEVICE) available &= row.getString("remote")
                 .equals("open");
             if (actionType == OPEN_DETAILS) visible = !detail;
+            if (actionType == CYCLE_DISPLAY) visible = row.getBoolean("device") && row.hasKey("displayId", 4);
         } else switch (id) {
             case TOGGLE_AUTO -> on = data.getBoolean("auto");
             case BACK -> visible = detail;
@@ -239,18 +243,17 @@ public class WirelessCardButton {
                 visible = !detail;
                 on = data.getBoolean("collapseTypes");
             }
-            case PREVIOUS_PAGE -> available &= data.getInteger("page") > 0;
-            case NEXT_PAGE -> available &= data.getInteger("page") + 1 < data.getInteger("pages");
             default -> {}
         }
         widget.setEnabled(visible);
         label = switch (id) {
-            case PREVIOUS_PAGE -> "<";
-            case NEXT_PAGE -> ">";
             case BACK -> tr("back_compact");
             case RENAME -> StatCollector.translateToLocal("selectWorld.rename");
             case TOGGLE_GROUPING -> tr("merge_types");
             default -> "";
         };
+        if (actionType == CYCLE_DISPLAY && rowIndex(id) < rowCount) label = tr(
+            "display.short." + rows.getCompoundTagAt(rowIndex(id))
+                .getInteger("displayMode"));
     }
 }
