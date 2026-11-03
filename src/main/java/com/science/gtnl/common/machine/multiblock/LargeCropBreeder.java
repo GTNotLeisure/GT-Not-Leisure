@@ -197,9 +197,6 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         if (washingMode) return startWashing();
         List<ICropMutation> route = getPlan().steps;
         if (route.isEmpty()) {
-            // #tr GT5U.gui.text.recipe_result.gtnl_crop_no_route
-            // # No machine breeding route from the archived parents.
-            // # zh_CN 已存档亲本无法组成机器杂交路线。
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_no_route");
         }
         ICropMutation mutation = route.get(0);
@@ -223,16 +220,10 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         ItemStack[] catalysts = getStoredInputs().toArray(new ItemStack[0]);
         int[] consume = breedingConsumption(mutation, parents, catalysts);
         if (!validConsumption(consume, catalysts)) {
-            // #tr GT5U.gui.text.recipe_result.gtnl_crop_requirements
-            // # Missing breeding catalysts / substrate, or machine breeding conditions not met.
-            // # zh_CN 缺少杂交催化剂或底土，或不满足机器杂交条件。
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
         }
         FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL);
         if (!depleteInput(fertilizer, true)) {
-            // #tr GT5U.gui.text.recipe_result.gtnl_crop_fertilizer
-            // # Not enough enriched fertilizer.
-            // # zh_CN 富集肥料不足。
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
         }
 
@@ -315,21 +306,12 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     private CheckRecipeResult startWashing() {
         SeedStats stats = archive.get(targetCrop);
-        // #tr GT5U.gui.text.recipe_result.gtnl_crop_wash_unarchived
-        // # Select an archived crop to improve.
-        // # zh_CN 请先选中已入档的作物。
         if (stats == null) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_unarchived");
         int stat = chooseWashStat(stats);
-        // #tr GT5U.gui.text.recipe_result.gtnl_crop_wash_max
-        // # All three seed stats are at their maximum.
-        // # zh_CN 这粒种子的三项属性均已满。
         if (stat == 0) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_max");
         if (getMaxInputVoltage() < BASE_EUT || getMaxInputEu() < BASE_EUT)
             return CheckRecipeResultRegistry.insufficientPower(BASE_EUT);
         FluidStack uu = Materials.UUMatter.getFluid(UU_PER_TICK);
-        // #tr GT5U.gui.text.recipe_result.gtnl_crop_wash_uu
-        // # Not enough UU-Matter to improve the seed.
-        // # zh_CN 洗种所需的 UU 物质不足。
         if (!depleteInput(uu, true)) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_uu");
         activeWashStat = stat;
         activeCrop = targetCrop;
@@ -392,9 +374,6 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     }
 
     private static CheckRecipeResult missingUU() {
-        // #tr GT5U.gui.text.recipe_result.gtnl_crop_uu
-        // # Not enough UU-Matter.
-        // # zh_CN UU 物质不足。
         return SimpleCheckRecipeResult.ofFailure("gtnl_crop_uu");
     }
 

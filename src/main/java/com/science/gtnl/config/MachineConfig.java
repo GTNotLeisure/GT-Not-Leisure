@@ -76,9 +76,6 @@ public class MachineConfig {
 
     }
 
-    // #tr gtnl.gui.config.machine.crop_breeder
-    // # Large Crop Breeder
-    // # zh_CN 大型作物杂交机
     @Name("crop_breeder")
     @LangKey("gtnl.gui.config.machine.crop_breeder")
     public static final CropBreeder crop_breeder = new CropBreeder();
@@ -91,18 +88,12 @@ public class MachineConfig {
         @Comment("Success percentages for breeding grades 1 to 5, independent of machine voltage.")
         @Config.DefaultIntList({ 100, 80, 60, 40, 20 })
         @Config.RangeInt(min = 0, max = 100)
-        // #tr gtnl.gui.config.machine.crop_breeder.tier_chances
-        // # Default success chances by breeding grade (%%)
-        // # zh_CN 杂交等级默认成功率（%%）
         @Config.LangKey("gtnl.gui.config.machine.crop_breeder.tier_chances")
         public int[] tierChances = { 100, 80, 60, 40, 20 };
 
         @Comment({ "Per-crop overrides: CropsNH registry ID=percent (0-100).",
             "Invalid entries are ignored. The last valid entry wins." })
         @Config.DefaultStringList({})
-        // #tr gtnl.gui.config.machine.crop_breeder.crop_overrides
-        // # Per-crop success chance overrides
-        // # zh_CN 按作物 ID 覆盖成功率
         @Config.LangKey("gtnl.gui.config.machine.crop_breeder.crop_overrides")
         public String[] cropOverrides = {};
     }

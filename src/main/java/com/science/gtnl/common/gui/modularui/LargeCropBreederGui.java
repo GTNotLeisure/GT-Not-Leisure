@@ -367,26 +367,11 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         Flow tabs = Flow.row()
             .size(WIDTH, 18)
             .marginBottom(4);
-        // #tr gtnl.crop_breeder.run
-        // # Run
-        // # zh_CN 运行
         tabs.child(
             tab(0, "gtnl.crop_breeder.run", "gtnl.crop_breeder.run", GTGuiTextures.OVERLAY_BUTTON_POWER_SWITCH_ON));
-        // #tr gtnl.crop_breeder.archive
-        // # Archive
-        // # zh_CN 档案
         tabs.child(tab(1, "gtnl.crop_breeder.archive", "gtnl.crop_breeder.archive", new ItemDrawable(Items.book)));
-        // #tr gtnl.crop_breeder.reachable
-        // # Breedable
-        // # zh_CN 可育
-        // #tr gtnl.crop_breeder.tab_reachable
-        // # Crops
-        // # zh_CN 可育
         tabs.child(
             tab(2, "gtnl.crop_breeder.tab_reachable", "gtnl.crop_breeder.reachable", new ItemDrawable(Items.wheat)));
-        // #tr gtnl.crop_breeder.route
-        // # Route
-        // # zh_CN 路线
         tabs.child(tab(3, "gtnl.crop_breeder.route", "gtnl.crop_breeder.route", new ItemDrawable(Items.map)));
         Flow inventory = Flow.column()
             .pos(0, 154)
@@ -424,18 +409,13 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 (context, x, y, width, height, theme) -> (washingMode.getBoolValue() ? washingIcon : breedingIcon)
                     .draw(context, x + 2, y + 2, width - 4, height - 4, theme))
             .tooltipAutoUpdate(true)
-            .tooltipBuilder(t -> {
-                // #tr gtnl.crop_breeder.mode_breeding
-                // # Breeding mode. Click to switch to seed improvement.
-                // # zh_CN 杂交模式，点击切换为洗种
-                // #tr gtnl.crop_breeder.mode_washing
-                // # Seed improvement mode. Click to switch to breeding.
-                // # zh_CN 洗种模式，点击切换为杂交模式
-                t.addLine(
-                    tr(
-                        washingMode.getBoolValue() ? "gtnl.crop_breeder.mode_washing"
-                            : "gtnl.crop_breeder.mode_breeding"));
-            })
+            .tooltipBuilder(
+                t -> {
+                    t.addLine(
+                        tr(
+                            washingMode.getBoolValue() ? "gtnl.crop_breeder.mode_washing"
+                                : "gtnl.crop_breeder.mode_breeding"));
+                })
             .syncHandler("cropSwitchMode");
     }
 
@@ -463,31 +443,17 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 .autoUpdateOnChange(true)
                 .pos(0, 0)
                 .size(184, 18)
-                .tooltipBuilder(t -> {
-                    // #tr gtnl.crop_breeder.target_hint
-                    // # Enter a crop name / ID, or drop a seed from NEI. Apply an empty field to clear.
-                    // # zh_CN 输入作物名称 / ID，或从 NEI 拖入种子；留空应用可清除目标。
-                    t.addLine(IKey.lang("gtnl.crop_breeder.target_hint"));
-                }));
+                .tooltipBuilder(t -> { t.addLine(IKey.lang("gtnl.crop_breeder.target_hint")); }));
         page.child(
             new ButtonWidget<>().pos(188, 0)
                 .size(44, 18)
                 .background(GTGuiTextures.BUTTON_STANDARD)
-                // #tr gtnl.crop_breeder.apply
-                // # Apply
-                // # zh_CN 应用
                 .overlay(IKey.lang("gtnl.crop_breeder.apply"))
                 .syncHandler("cropApply"));
         page.child(label(() -> {
             if (!valid.getBoolValue()) {
-                // #tr gtnl.crop_breeder.invalid
-                // # Unknown crop; target unchanged.
-                // # zh_CN 未找到该作物，目标未改变。
                 return tr("gtnl.crop_breeder.invalid");
             }
-            // #tr gtnl.crop_breeder.target
-            // # Target: %s
-            // # zh_CN 目标：%s
             return tr("gtnl.crop_breeder.target", name(target.getStringValue()));
         }, 0, 22, WIDTH));
         ParentWidget<?> breeding = new ParentWidget<>().pos(0, 38)
@@ -504,34 +470,18 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         washing.child(label(() -> {
             ItemStack seed = icons.get(washingCrop.get());
             if (seed == null || !archive.contains(washingCrop.get())) {
-                // #tr gtnl.crop_breeder.wash_select
-                // # Select an archived crop to improve
-                // # zh_CN 请选择已入档的作物洗种
                 return tr("gtnl.crop_breeder.wash_select");
             }
             SeedStats stats = SeedStats.getStatsFromStack(seed);
-            // #tr gtnl.crop_breeder.wash_stats
-            // # Archived stats: %s / %s / %s
-            // # zh_CN 档案属性：%s / %s / %s
             return tr("gtnl.crop_breeder.wash_stats", stats.getGrowth(), stats.getGain(), stats.getResistance());
         }, 24, 5, WIDTH - 24));
         page.child(washing);
         page.child(
             label(
-                () -> tr(
-                    // #tr gtnl.crop_breeder.status
-                    // # Chance %s%% | Archive %s | Steps %s
-                    // # zh_CN 成功率 %s%% | 档案 %s | 剩余 %s 步
-                    "gtnl.crop_breeder.status",
-                    chance.getIntValue(),
-                    archive.size(),
-                    route.size()),
+                () -> tr("gtnl.crop_breeder.status", chance.getIntValue(), archive.size(), route.size()),
                 0,
                 60,
                 WIDTH).setEnabledIf(widget -> !washingOperation.getBoolValue()));
-        // #tr gtnl.crop_breeder.parallel
-        // # Parallel %s
-        // # zh_CN 并行 %s
         page.child(label(() -> tr("gtnl.crop_breeder.parallel", parallel.getIntValue()), 0, 69, WIDTH));
         page.child(createTerminalRow(panel, sync).pos(0, 78));
         return page;
@@ -575,12 +525,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 .setMaxLength(128)
                 .autoUpdateOnChange(true)
                 .size(WIDTH, 18)
-                .tooltipBuilder(t -> {
-                    // #tr gtnl.crop_breeder.search
-                    // # Search name / ID. Click a crop to fill the target, then Apply.
-                    // # zh_CN 搜索名称 / ID；点击作物填入目标，再点击应用。
-                    t.addLine(IKey.lang("gtnl.crop_breeder.search"));
-                }));
+                .tooltipBuilder(t -> { t.addLine(IKey.lang("gtnl.crop_breeder.search")); }));
         for (int i = 0; i < SPECIES_PER_PAGE; i++) {
             final int slot = i;
             page.child(
@@ -595,9 +540,6 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                         return true;
                     }));
         }
-        // #tr gtnl.crop_breeder.empty
-        // # No matching crops
-        // # zh_CN 没有符合条件的作物
         page.child(
             label(() -> tr("gtnl.crop_breeder.empty"), 6, 47, WIDTH - 12).setEnabledIf(
                 widget -> view.filtered()
@@ -607,9 +549,6 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         page.child(
             label(
                 () -> tr(
-                    // #tr gtnl.crop_breeder.page
-                    // # %s entries | %s / %s
-                    // # zh_CN 共 %s 项 | %s / %s 页
                     "gtnl.crop_breeder.page",
                     view.filtered()
                         .size(),
@@ -634,29 +573,13 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         routeWidget = new BreedingRouteWidget(viewport, vertical, horizontal);
         viewport.child(routeWidget);
         page.child(
-            label(
-                () -> tr(
-                    // #tr gtnl.crop_breeder.route_summary
-                    // # Breeding lineage | %s steps remaining
-                    // # zh_CN 杂交谱系 | 剩余 %s 步
-                    "gtnl.crop_breeder.route_summary",
-                    route.size()),
-                0,
-                2,
-                WIDTH - 24).tooltipBuilder(t -> {
-                    // #tr gtnl.crop_breeder.route_hint
-                    // # Drag/scroll: pan. Ctrl+scroll: zoom. Middle-click: reset. Green: archived. Fill: progress.
-                    // # zh_CN 拖动或滚动查看谱系；Ctrl + 滚轮缩放，中键重置视图。绿色箭头表示作物已入档，填充箭头表示本轮进度。
-                    t.addLine(IKey.lang("gtnl.crop_breeder.route_hint"));
-                }));
+            label(() -> tr("gtnl.crop_breeder.route_summary", route.size()), 0, 2, WIDTH - 24)
+                .tooltipBuilder(t -> { t.addLine(IKey.lang("gtnl.crop_breeder.route_hint")); }));
         page.child(
             new ButtonWidget<>().pos(WIDTH - 18, 0)
                 .size(18)
                 .background(GTGuiTextures.BUTTON_STANDARD)
                 .overlay(new ItemDrawable(Items.compass).asIcon())
-                // #tr gtnl.crop_breeder.focus_target
-                // # Focus target crop
-                // # zh_CN 定位目标作物
                 .tooltipBuilder(t -> t.addLine(IKey.lang("gtnl.crop_breeder.focus_target")))
                 .onMousePressed(button -> {
                     if (button == 0) routeWidget.focusTarget();
@@ -664,15 +587,8 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 }));
         page.child(viewport);
         page.child(
-            label(
-                () -> tr(
-                    // #tr gtnl.crop_breeder.no_route
-                    // # Select a target and supply analyzed parent seeds.
-                    // # zh_CN 请选择目标并投入已分析的亲本种子。
-                    "gtnl.crop_breeder.no_route"),
-                0,
-                30,
-                WIDTH).setEnabledIf(widget -> route.isEmpty() && routeWidget.history.isEmpty()));
+            label(() -> tr("gtnl.crop_breeder.no_route"), 0, 30, WIDTH)
+                .setEnabledIf(widget -> route.isEmpty() && routeWidget.history.isEmpty()));
         return page;
     }
 
@@ -751,22 +667,13 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 ItemStack stack = icon(id.get());
                 if (stack == null) return;
                 t.addFromItem(stack);
-                // #tr gtnl.crop_breeder.breeding_grade
-                // # Breeding grade: %s
-                // # zh_CN 杂交等级：%s 级
                 t.addLine(tr("gtnl.crop_breeder.breeding_grade", cropBreedingGrades.getOrDefault(id.get(), 1)));
-                // #tr gtnl.crop_breeder.required_voltage
-                // # Required breeding voltage: %s
-                // # zh_CN 所需杂交电压：%s
                 t.addLine(
                     tr(
                         "gtnl.crop_breeder.required_voltage",
                         GTValues.VN[Math
                             .max(VoltageIndex.HV, Math.min(GTValues.VN.length - 1, requiredTier.getAsInt()))]));
                 if (!cropChances.containsKey(id.get())) return;
-                // #tr gtnl.crop_breeder.crop_chance
-                // # Breeding success chance: %s%%
-                // # zh_CN 杂交成功率：%s%%
                 t.addLine(tr("gtnl.crop_breeder.crop_chance", effectiveChance(id.get())));
             });
     }
@@ -781,16 +688,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     }
 
     private static String requirementLabel(NBTTagCompound requirement) {
-        // #tr gtnl.crop_breeder.soil_automatic
-        // # Vanilla substrate alternative: automatically satisfied; no item needed
-        // # zh_CN 有原版底土可选：自动满足，无需放入
         if (requirement.getBoolean("automatic")) return tr("gtnl.crop_breeder.soil_automatic");
-        // #tr gtnl.crop_breeder.soil_requirement
-        // # Substrate: checked in input bus, not consumed
-        // # zh_CN 底土：放入输入总线，仅检测、不消耗
-        // #tr gtnl.crop_breeder.catalyst_requirement
-        // # Catalyst: consumed each attempt
-        // # zh_CN 催化剂：每次尝试消耗
         return tr(
             requirement.getBoolean("soil") ? "gtnl.crop_breeder.soil_requirement"
                 : "gtnl.crop_breeder.catalyst_requirement");
@@ -814,21 +712,12 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private String requirementTooltipLine(NBTTagCompound requirement) {
         boolean soil = requirement.getBoolean("soil");
         ItemStack display = requirementItem(requirement);
-        // #tr gtnl.crop_breeder.requirement_unavailable
-        // # No registered matching item
-        // # zh_CN 没有已注册的对应物品
         String name = display == null ? tr("gtnl.crop_breeder.requirement_unavailable") : display.getDisplayName();
         if (soil) {
-            // #tr gtnl.crop_breeder.required_soil
-            // # Required substrate: %s
-            // # zh_CN 所需底土：%s
             return tr("gtnl.crop_breeder.required_soil", name)
                 + (hasSubstrateCheckmark(requirement) ? " " + EnumChatFormatting.GREEN + "✔" + EnumChatFormatting.RESET
                     : "");
         }
-        // #tr gtnl.crop_breeder.required_catalyst
-        // # Required catalyst: %s × %s (consumed)
-        // # zh_CN 所需催化剂：%s × %s（消耗）
         return tr("gtnl.crop_breeder.required_catalyst", name, display == null ? 0 : display.stackSize);
     }
 
@@ -849,26 +738,14 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 if (stack != null) t.addFromItem(stack);
                 t.addLine(requirementLabel(requirement));
                 if (requirement.getBoolean("soil")) {
-                    // #tr gtnl.crop_breeder.substrate_archived
-                    // # Crop archived
-                    // # zh_CN 作物已入档
                     if (archive.contains(requirement.getString("crop")))
                         t.addLine(EnumChatFormatting.GREEN + tr("gtnl.crop_breeder.substrate_archived"));
-                    // #tr gtnl.crop_breeder.substrate_detected
-                    // # Substrate detected in input bus
-                    // # zh_CN 输入总线已检测到底土
-                    // #tr gtnl.crop_breeder.substrate_missing
-                    // # Substrate not detected in input bus
-                    // # zh_CN 输入总线未检测到底土
                     if (!requirement.getBoolean("automatic")) t.addLine(
                         tr(
                             presentSubstrates.containsKey(requirement.getString("key"))
                                 ? "gtnl.crop_breeder.substrate_detected"
                                 : "gtnl.crop_breeder.substrate_missing"));
                 }
-                // #tr gtnl.crop_breeder.alternatives
-                // # Any one of %s alternatives; required count: %s
-                // # zh_CN 以下 %s 种任选一种；所需数量：%s
                 if (!requirement.getBoolean("automatic")) t.addLine(
                     tr(
                         "gtnl.crop_breeder.alternatives",

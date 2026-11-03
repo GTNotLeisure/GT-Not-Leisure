@@ -17,7 +17,6 @@ import com.cleanroommc.modularui.widget.Widget;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
-/** A complete branching connection, revealed by one bottom-to-top progress boundary. */
 public final class BranchProgressWidget extends Widget<BranchProgressWidget> {
 
     private static final int TEXTURE_HEIGHT = 18;
@@ -31,7 +30,6 @@ public final class BranchProgressWidget extends Widget<BranchProgressWidget> {
     private int targetX;
     private int junctionY;
 
-    /** Coordinates are in the parent canvas; all sources share the same Y coordinate. */
     public BranchProgressWidget layout(int targetX, int targetY, int junctionY, int sourceY, int... sourceXs) {
         if (sourceXs.length == 0 || sourceY <= targetY) throw new IllegalArgumentException("Invalid branch endpoints");
         int[] sorted = sourceXs.clone();
@@ -62,7 +60,6 @@ public final class BranchProgressWidget extends Widget<BranchProgressWidget> {
         return this;
     }
 
-    /** Line and arrow textures point right; the caller supplies their visual style. */
     public BranchProgressWidget textures(UITexture emptyLine, UITexture fullLine, UITexture emptyArrow,
         UITexture fullArrow) {
         this.emptyLine = Objects.requireNonNull(emptyLine);
@@ -119,9 +116,7 @@ public final class BranchProgressWidget extends Widget<BranchProgressWidget> {
         }
         int left = sourceXs[0] - LINE_LEADING_EXTENT;
         int right = sourceXs[sourceXs.length - 1] + (filled ? FILLED_LINE_TRAILING_EXTENT : EMPTY_LINE_TRAILING_EXTENT);
-        // Match the rotated shaft's visible bounds: three pixels empty, four pixels filled.
         drawTexture(context, theme, line, left, junctionY, right - left, 0);
-        // Draw both incoming and outgoing strokes over the bar, opening its border at every junction.
         for (int x : sourceXs) drawTexture(context, theme, line, x, bottom, bottom - junctionY, -90);
         drawTexture(context, theme, arrow, targetX, junctionY, junctionY, -90);
     }

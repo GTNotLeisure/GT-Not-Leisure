@@ -1475,9 +1475,6 @@ public class MultiblockLoader {
         AnimatedTooltipHandler.addItemTooltip(GTNLItemList.LargeBeeBreeder.get(1), AnimatedText.GT_NOT_LEISURE);
 
         if (Mods.CropsNH.isModLoaded()) {
-            // #tr gtnl.machine.large_crop_breeder.name
-            // # Large Crop Breeder
-            // # zh_CN 大型作物杂交机
             GTNLItemList.LargeCropBreeder.set(
                 new LargeCropBreeder(
                     GTNLMachineID.LARGE_CROP_BREEDER.ID,
