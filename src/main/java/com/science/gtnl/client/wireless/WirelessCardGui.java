@@ -59,9 +59,9 @@ import com.cleanroommc.modularui.value.IntValue;
 import com.cleanroommc.modularui.value.StringValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widget.scroll.ScrollArea;
-import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.AE2Theme;
@@ -69,9 +69,9 @@ import com.gtnllib.gui.theme.AE2Theme.ButtonText;
 import com.gtnllib.gui.theme.AE2Theme.Colors;
 import com.gtnllib.gui.theme.AE2Theme.Variant;
 import com.gtnllib.gui.widget.AE2ButtonDrawable;
-import com.gtnllib.gui.widget.Breadcrumb;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.FadingNotice;
+import com.gtnllib.gui.widget.HandleScrollData;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
@@ -88,7 +88,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 @SideOnly(Side.CLIENT)
 public class WirelessCardGui extends ModularPanel {
 
-    public static final int ROW_HEIGHT = 24, CONTENT_X = 34, ROW_TOP = 82;
+    public static final int ROW_HEIGHT = 24, CONTENT_X = 34, ROW_TOP = WirelessCardLayout.HEADER_HEIGHT;
     public static final String KEY_PREFIX = "gtnl.wireless.gui.", NAME = "wireless_card",
         DIMENSION_MENU = NAME + "_dimension", VISUALISATION_MENU = NAME + "_visualisation";
     private static final int[] CHIP_STATES = { 0, 3, 4, 5, 1, 2 };
@@ -98,7 +98,15 @@ public class WirelessCardGui extends ModularPanel {
         PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000, AE2_HIGHLIGHT_TOP = 0xFFDAFFFF;
     private static final int TREE_X = 15, INDENT = 12, ARROW_X = 8, CHILD_ARROW_X = 20, ICON_X = 24, CHILD_ICON_X = 28,
         ICON_SPACE = 18, ARROW_SIZE = 16, ARROW_INSET = 3, ARROW_DOWN = 49, ARROW_RIGHT = 50, DEVICE_TEXT_END = 92;
-    private static final int SCROLL_WIDTH = 12, SCROLL_SPACE = SCROLL_WIDTH + 4;
+    private static final int SCROLL_GAP = 7, SCROLL_OVERHANG = 2;
+    private static final int EDGE = 10, CONTROL_GAP = 4, CONTROL_HEIGHT = 14, FOOTER_BOTTOM = 7, FOOTER_TEXT_Y = 7,
+        BACK_WIDTH = 40, RENAME_WIDTH = 64, HEADER_TOP = 6, HEADER_GAP = 3, LIST_GAP = 4, TITLE_HEIGHT = 10, HINT_Y = 3,
+        CARD_HEIGHT = 34, CARD_PAD = 4, CARD_TITLE_Y = 4, CARD_BAR_Y = 16, CARD_SUB_Y = 24, BAR_HEIGHT = 4,
+        DIVIDER_WIDTH = 8, DIVIDER_INSET = 3, PLAIN_WARNING = 0xFFAA00;
+    private static final double WARNING_RATIO = 0.75;
+    private static final int SHADE_STEP_ALPHA = 0x1F, MAX_NEST_SHADE = 3, SEPARATOR_ALPHA = 0x5D,
+        BAR_TRACK_ALPHA = 0x4D, DIVIDER_ALPHA = 0x80;
+    private static final Set<String> CLOSING_MESSAGES = Set.of("highlight_started", "teleport_done");
     private static final Set<String> FAILURES = Set.of(
         "display.limit",
         "denied",
@@ -125,21 +133,22 @@ public class WirelessCardGui extends ModularPanel {
     public final int highlight = variant != null ? AE2Theme.HIGHLIGHT : PLAIN_HIGHLIGHT,
         highlightTop = variant != null ? AE2_HIGHLIGHT_TOP : PLAIN_HIGHLIGHT_TOP,
         highlightShadow = variant != null ? AE2Theme.HIGHLIGHT_SHADOW : PLAIN_HIGHLIGHT_SHADOW;
+    private final int scrollWidth = AE2Theme.scrollbarWidth(variant), scrollSpace = scrollWidth + SCROLL_GAP;
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
     private final List<ButtonWidget<?>> chips = new ObjectArrayList<>();
     private final CycleDropdown<Integer> dimension, visualisation;
-    private final Breadcrumb breadcrumb;
     private final FadingNotice notice;
     private final IPanelHandler renamePanel;
     private final IPanelHandler groupPanel;
     private WirelessCardClientView.GroupDetails selectedGroup;
     private final ListScrollbar scrollbar = new ListScrollbar();
+    private final BackHint backHint = new BackHint();
     private NBTTagCompound overview = new NBTTagCompound();
     private WirelessCardLayout layout = WirelessCardLayout.forScreen(0, 0);
     private boolean closingDetail;
     private String searchText = "", layoutKey = "";
-    public int xSize = 320, ySize = 232, visibleRows = WirelessCardLayout.MIN_ROWS;
+    public int xSize = layout.width(), ySize = layout.height(), visibleRows = layout.rows();
 
     public WirelessCardGui(WirelessCardContainer container) {
         super(NAME);
@@ -150,7 +159,6 @@ public class WirelessCardGui extends ModularPanel {
             searchText = saved.search();
         }
         addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE, CYCLE_DISPLAY);
-        for (int id : new int[] { REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING }) addButton(id);
         child(scrollbar);
         search = textField(64).hintText(tr("search_placeholder"));
         search.autoUpdateOnChange(true)
@@ -159,11 +167,6 @@ public class WirelessCardGui extends ModularPanel {
                 searchText = text;
                 filter(clientView().dimension(), clientView().state());
             }));
-        child(search);
-        for (int index = 0; index < CHIP_STATES.length; index++) child(chip(index));
-        breadcrumb = new Breadcrumb().segments(this::crumbs)
-            .onSelect(this::jump)
-            .colors(palette.text, palette.link, palette.hint);
         dimension = choice(DIMENSION_MENU, this::dimensionLabel, this::dimensionOption)
             .maxVerticalMenuSize(MENU_HEIGHT);
         dimension.value(
@@ -177,9 +180,69 @@ public class WirelessCardGui extends ModularPanel {
         for (int mode = 0; mode < WirelessCardVisualisation.MODE_COUNT; mode++) modes.add(mode);
         visualisation.choices(modes);
         notice = new FadingNotice().duration(NOTICE_MILLIS);
-        child(breadcrumb).child(dimension)
-            .child(visualisation)
-            .child(notice);
+        Flow stats = Flow.row()
+            .widthRel(1f)
+            .height(CARD_HEIGHT);
+        for (Stat stat : Stat.values()) {
+            if (stat != Stat.CONTROLLER) stats.child(
+                new CardDivider().width(DIVIDER_WIDTH)
+                    .heightRel(1f));
+            stats.child(
+                new StatCard(stat).expanded()
+                    .heightRel(1f));
+        }
+        Flow filters = Flow.row()
+            .widthRel(1f)
+            .height(CONTROL_HEIGHT)
+            .childPadding(CHIP_GAP)
+            .collapseDisabledChild();
+        for (int index = 0; index < CHIP_STATES.length; index++) filters.child(chip(index).height(CONTROL_HEIGHT));
+        filters.child(
+            new Widget<>().expanded()
+                .height(CONTROL_HEIGHT))
+            .child(button(RENAME).size(RENAME_WIDTH, CONTROL_HEIGHT));
+        child(
+            Flow.column()
+                .left(EDGE)
+                .right(EDGE)
+                .top(HEADER_TOP)
+                .height(ROW_TOP - LIST_GAP - HEADER_TOP)
+                .childPadding(HEADER_GAP)
+                .child(
+                    new Title().widthRel(1f)
+                        .height(TITLE_HEIGHT))
+                .child(stats)
+                .child(filters)
+                .child(
+                    Flow.row()
+                        .widthRel(1f)
+                        .height(CONTROL_HEIGHT)
+                        .childPadding(CONTROL_GAP)
+                        .collapseDisabledChild()
+                        .child(
+                            search.expanded()
+                                .height(AE2Theme.TEXT_FIELD_HEIGHT))
+                        .child(dimension.size(DIMENSION_WIDTH, CONTROL_HEIGHT))
+                        .child(
+                            backHint.expanded()
+                                .height(CONTROL_HEIGHT))));
+        child(
+            Flow.row()
+                .left(EDGE)
+                .right(EDGE)
+                .bottom(FOOTER_BOTTOM)
+                .height(AE2Theme.BUTTON_HEIGHT)
+                .childPadding(CONTROL_GAP)
+                .collapseDisabledChild()
+                .child(button(BACK).size(BACK_WIDTH, AE2Theme.BUTTON_HEIGHT))
+                .child(
+                    new FooterInfo().expanded()
+                        .height(AE2Theme.BUTTON_HEIGHT))
+                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.SWITCH_HEIGHT))
+                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.SWITCH_HEIGHT))
+                .child(visualisation.size(layout.visualisationWidth(), AE2Theme.BUTTON_HEIGHT))
+                .child(button(REFRESH).size(AE2Theme.BUTTON_HEIGHT, AE2Theme.BUTTON_HEIGHT)));
+        child(notice);
         renamePanel = IPanelHandler.simple(this, (parent, player) -> new WirelessCardRenameDialog(this), true);
         groupPanel = IPanelHandler
             .simple(this, (parent, player) -> new WirelessCardGroupDialog(this, selectedGroup), true);
@@ -206,14 +269,6 @@ public class WirelessCardGui extends ModularPanel {
         return view().getBoolean("detail") ? 1 : 0;
     }
 
-    private List<String> crumbs() {
-        List<String> labels = new ObjectArrayList<>();
-        labels.add(tr("title"));
-        if (view().getBoolean("detail"))
-            labels.add(tr(view().getBoolean("devices") ? "devices_title" : "detail_title"));
-        return labels;
-    }
-
     private void jump(int target) {
         if (target >= depth() || !layoutReady()) return;
         closingDetail = true;
@@ -235,6 +290,7 @@ public class WirelessCardGui extends ModularPanel {
     public void receive(ChatComponentTranslation message) {
         String key = message.getKey()
             .substring(KEY_PREFIX.length());
+        if (CLOSING_MESSAGES.contains(key)) return;
         int color = FAILURES.contains(key) ? FAILURE_COLOR : SUCCESS_COLOR;
         String text = message.getUnformattedText();
         notice.show(text, color);
@@ -298,15 +354,17 @@ public class WirelessCardGui extends ModularPanel {
         String side = row.getString("side");
         GuiScreen.setClipboardString(
             row.getString("position") + (row.getBoolean("group") || side.isEmpty() ? "" : " / " + side));
-        var message = new ChatComponentTranslation(KEY_PREFIX + "copied");
-        mc.thePlayer.addChatMessage(message);
-        receive(message);
+        mc.thePlayer.addChatMessage(new ChatComponentTranslation(KEY_PREFIX + "copied"));
     }
 
     public final void addButton(int id) {
+        child(button(id));
+    }
+
+    private Widget<?> button(int id) {
         var button = new WirelessCardButton(id, this);
         buttons.add(button);
-        child(button.widget);
+        return button.widget;
     }
 
     public final void addRowButtons(int... actions) {
@@ -557,11 +615,9 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void layoutControls() {
-        NBTTagCompound data = view();
-        boolean root = !data.getBoolean("detail");
-        int rowWidth = xSize - SCROLL_SPACE;
-        scrollbar.pos(xSize - 10 - SCROLL_WIDTH, ROW_TOP)
-            .size(SCROLL_WIDTH, visibleRows * ROW_HEIGHT);
+        int rowWidth = xSize - scrollSpace;
+        scrollbar.pos(xSize - 10 - scrollWidth, ROW_TOP - SCROLL_OVERHANG)
+            .size(scrollWidth, visibleRows * ROW_HEIGHT + SCROLL_OVERHANG);
         for (var control : buttons) {
             int id = control.id;
             var button = control.widget;
@@ -583,50 +639,24 @@ public class WirelessCardGui extends ModularPanel {
                     case OPEN_ENTRANCES -> button.pos(rowWidth - 106, y + 4)
                         .size(16, 16);
                 }
-            } else switch (id) {
-                case TOGGLE_AUTO -> button.pos(xSize - 10 - autoWidth(), 12)
-                    .size(autoWidth(), AE2Theme.SWITCH_HEIGHT);
-                case RENAME -> button.pos(xSize - 76, 47)
-                    .size(64, 14);
-                case TOGGLE_GROUPING -> button.pos(xSize - 10 - mergeWidth(), 65)
-                    .size(mergeWidth(), AE2Theme.SWITCH_HEIGHT);
-                case BACK -> button.pos(10, ySize - 27)
-                    .size(40, 20);
-                case REFRESH -> button.pos(xSize - 30, ySize - 27)
-                    .size(20, 20);
             }
         }
-        breadcrumb.pos(10, 9)
-            .size(xSize - 140, 12);
         layoutChips();
-        int hint = Math.min(fontRendererObj.getStringWidth(tr("back_hint")), (xSize - 20) / 2);
-        int searchWidth = root ? xSize - 28 - DIMENSION_WIDTH - mergeWidth() : xSize - 26 - hint;
-        search.pos(10, 65)
-            .size(searchWidth, 12);
-        dimension.pos(14 + searchWidth, 64)
-            .size(DIMENSION_WIDTH, 14);
-        visualisation.pos(layout.visualisationX(), ySize - 27)
-            .size(layout.visualisationWidth(), 20);
+        visualisation.width(layout.visualisationWidth());
         notice.pos(10, ySize - 46)
             .size(xSize - 20, 15);
     }
 
     private void layoutChips() {
-        int available = xSize - 20 - CHIP_GAP * (chips.size() - 1), total = 0;
+        int available = xSize - EDGE * 2 - CHIP_GAP * chips.size(), total = 0;
         int[] widths = new int[chips.size()];
         for (int i = 0; i < widths.length; i++) total += widths[i] = chipWidth(i);
-        int x = 10;
-        for (int i = 0; i < widths.length; i++) {
-            int width = total <= available ? widths[i] : widths[i] * available / total;
-            chips.get(i)
-                .pos(x, 47)
-                .size(width, 14);
-            x += width + CHIP_GAP;
-        }
+        for (int i = 0; i < widths.length; i++) chips.get(i)
+            .width(total <= available ? widths[i] : widths[i] * available / total);
     }
 
     private int autoWidth() {
-        return Math.max(AE2Theme.switchWidth(tr("auto_on")), AE2Theme.switchWidth(tr("auto_off")));
+        return AE2Theme.switchWidth(tr("auto_connect"));
     }
 
     private int mergeWidth() {
@@ -669,6 +699,7 @@ public class WirelessCardGui extends ModularPanel {
         if (detail && editingText()) getContext().removeFocus();
         search.setEnabled(!detail);
         for (var chip : chips) chip.setEnabled(!detail);
+        backHint.setEnabled(detail);
         if (!root && dimension.isOpen()) dimension.closeMenu(false);
         dimension.setEnabled(root);
         dimension.choices(dimensionChoices());
@@ -701,7 +732,7 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     int stateX() {
-        return xSize - SCROLL_SPACE - 148;
+        return xSize - scrollSpace - 148;
     }
 
     int contentWidth() {
@@ -716,28 +747,6 @@ public class WirelessCardGui extends ModularPanel {
 
     int textColor() {
         return palette.text;
-    }
-
-    int goodColor() {
-        return palette.good;
-    }
-
-    int badColor() {
-        return palette.bad;
-    }
-
-    int waitingColor() {
-        return palette.link;
-    }
-
-    static String budgetText(NBTTagCompound data) {
-        return !data.getBoolean("bound") ? tr("bind_hint")
-            : !data.getBoolean("sourceLoaded") ? tr(data.getBoolean("sourceSplit") ? "source_split" : "source_waiting")
-                : !data.getBoolean("channels") ? tr("unlimited")
-                    : tr(
-                        "budget_compact",
-                        data.getInteger("used") < 0 ? "?" : data.getInteger("used"),
-                        data.getInteger("capacity"));
     }
 
     public static String rowName(NBTTagCompound row, ItemStack icon) {
@@ -794,32 +803,35 @@ public class WirelessCardGui extends ModularPanel {
         return x + fontRendererObj.getStringWidth(fitted);
     }
 
-    private void drawMetrics(NBTTagCompound data, int x, int y, int width, boolean compact, Palette ink) {
+    private void drawMetrics(NBTTagCompound data, int x, int y, int width, Palette ink) {
         int end = x + width;
-        String entrances = "  " + tr(
-            compact ? "entrances_compact" : "entrances",
-            compact ? data.getInteger("entrances")
-                : data.getInteger("entrances") + " / " + data.getInteger("entranceLimit"));
-        int metricsEnd = compact ? end : Math.max(x, end - fontRendererObj.getStringWidth(entrances));
+        x = textSegment(
+            tr("online_compact", data.getInteger("online"), data.getInteger("devices")),
+            x,
+            y,
+            end,
+            onlineColor(data, ink));
+        x = textSegment("  " + tr("missing_compact", missingText(data)), x, y, end, missingColor(data, ink));
+        textSegment("  " + tr("entrances_compact", data.getInteger("entrances")), x, y, end, ink.text);
+    }
+
+    private static int onlineColor(NBTTagCompound data, Palette ink) {
         int online = data.getInteger("online"), devices = data.getInteger("devices");
-        int onlineColor = data.getBoolean("paused") ? ink.bad
+        return data.getBoolean("paused") ? ink.bad
             : !data.getBoolean("stable") ? ink.link : online == devices && devices > 0 ? ink.good : ink.text;
-        x = textSegment(
-            tr(compact ? "online_compact" : "online_metric", online, devices),
-            x,
-            y,
-            metricsEnd,
-            onlineColor);
-        int missingColor = !data.getBoolean("stable") ? ink.link : data.getInteger("missing") > 0 ? ink.bad : ink.text;
-        x = textSegment(
-            "  " + tr(
-                compact ? "missing_compact" : "missing_metric",
-                data.getBoolean("stable") ? data.getInteger("missing") : "?"),
-            x,
-            y,
-            metricsEnd,
-            missingColor);
-        textSegment(entrances, x, y, end, ink.text);
+    }
+
+    private static int missingColor(NBTTagCompound data, Palette ink) {
+        return !data.getBoolean("stable") ? ink.link : data.getInteger("missing") > 0 ? ink.bad : ink.text;
+    }
+
+    private static Object missingText(NBTTagCompound data) {
+        return data.getBoolean("stable") ? data.getInteger("missing") : "?";
+    }
+
+    private static int usageColor(int used, int total, int normal, Palette ink) {
+        if (total <= 0 || used < 0) return normal;
+        return used >= total ? ink.bad : used >= total * WARNING_RATIO ? ink.warning : normal;
     }
 
     private void ratioBar(int x, int y, int width, int height, int value, int total, int fill, int remainder) {
@@ -871,7 +883,7 @@ public class WirelessCardGui extends ModularPanel {
             .drawString(trim(tr("short_state." + row.getString("state")), 38), stateX(), stateY, ink.state(row));
         if (row.getBoolean("device")) {
             if (displayIcon != null) drawDeviceIcon(displayIcon, 12, y + 4);
-            int width = xSize - SCROLL_SPACE - DEVICE_TEXT_END - CONTENT_X;
+            int width = xSize - scrollSpace - DEVICE_TEXT_END - CONTENT_X;
             drawRowTitle(row, icon, CONTENT_X, y + 2, width, ink);
             String state = row.getString("deviceState");
             int color = state.equals("online") ? ink.good : state.equals("missing") ? ink.bad : ink.suffix;
@@ -888,7 +900,7 @@ public class WirelessCardGui extends ModularPanel {
         }
         int depth = row.getInteger("depth");
         boolean group = row.getBoolean("group");
-        drawTree(row, depth, group, y, ink.tree);
+        drawTree(row, depth, group, y, highlighted && ae2 ? AE2Theme.HIGHLIGHT_SHADOW : ink.tree);
         int iconX = iconX(depth, group), textX = iconX + ICON_SPACE, width = stateX() - textX - 4;
         if (group) drawArrow(row.getBoolean("expanded"), arrowX(depth), y + 4);
         if (displayIcon != null) drawDeviceIcon(displayIcon, iconX, y + 4);
@@ -904,7 +916,7 @@ public class WirelessCardGui extends ModularPanel {
             missingColor);
         if (!group) {
             drawRowTitle(row, icon, textX, y + 2, width, ink);
-            drawMetrics(row, textX, y + 13, width, true, ink);
+            drawMetrics(row, textX, y + 13, width, ink);
             return;
         }
         int count = row.getBoolean("category") ? row.getInteger("items") : row.getInteger("clusters");
@@ -916,7 +928,7 @@ public class WirelessCardGui extends ModularPanel {
             ink.suffix);
         String total = "×" + count;
         fontRendererObj
-            .drawString(total, xSize - SCROLL_SPACE - 14 - fontRendererObj.getStringWidth(total), stateY, ink.name);
+            .drawString(total, xSize - scrollSpace - 14 - fontRendererObj.getStringWidth(total), stateY, ink.name);
     }
 
     private void drawTree(NBTTagCompound row, int depth, boolean group, int y, int color) {
@@ -960,49 +972,29 @@ public class WirelessCardGui extends ModularPanel {
         }
     }
 
-    private void drawHeader(NBTTagCompound data, int textColor) {
-        boolean budgetKnown = data.getBoolean("sourceLoaded") && data.getBoolean("channels")
-            && data.getBoolean("stable")
-            && data.getInteger("used") >= 0
-            && data.getInteger("capacity") > 0;
-        int budgetColor = !budgetKnown ? textColor
-            : data.getInteger("used") >= data.getInteger("capacity") ? badColor() : goodColor();
-        String budget = trim(budgetText(data), xSize / 2);
-        int budgetWidth = fontRendererObj.getStringWidth(budget);
-        fontRendererObj.drawString(budget, xSize - 76 - budgetWidth, 25, budgetColor);
-        ratioBar(
-            xSize - 72,
-            26,
-            60,
-            6,
-            budgetKnown ? data.getInteger("used") : -1,
-            data.getInteger("capacity"),
-            budgetColor,
-            palette.track);
-        String source = data.getBoolean("bound") ? tr("source", data.getString("sourceLabel")) : tr("unbound");
-        fontRendererObj.drawString(trim(source, xSize - 92 - budgetWidth), 10, 25, textColor);
-        drawMetrics(data, 10, 37, xSize - 20, false, palette);
-        String hint = trim(tr("back_hint"), (xSize - 20) / 2);
-        int hintColor = palette.hint;
-        if (data.getBoolean("detail")) {
-            fontRendererObj.drawString(trim(data.getString("name"), xSize - 96), 10, 51, palette.name);
-            fontRendererObj.drawString(hint, 10, 67, hintColor);
-        }
+    private static String title(NBTTagCompound data) {
+        if (!data.getBoolean("detail")) return tr("title");
+        String page = tr(data.getBoolean("devices") ? "devices_title" : "detail_title"), name = data.getString("name");
+        return name.isEmpty() ? page : tr("page_title", page, name);
     }
 
-    private void drawFooter(NBTTagCompound data, int textColor) {
-        int y = ySize - 20;
-        int infoX = depth() > 0 ? 56 : 10;
-        String info = data.getBoolean("detail")
-            ? tr(data.getBoolean("devices") ? "device_count" : "entrance_count", data.getInteger("rowCount"))
-            : tr(data.getBoolean("filtered") ? "matched" : "loaded", data.getInteger("total"));
-        fontRendererObj.drawString(trim(info, layout.visualisationX() - infoX - 4), infoX, y, textColor);
+    private void drawBar(int x, int y, int width, int total, int[] values, int[] colors) {
+        drawRect(x, y, x + width, y + BAR_HEIGHT, tint(BAR_TRACK_ALPHA));
+        if (total <= 0) return;
+        int filled = 0;
+        for (int i = 0; i < values.length; i++) {
+            if (values[i] <= 0) continue;
+            int start = (int) Math.round((double) width * filled / total);
+            filled = Math.min(total, filled + values[i]);
+            int end = (int) Math.round((double) width * filled / total);
+            if (end > start) drawRect(x + start, y, x + end, y + BAR_HEIGHT, colors[i] | 0xFF000000);
+        }
     }
 
     private int hoveredRow(ModularGuiContext context, int count) {
         if (!isBelowMouse()) return -1;
         int x = context.getAbsMouseX() - getArea().x, y = context.getAbsMouseY() - getArea().y - ROW_TOP;
-        if (x < 10 || x >= xSize - SCROLL_SPACE - 10 || y < 0) return -1;
+        if (x < 10 || x >= xSize - scrollSpace - 10 || y < 0) return -1;
         int row = y / ROW_HEIGHT;
         return row < count ? row : -1;
     }
@@ -1019,38 +1011,45 @@ public class WirelessCardGui extends ModularPanel {
                 variant.inset.draw(
                     8,
                     ROW_TOP - AE2Theme.INSET_TOP,
-                    xSize - 16,
+                    xSize - 16 - scrollSpace,
                     visibleRows * ROW_HEIGHT + AE2Theme.INSET_TOP + AE2Theme.INSET_EDGE);
             }
-            for (int row = 0; row < count; row++) {
-                int y = ROW_TOP + row * ROW_HEIGHT;
-                if (highlighted(rows, row, hovered)) drawHighlight(y);
-                if (!ae2) drawRect(8, y + ROW_HEIGHT - 1, xSize - SCROLL_SPACE - 8, y + ROW_HEIGHT, palette.line);
-                else if (row < visibleRows - 1)
-                    drawRect(9, y + ROW_HEIGHT - 1, xSize - SCROLL_SPACE - 9, y + ROW_HEIGHT, palette.line);
+            int left = ae2 ? 9 : 8, right = xSize - scrollSpace - left;
+            for (int index = 0; index < count; index++) {
+                NBTTagCompound entry = rows.getCompoundTagAt(index);
+                int y = ROW_TOP + index * ROW_HEIGHT, depth = entry.getInteger("depth");
+                boolean lit = highlighted(rows, index, hovered);
+                if (lit) drawHighlight(y);
+                else if (depth > 0)
+                    drawRect(left, y, right, y + ROW_HEIGHT, tint(Math.min(depth, MAX_NEST_SHADE) * SHADE_STEP_ALPHA));
+                if (ae2 && index == visibleRows - 1) continue;
+                int start = lit || depth == 0 ? left : iconX(depth, entry.getBoolean("group")) - 2;
+                drawRect(start, y + ROW_HEIGHT - 1, right, y + ROW_HEIGHT, lit ? palette.line : tint(SEPARATOR_ALPHA));
             }
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             Platform.setupDrawFont();
             int textColor = textColor();
-            drawHeader(data, textColor);
             for (int index = 0; index < count; index++) drawRow(
                 data,
                 rows.getCompoundTagAt(index),
                 ROW_TOP + index * ROW_HEIGHT,
                 highlighted(rows, index, hovered));
             if (rows.tagCount() == 0) drawEmptyMessage(data, textColor);
-            drawFooter(data, textColor);
         } finally {
             GL11.glPopAttrib();
         }
     }
 
+    private int tint(int alpha) {
+        return alpha << 24 | palette.line & 0xFFFFFF;
+    }
+
     private void drawHighlight(int y) {
         int bottom = y + ROW_HEIGHT - 1;
-        drawRect(9, y, xSize - SCROLL_SPACE - 9, bottom, highlight);
-        drawRect(9, y, xSize - SCROLL_SPACE - 9, y + 1, highlightTop);
-        drawRect(9, bottom - 1, xSize - SCROLL_SPACE - 9, bottom, highlightShadow);
+        drawRect(9, y, xSize - scrollSpace - 9, bottom, highlight);
+        drawRect(9, y, xSize - scrollSpace - 9, y + 1, highlightTop);
+        drawRect(9, bottom - 1, xSize - scrollSpace - 9, bottom, highlightShadow);
     }
 
     private static boolean highlighted(NBTTagList rows, int index, int hovered) {
@@ -1058,16 +1057,173 @@ public class WirelessCardGui extends ModularPanel {
             .getBoolean("expanded");
     }
 
+    private enum Stat {
+
+        CONTROLLER("controller"),
+        ENTRANCES("entrances"),
+        DEVICES("devices");
+
+        private final String key;
+
+        Stat(String key) {
+            this.key = key;
+        }
+    }
+
+    private record Reading(String value, int valueColor, int total, int[] values, int[] colors, String sub,
+        int subColor, List<String> details) {}
+
+    private Reading read(Stat stat, NBTTagCompound data) {
+        return switch (stat) {
+            case CONTROLLER -> readController(data);
+            case ENTRANCES -> readEntrances(data);
+            case DEVICES -> readDevices(data);
+        };
+    }
+
+    private Reading readController(NBTTagCompound data) {
+        int[] none = new int[0];
+        if (!data.getBoolean("bound"))
+            return new Reading("", palette.text, 0, none, none, tr("bind_hint"), palette.link, List.of(tr("unbound")));
+        String source = data.getString("sourceLabel");
+        List<String> details = new ObjectArrayList<>();
+        details.add(tr("source", source));
+        if (!data.getBoolean("sourceLoaded")) {
+            boolean split = data.getBoolean("sourceSplit");
+            String state = tr(split ? "source_split" : "source_waiting");
+            details.add(state);
+            return new Reading("", palette.text, 0, none, none, state, split ? palette.bad : palette.link, details);
+        }
+        if (!data.getBoolean("channels")) {
+            details.add(tr("unlimited"));
+            return new Reading("∞", palette.text, 0, none, none, tr("unlimited"), palette.suffix, details);
+        }
+        int used = data.getInteger("used"), capacity = data.getInteger("capacity");
+        boolean known = data.getBoolean("stable") && used >= 0 && capacity > 0;
+        int color = known ? usageColor(used, capacity, palette.good, palette) : palette.link;
+        details.add(tr("budget_compact", known ? used : "?", capacity));
+        return new Reading(
+            (known ? used : "?") + " / " + capacity,
+            color,
+            known ? capacity : 0,
+            new int[] { used },
+            new int[] { color },
+            source,
+            palette.suffix,
+            details);
+    }
+
+    private Reading readEntrances(NBTTagCompound data) {
+        int used = data.getInteger("entrances"), limit = data.getInteger("entranceLimit");
+        if (limit <= 0) return new Reading(
+            Integer.toString(used),
+            palette.text,
+            0,
+            new int[0],
+            new int[0],
+            "",
+            palette.suffix,
+            List.of(tr("entrances", used)));
+        String free = tr("module.entrances_free", Math.max(0, limit - used));
+        return new Reading(
+            used + " / " + limit,
+            palette.text,
+            limit,
+            new int[] { used },
+            new int[] { usageColor(used, limit, palette.link, palette) },
+            free,
+            palette.suffix,
+            List.of(tr("entrances", used + " / " + limit), free));
+    }
+
+    private Reading readDevices(NBTTagCompound data) {
+        int online = data.getInteger("online"), devices = data.getInteger("devices");
+        int missing = data.getBoolean("stable") ? data.getInteger("missing") : 0;
+        int offline = Math.max(0, devices - online - missing);
+        String missingLine = tr("missing_metric", missingText(data));
+        return new Reading(
+            online + " / " + devices,
+            onlineColor(data, palette),
+            devices,
+            new int[] { online, offline, missing },
+            new int[] { palette.good, palette.suffix, palette.bad },
+            missingLine,
+            missingColor(data, palette),
+            List.of(tr("online_metric", online, devices), tr("module.offline", offline), missingLine));
+    }
+
+    private class StatCard extends Widget<StatCard> {
+
+        private final Stat stat;
+
+        private StatCard(Stat stat) {
+            this.stat = stat;
+            tooltipAutoUpdate(true)
+                .tooltipBuilder(tooltip -> { for (String line : read(stat, view()).details()) tooltip.addLine(line); });
+        }
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            Reading reading = read(stat, view());
+            int width = getArea().width, inner = width - CARD_PAD * 2;
+            int valueWidth = fontRendererObj.getStringWidth(reading.value());
+            drawText(
+                trim(tr("module." + stat.key), inner - valueWidth - CARD_PAD),
+                CARD_PAD,
+                CARD_TITLE_Y,
+                palette.text,
+                false);
+            drawText(reading.value(), width - CARD_PAD - valueWidth, CARD_TITLE_Y, reading.valueColor(), false);
+            drawBar(CARD_PAD, CARD_BAR_Y, inner, reading.total(), reading.values(), reading.colors());
+            drawText(trim(reading.sub(), inner), CARD_PAD, CARD_SUB_Y, reading.subColor(), false);
+        }
+    }
+
+    private class CardDivider extends Widget<CardDivider> {
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            int x = getArea().width / 2;
+            drawRect(x, DIVIDER_INSET, x + 1, getArea().height - DIVIDER_INSET, tint(DIVIDER_ALPHA));
+        }
+    }
+
+    private class Title extends Widget<Title> {
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            drawText(trim(title(view()), getArea().width), 0, 0, palette.name, false);
+        }
+    }
+
+    private class BackHint extends Widget<BackHint> {
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            drawText(trim(tr("back_hint"), getArea().width), 0, HINT_Y, palette.hint, false);
+        }
+    }
+
+    private class FooterInfo extends Widget<FooterInfo> {
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            NBTTagCompound data = view();
+            String info = data.getBoolean("detail")
+                ? tr(data.getBoolean("devices") ? "device_count" : "entrance_count", data.getInteger("rowCount"))
+                : tr(data.getBoolean("filtered") ? "matched" : "loaded", data.getInteger("total"));
+            drawText(trim(info, getArea().width), 0, FOOTER_TEXT_Y, textColor(), false);
+        }
+    }
+
     private class ListScrollbar extends Widget<ListScrollbar> implements Interactable {
 
         private final ScrollArea area = new ScrollArea();
-        private final VerticalScrollData scroll = new VerticalScrollData(false, SCROLL_WIDTH);
+        private final HandleScrollData scroll = new HandleScrollData(variant);
         private int dragMouseY, dragOffset;
 
         private ListScrollbar() {
             area.setScrollDataY(scroll);
-            area.setScrollBarBackgroundColor(0);
-            if (variant != null) scroll.texture(variant.scroller);
             listenGuiAction((IGuiAction.MouseReleased) button -> {
                 area.mouseReleased(0, 0);
                 return false;
@@ -1085,17 +1241,14 @@ public class WirelessCardGui extends ModularPanel {
         }
 
         private void sync() {
-            scroll.setScrollSize(view().getInteger("rowCount") * ROW_HEIGHT);
+            scroll.setScrollSize(view().getInteger("rowCount") * ROW_HEIGHT + SCROLL_OVERHANG);
             scroll.scrollTo(area, view().getInteger("scroll") * ROW_HEIGHT);
         }
 
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             sync();
-            drawRect(0, 0, area.width, area.height, palette.track | 0xFF000000);
-            var scrollbarTheme = getPanel().getTheme()
-                .getScrollbarTheme();
-            area.drawScrollbar(context, scrollbarTheme.getTheme(isHovering()), null);
+            scroll.drawTrack(area);
         }
 
         @Override
@@ -1134,11 +1287,11 @@ public class WirelessCardGui extends ModularPanel {
 
     public static class Palette {
 
-        public final int text, name, hint, suffix, track, link, good, bad, line, tree;
+        public final int text, name, hint, suffix, track, link, good, bad, warning, line, tree;
         public final int[] chips;
 
-        public Palette(int text, int name, int hint, int suffix, int track, int link, int good, int bad, int line,
-            int tree, int[] chips) {
+        public Palette(int text, int name, int hint, int suffix, int track, int link, int good, int bad, int warning,
+            int line, int tree, int[] chips) {
             this.text = text;
             this.name = name;
             this.hint = hint;
@@ -1147,6 +1300,7 @@ public class WirelessCardGui extends ModularPanel {
             this.link = link;
             this.good = good;
             this.bad = bad;
+            this.warning = warning;
             this.line = line;
             this.tree = tree;
             this.chips = chips;
@@ -1172,8 +1326,9 @@ public class WirelessCardGui extends ModularPanel {
                 colors.info(),
                 colors.good(),
                 colors.bad(),
+                colors.warning(),
                 colors.line(),
-                variant == Variant.DARK ? colors.edge() : colors.line(),
+                colors.edge(),
                 new int[] { colors.text(), colors.good(), colors.info(), colors.bad(), colors.warning(),
                     colors.bad() });
         }
@@ -1189,9 +1344,10 @@ public class WirelessCardGui extends ModularPanel {
                 ColorUtils.craftConfirmPercent25.getColor(),
                 ColorUtils.craftConfirmPercent50.getColor(),
                 ColorUtils.reshuffleStatusFailed.getColor(),
+                PLAIN_WARNING,
                 ColorUtils.craftingDiagnosticTerminalLine.getColor(),
                 faint,
-                new int[] { 0xFFFFFF, 0x55FF55, 0x55FFFF, 0xFF5555, 0xFFAA00, 0xFF5555 });
+                new int[] { 0xFFFFFF, 0x55FF55, 0x55FFFF, 0xFF5555, PLAIN_WARNING, 0xFF5555 });
         }
     }
 }

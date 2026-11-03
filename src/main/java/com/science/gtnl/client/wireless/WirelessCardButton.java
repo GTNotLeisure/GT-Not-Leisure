@@ -68,7 +68,7 @@ public class WirelessCardButton {
                 }
             };
             IDrawable look = id == TOGGLE_AUTO
-                ? AE2Theme.toggleSwitch(toggle, () -> on, () -> tr(on ? "auto_on" : "auto_off"), () -> available)
+                ? AE2Theme.toggleSwitch(toggle, () -> on, () -> tr("auto_connect"), () -> available)
                 : AE2Theme.iconButton(toggle, () -> on ? Icon.PAUSE : Icon.PLAY, () -> available);
             widget = toggle.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
                 .background(false, IDrawable.EMPTY)
@@ -184,6 +184,7 @@ public class WirelessCardButton {
                 tooltip.addLine(gray + tr("display.auto_hint"));
                 tooltip.addLine(gray + tr("display.fallback_hint"));
             }
+            case TOGGLE_AUTO -> tooltip.addLine(tr(data.getBoolean("auto") ? "auto_on" : "auto_off"));
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
                     tr("merge_types") + ": "
