@@ -35,7 +35,7 @@ public class CropsNHRecipes {
             .fluidInputs(new FluidStack(CropsNHFluids.enrichedFertilizer, 32000))
             .itemOutputs(GTNLItemList.LargeCropBreeder.get(1))
             .duration(20 * SECONDS)
-            .eut(TierEU.RECIPE_LV)
+            .eut(TierEU.RECIPE_MV)
             .addTo(RecipeMaps.assemblerRecipes);
 
         RecipeBuilder.builder()
