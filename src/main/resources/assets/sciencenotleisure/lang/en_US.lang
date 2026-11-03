@@ -48,8 +48,6 @@ GT5U.gui.text.recipe_result.gtnl_crop_requirements=Missing breeding catalysts / 
 GT5U.gui.text.recipe_result.gtnl_crop_fertilizer=Not enough enriched fertilizer.
 GT5U.gui.text.recipe_result.gtnl_crop_wash_unarchived=Select an archived crop to improve.
 GT5U.gui.text.recipe_result.gtnl_crop_wash_max=All three seed stats are at their maximum.
-GT5U.gui.text.recipe_result.gtnl_crop_wash_uu=Not enough UU-Matter to improve the seed.
-GT5U.gui.text.recipe_result.gtnl_crop_uu=Not enough UU-Matter.
 
 gtnl.gui.config.client=Client Settings
 gtnl.gui.config.client.tooltip=Client-side display options.
