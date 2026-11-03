@@ -2,6 +2,7 @@ package com.science.gtnl.common.me;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -16,13 +17,14 @@ import com.science.gtnl.utils.item.ItemUtils;
 
 import appeng.api.interfaces.IInterfaceNameProvider;
 import appeng.helpers.ICustomNameObject;
-import gregtech.api.interfaces.INonConsumedItemDisplay;
 import gregtech.api.metatileentity.MetaTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
 import gregtech.api.recipe.RecipeMap;
+import gregtech.api.util.GTUtility;
 import gregtech.crossmod.ae2.ChatComponentGhostCircuitSuffix;
 import gregtech.crossmod.ae2.ChatComponentNonConsumedItemsSuffix;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 public class InterfaceNameLocalization {
 
@@ -82,7 +84,7 @@ public class InterfaceNameLocalization {
         return resolveSuffix(serializedSuffix, null);
     }
 
-    private static String resolveSuffix(String serializedSuffix, EnumChatFormatting circuitColor) {
+    public static String resolveSuffix(String serializedSuffix, EnumChatFormatting circuitColor) {
         if (serializedSuffix == null || serializedSuffix.isEmpty()) return "";
         try {
             IChatComponent component = IChatComponent.Serializer.func_150699_a(serializedSuffix);
@@ -117,23 +119,29 @@ public class InterfaceNameLocalization {
             nameSuffix = nameSuffix == null ? recipeMapSuffix : nameSuffix.appendSibling(recipeMapSuffix);
         }
 
-        List<ItemStack> extraItems = extraItems(metaTileEntity, recipeMap);
+        List<ItemStack> extraItems = extraItems(metaTileEntity, nameSuffix);
         if (extraItems.isEmpty()) return nameSuffix;
 
         IChatComponent extraItemSuffix = new ChatComponentNonConsumedItemsSuffix(extraItems);
         return nameSuffix == null ? extraItemSuffix : nameSuffix.appendSibling(extraItemSuffix);
     }
 
-    private static List<ItemStack> extraItems(MetaTileEntity metaTileEntity, RecipeMap<?> recipeMap) {
+    private static List<ItemStack> extraItems(MetaTileEntity metaTileEntity, IChatComponent nameSuffix) {
         if (!(metaTileEntity instanceof MTEHatch)
             || metaTileEntity instanceof IInterfaceNameHatch hatch && hatch.handlesOwnInterfaceName()) {
             return Collections.emptyList();
         }
 
+        // Only skip items actually supplied by GT; recipe membership alone does not mean the bus displayed them.
+        Set<GTUtility.ItemId> displayed = new ObjectOpenHashSet<>();
+        if (nameSuffix != null) for (Object component : nameSuffix) {
+            if (component instanceof ChatComponentNonConsumedItemsSuffix items)
+                for (ItemStack stack : items.items) if (stack != null) displayed.add(GTUtility.ItemId.create(stack));
+        }
         List<ItemStack> extraItems = new ObjectArrayList<>();
         for (int slot = 0; slot < metaTileEntity.getSizeInventory(); slot++) {
             ItemStack stack = metaTileEntity.getStackInSlot(slot);
-            if (ItemUtils.isExtraItem(stack) && !INonConsumedItemDisplay.isDisplayableItem(recipeMap, stack)) {
+            if (ItemUtils.isExtraItem(stack) && displayed.add(GTUtility.ItemId.create(stack))) {
                 extraItems.add(stack.copy());
             }
         }

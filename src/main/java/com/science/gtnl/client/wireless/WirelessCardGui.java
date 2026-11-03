@@ -3,13 +3,12 @@ package com.science.gtnl.client.wireless;
 import static codechicken.nei.NEIClientUtils.cropText;
 import static com.science.gtnl.common.wireless.WirelessCardActions.BACK;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CLOSE_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_DISPLAY;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
-import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
-import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
 import static com.science.gtnl.common.wireless.WirelessCardActions.SET_VISUALISATION;
@@ -46,6 +45,8 @@ import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
+import com.cleanroommc.modularui.api.widget.IGuiAction;
+import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.core.mixins.early.minecraft.GuiScreenAccessor;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.ModularPanel;
@@ -57,6 +58,8 @@ import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.value.IntValue;
 import com.cleanroommc.modularui.value.StringValue;
 import com.cleanroommc.modularui.widget.Widget;
+import com.cleanroommc.modularui.widget.scroll.ScrollArea;
+import com.cleanroommc.modularui.widget.scroll.VerticalScrollData;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
@@ -74,10 +77,12 @@ import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 import com.science.gtnl.common.wireless.WirelessCardLayout;
 import com.science.gtnl.common.wireless.WirelessCardVisualisation;
+import com.science.gtnl.compat.lwjgl3ify.MouseWheelCompat;
 
 import appeng.core.localization.ColorUtils;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import gregtech.api.enums.GTValues;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 @SideOnly(Side.CLIENT)
@@ -93,7 +98,9 @@ public class WirelessCardGui extends ModularPanel {
         PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000, AE2_HIGHLIGHT_TOP = 0xFFDAFFFF;
     private static final int TREE_X = 15, INDENT = 12, ARROW_X = 8, CHILD_ARROW_X = 20, ICON_X = 24, CHILD_ICON_X = 28,
         ICON_SPACE = 18, ARROW_SIZE = 16, ARROW_INSET = 3, ARROW_DOWN = 49, ARROW_RIGHT = 50, DEVICE_TEXT_END = 92;
+    private static final int SCROLL_WIDTH = 12, SCROLL_SPACE = SCROLL_WIDTH + 4;
     private static final Set<String> FAILURES = Set.of(
+        "display.limit",
         "denied",
         "stale",
         "teleport_unavailable",
@@ -125,6 +132,9 @@ public class WirelessCardGui extends ModularPanel {
     private final Breadcrumb breadcrumb;
     private final FadingNotice notice;
     private final IPanelHandler renamePanel;
+    private final IPanelHandler groupPanel;
+    private WirelessCardClientView.GroupDetails selectedGroup;
+    private final ListScrollbar scrollbar = new ListScrollbar();
     private NBTTagCompound overview = new NBTTagCompound();
     private WirelessCardLayout layout = WirelessCardLayout.forScreen(0, 0);
     private boolean closingDetail;
@@ -134,9 +144,14 @@ public class WirelessCardGui extends ModularPanel {
     public WirelessCardGui(WirelessCardContainer container) {
         super(NAME);
         this.container = container;
-        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE);
-        for (int id : new int[] { PREVIOUS_PAGE, NEXT_PAGE, REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING })
-            addButton(id);
+        var saved = clientView().recall();
+        if (saved != null) {
+            clientView().restore(saved);
+            searchText = saved.search();
+        }
+        addRowButtons(OPEN_DETAILS, TOGGLE_PAUSE, HIGHLIGHT, TELEPORT, OPEN_ENTRANCES, OPEN_DEVICE, CYCLE_DISPLAY);
+        for (int id : new int[] { REFRESH, BACK, RENAME, TOGGLE_AUTO, TOGGLE_GROUPING }) addButton(id);
+        child(scrollbar);
         search = textField(64).hintText(tr("search_placeholder"));
         search.autoUpdateOnChange(true)
             .value(new StringValue.Dynamic(() -> searchText, text -> {
@@ -166,6 +181,8 @@ public class WirelessCardGui extends ModularPanel {
             .child(visualisation)
             .child(notice);
         renamePanel = IPanelHandler.simple(this, (parent, player) -> new WirelessCardRenameDialog(this), true);
+        groupPanel = IPanelHandler
+            .simple(this, (parent, player) -> new WirelessCardGroupDialog(this, selectedGroup), true);
     }
 
     public WirelessCardClientView clientView() {
@@ -178,7 +195,7 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public boolean layoutReady() {
-        return !closingDetail && container.display.hasKey("session") && view().getInteger("pageSize") == visibleRows;
+        return !closingDetail && container.display.hasKey("session") && view().getInteger("visibleRows") == visibleRows;
     }
 
     boolean editingText() {
@@ -218,7 +235,14 @@ public class WirelessCardGui extends ModularPanel {
     public void receive(ChatComponentTranslation message) {
         String key = message.getKey()
             .substring(KEY_PREFIX.length());
-        notice.show(message.getUnformattedText(), FAILURES.contains(key) ? FAILURE_COLOR : SUCCESS_COLOR);
+        int color = FAILURES.contains(key) ? FAILURE_COLOR : SUCCESS_COLOR;
+        String text = message.getUnformattedText();
+        notice.show(text, color);
+        ModularScreen screen = ModularScreen.getCurrent();
+        if (screen != null && screen.getMainPanel() == this
+            && screen.getPanelManager()
+                .getTopMostPanel() instanceof WirelessCardGroupDialog dialog)
+            dialog.receive(text, color);
     }
 
     public void action(int id) {
@@ -231,11 +255,30 @@ public class WirelessCardGui extends ModularPanel {
             if (view().getBoolean("renameable")) renamePanel.openPanel();
             return;
         }
+        if (type(id) == CYCLE_DISPLAY) {
+            clientView().cycleDisplayMode(row(rowIndex(id)));
+            updateButtons();
+            return;
+        }
+        if (type(id) == OPEN_DETAILS && !view().getBoolean("detail")
+            && GuiScreen.isShiftKeyDown()
+            && (row(rowIndex(id)).getBoolean("group") || !row(rowIndex(id)).getBoolean("singleDevice"))) {
+            selectedGroup = clientView().groupDetails(row(rowIndex(id)).getString("key"));
+            if (selectedGroup != null) {
+                // Each opening captures the selected group's current membership.
+                groupPanel.deleteCachedPanel();
+                groupPanel.openPanel();
+            }
+            return;
+        }
         if (type(id) == HIGHLIGHT) {
             copy(rowIndex(id));
             if (row(rowIndex(id)).getInteger("dimension") != mc.thePlayer.dimension) return;
         }
-        if (clientView().navigate(id)) return;
+        if (clientView().navigate(id)) {
+            updateButtons();
+            return;
+        }
         int action = type(id);
         if (action == OPEN_DETAILS && row(rowIndex(id)).getBoolean("singleDevice") && !GuiScreen.isShiftKeyDown())
             action = OPEN_DEVICE;
@@ -437,10 +480,18 @@ public class WirelessCardGui extends ModularPanel {
     @Override
     public boolean onMouseScroll(UpOrDown scrollDirection, int amount) {
         if (super.onMouseScroll(scrollDirection, amount)) return true;
+        int x = getContext().getAbsMouseX() - getArea().x;
         int y = getContext().getAbsMouseY() - getArea().y - ROW_TOP;
-        if (y < 0 || y >= visibleRows * ROW_HEIGHT) return false;
-        action(scrollDirection.isUp() ? PREVIOUS_PAGE : NEXT_PAGE);
+        if (x < 8 || x >= xSize - 8 || y < 0 || y >= visibleRows * ROW_HEIGHT) return false;
+        int ticks = Math.max(1, Math.abs(MouseWheelCompat.normalizeTicks(amount)));
+        scrollTo(view().getInteger("scroll") + (scrollDirection.isUp() ? -ticks : ticks));
         return true;
+    }
+
+    private void scrollTo(int offset) {
+        if (!layoutReady()) return;
+        clientView().scrollTo(offset);
+        updateButtons();
     }
 
     public ModularScreen screen() {
@@ -461,6 +512,7 @@ public class WirelessCardGui extends ModularPanel {
                     if (hovered == null) return true;
                     if (hovered.getTopHovering() instanceof TextFieldWidget) super.onMousePressed(button);
                     else if (hovered instanceof WirelessCardRenameDialog dialog) dialog.closeIfOpen();
+                    else if (hovered instanceof WirelessCardGroupDialog dialog) dialog.closeIfOpen();
                     else if (hovered == WirelessCardGui.this) back();
                     return true;
                 }
@@ -507,6 +559,9 @@ public class WirelessCardGui extends ModularPanel {
     private void layoutControls() {
         NBTTagCompound data = view();
         boolean root = !data.getBoolean("detail");
+        int rowWidth = xSize - SCROLL_SPACE;
+        scrollbar.pos(xSize - 10 - SCROLL_WIDTH, ROW_TOP)
+            .size(SCROLL_WIDTH, visibleRows * ROW_HEIGHT);
         for (var control : buttons) {
             int id = control.id;
             var button = control.widget;
@@ -514,16 +569,18 @@ public class WirelessCardGui extends ModularPanel {
                 int y = ROW_TOP + rowIndex(id) * ROW_HEIGHT;
                 switch (type(id)) {
                     case OPEN_DETAILS -> button.pos(10, y)
-                        .size(xSize - 20, ROW_HEIGHT);
-                    case TELEPORT -> button.pos(xSize - 88, y + 4)
+                        .size(rowWidth - 20, ROW_HEIGHT);
+                    case TELEPORT -> button.pos(rowWidth - 88, y + 4)
                         .size(16, 16);
-                    case HIGHLIGHT -> button.pos(xSize - 70, y + 4)
+                    case HIGHLIGHT -> button.pos(rowWidth - 70, y + 4)
                         .size(16, 16);
-                    case OPEN_DEVICE -> button.pos(xSize - 52, y + 4)
+                    case OPEN_DEVICE -> button.pos(rowWidth - 52, y + 4)
                         .size(16, 16);
-                    case TOGGLE_PAUSE -> button.pos(xSize - 28, y + 4)
+                    case TOGGLE_PAUSE -> button.pos(rowWidth - 28, y + 4)
                         .size(16, 16);
-                    case OPEN_ENTRANCES -> button.pos(xSize - 106, y + 4)
+                    case CYCLE_DISPLAY -> button.pos(rowWidth - 28, y + 4)
+                        .size(16, 16);
+                    case OPEN_ENTRANCES -> button.pos(rowWidth - 106, y + 4)
                         .size(16, 16);
                 }
             } else switch (id) {
@@ -533,11 +590,7 @@ public class WirelessCardGui extends ModularPanel {
                     .size(64, 14);
                 case TOGGLE_GROUPING -> button.pos(xSize - 10 - mergeWidth(), 65)
                     .size(mergeWidth(), AE2Theme.SWITCH_HEIGHT);
-                case PREVIOUS_PAGE -> button.pos(10, ySize - 27)
-                    .size(18, 20);
-                case NEXT_PAGE -> button.pos(76, ySize - 27)
-                    .size(18, 20);
-                case BACK -> button.pos(100, ySize - 27)
+                case BACK -> button.pos(10, ySize - 27)
                     .size(40, 20);
                 case REFRESH -> button.pos(xSize - 30, ySize - 27)
                     .size(20, 20);
@@ -588,6 +641,12 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     @Override
+    public void onClose() {
+        clientView().remember(searchText);
+        super.onClose();
+    }
+
+    @Override
     public void onUpdate() {
         var returning = RemoteDeviceClient.takeCardState(container.display.getLong("returnSession"));
         if (returning != null) {
@@ -613,7 +672,11 @@ public class WirelessCardGui extends ModularPanel {
         if (!root && dimension.isOpen()) dimension.closeMenu(false);
         dimension.setEnabled(root);
         dimension.choices(dimensionChoices());
-        for (var button : buttons) button.update(data, layoutReady(), visibleRows);
+        updateButtons();
+    }
+
+    private void updateButtons() {
+        for (var button : buttons) button.update(view(), layoutReady(), visibleRows);
     }
 
     public static String tr(String key, Object... args) {
@@ -638,7 +701,7 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     int stateX() {
-        return xSize - 148;
+        return xSize - SCROLL_SPACE - 148;
     }
 
     int contentWidth() {
@@ -679,8 +742,46 @@ public class WirelessCardGui extends ModularPanel {
 
     public static String rowName(NBTTagCompound row, ItemStack icon) {
         String name = row.getString("name");
+        if (name.isEmpty() && !row.getBoolean("group")) {
+            int mode = row.getInteger("displayMode");
+            if (mode == 0) name = row.getString("configurationLabel");
+            if (name.isEmpty() && mode != 1) name = row.getString("linkedLabel");
+        }
         if (name.isEmpty()) name = icon == null ? "" : icon.getDisplayName();
+        if (row.getBoolean("group")) {
+            int[] counts = row.getIntArray("energyHatches");
+            StringBuilder energy = new StringBuilder();
+            for (int tier = 0; tier < Math.min(counts.length, GTValues.VN.length); tier++) {
+                if (counts[tier] <= 0) continue;
+                if (!energy.isEmpty()) energy.append(' ');
+                energy.append(GTValues.TIER_COLORS[tier])
+                    .append(GTValues.VN[tier])
+                    .append('×')
+                    .append(counts[tier])
+                    .append(EnumChatFormatting.RESET);
+            }
+            if (!energy.isEmpty()) name += " " + energy;
+        }
         return row.getBoolean("shared") ? tr("shared", name) : name;
+    }
+
+    public static ItemStack rowIcon(NBTTagCompound row) {
+        if (!row.getBoolean("group")) {
+            int mode = row.getInteger("displayMode");
+            if (mode == 0 && row.hasKey("configurationIcon", 10))
+                return ItemStack.loadItemStackFromNBT(row.getCompoundTag("configurationIcon"));
+            if (mode != 1 && row.hasKey("linkedIcon", 10))
+                return ItemStack.loadItemStackFromNBT(row.getCompoundTag("linkedIcon"));
+        }
+        return ItemStack.loadItemStackFromNBT(row.getCompoundTag("icon"));
+    }
+
+    public static String groupContents(NBTTagCompound row) {
+        int total = row.getBoolean("category") ? row.getInteger("items") : row.getInteger("clusters");
+        int groups = row.getInteger("groupItems");
+        if (groups == 0) return tr("group_devices", total);
+        String label = tr("group_device_groups", groups);
+        return groups == total ? label : label + " / " + tr("group_devices", total - groups);
     }
 
     private String trim(String text, int width) {
@@ -728,7 +829,7 @@ public class WirelessCardGui extends ModularPanel {
         if (filled > 0) drawRect(x, y, x + filled, y + height, fill | 0xFF000000);
     }
 
-    private void drawDeviceIcon(ItemStack icon, int x, int y) {
+    void drawDeviceIcon(ItemStack icon, int x, int y) {
         float brightnessX = OpenGlHelper.lastBrightnessX;
         float brightnessY = OpenGlHelper.lastBrightnessY;
         var itemRender = GuiScreenAccessor.getItemRender();
@@ -764,12 +865,13 @@ public class WirelessCardGui extends ModularPanel {
     private void drawRow(NBTTagCompound data, NBTTagCompound row, int y, boolean highlighted) {
         Palette ink = highlighted ? highlightPalette : palette;
         ItemStack icon = ItemStack.loadItemStackFromNBT(row.getCompoundTag("icon"));
+        ItemStack displayIcon = rowIcon(row);
         int stateY = y + (ROW_HEIGHT - fontRendererObj.FONT_HEIGHT) / 2;
         if (!row.getBoolean("device")) fontRendererObj
             .drawString(trim(tr("short_state." + row.getString("state")), 38), stateX(), stateY, ink.state(row));
         if (row.getBoolean("device")) {
-            if (icon != null) drawDeviceIcon(icon, 12, y + 4);
-            int width = xSize - DEVICE_TEXT_END - CONTENT_X;
+            if (displayIcon != null) drawDeviceIcon(displayIcon, 12, y + 4);
+            int width = xSize - SCROLL_SPACE - DEVICE_TEXT_END - CONTENT_X;
             drawRowTitle(row, icon, CONTENT_X, y + 2, width, ink);
             String state = row.getString("deviceState");
             int color = state.equals("online") ? ink.good : state.equals("missing") ? ink.bad : ink.suffix;
@@ -777,7 +879,7 @@ public class WirelessCardGui extends ModularPanel {
             return;
         }
         if (data.getBoolean("detail")) {
-            if (icon != null) drawDeviceIcon(icon, 12, y + 4);
+            if (displayIcon != null) drawDeviceIcon(displayIcon, 12, y + 4);
             fontRendererObj
                 .drawString(trim(row.getString("positionLabel"), contentWidth()), CONTENT_X, y + 2, ink.name);
             fontRendererObj
@@ -789,7 +891,7 @@ public class WirelessCardGui extends ModularPanel {
         drawTree(row, depth, group, y, ink.tree);
         int iconX = iconX(depth, group), textX = iconX + ICON_SPACE, width = stateX() - textX - 4;
         if (group) drawArrow(row.getBoolean("expanded"), arrowX(depth), y + 4);
-        if (icon != null) drawDeviceIcon(icon, iconX, y + 4);
+        if (displayIcon != null) drawDeviceIcon(displayIcon, iconX, y + 4);
         int missingColor = row.getBoolean("stable") && row.getInteger("missing") > 0 ? ink.bad : ink.track;
         ratioBar(
             stateX(),
@@ -808,12 +910,13 @@ public class WirelessCardGui extends ModularPanel {
         int count = row.getBoolean("category") ? row.getInteger("items") : row.getInteger("clusters");
         fontRendererObj.drawString(cropText(fontRendererObj, rowName(row, icon), width), textX, y + 2, ink.name);
         fontRendererObj.drawString(
-            trim(tr(row.getBoolean("expanded") ? "group_collapse" : "group_expand", count), width),
+            trim(tr(row.getBoolean("expanded") ? "group_collapse" : "group_expand", groupContents(row)), width),
             textX,
             y + 13,
             ink.suffix);
         String total = "×" + count;
-        fontRendererObj.drawString(total, xSize - 14 - fontRendererObj.getStringWidth(total), stateY, ink.name);
+        fontRendererObj
+            .drawString(total, xSize - SCROLL_SPACE - 14 - fontRendererObj.getStringWidth(total), stateY, ink.name);
     }
 
     private void drawTree(NBTTagCompound row, int depth, boolean group, int y, int color) {
@@ -889,9 +992,7 @@ public class WirelessCardGui extends ModularPanel {
 
     private void drawFooter(NBTTagCompound data, int textColor) {
         int y = ySize - 20;
-        String page = trim((data.getInteger("page") + 1) + "/" + Math.max(1, data.getInteger("pages")), 40);
-        fontRendererObj.drawString(page, 52 - fontRendererObj.getStringWidth(page) / 2, y, textColor);
-        int infoX = depth() > 0 ? 146 : 100;
+        int infoX = depth() > 0 ? 56 : 10;
         String info = data.getBoolean("detail")
             ? tr(data.getBoolean("devices") ? "device_count" : "entrance_count", data.getInteger("rowCount"))
             : tr(data.getBoolean("filtered") ? "matched" : "loaded", data.getInteger("total"));
@@ -901,7 +1002,7 @@ public class WirelessCardGui extends ModularPanel {
     private int hoveredRow(ModularGuiContext context, int count) {
         if (!isBelowMouse()) return -1;
         int x = context.getAbsMouseX() - getArea().x, y = context.getAbsMouseY() - getArea().y - ROW_TOP;
-        if (x < 10 || x >= xSize - 10 || y < 0) return -1;
+        if (x < 10 || x >= xSize - SCROLL_SPACE - 10 || y < 0) return -1;
         int row = y / ROW_HEIGHT;
         return row < count ? row : -1;
     }
@@ -924,9 +1025,9 @@ public class WirelessCardGui extends ModularPanel {
             for (int row = 0; row < count; row++) {
                 int y = ROW_TOP + row * ROW_HEIGHT;
                 if (highlighted(rows, row, hovered)) drawHighlight(y);
-                if (!ae2) drawRect(8, y + ROW_HEIGHT - 1, xSize - 8, y + ROW_HEIGHT, palette.line);
+                if (!ae2) drawRect(8, y + ROW_HEIGHT - 1, xSize - SCROLL_SPACE - 8, y + ROW_HEIGHT, palette.line);
                 else if (row < visibleRows - 1)
-                    drawRect(9, y + ROW_HEIGHT - 1, xSize - 9, y + ROW_HEIGHT, palette.line);
+                    drawRect(9, y + ROW_HEIGHT - 1, xSize - SCROLL_SPACE - 9, y + ROW_HEIGHT, palette.line);
             }
             GL11.glDisable(GL11.GL_LIGHTING);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
@@ -947,14 +1048,88 @@ public class WirelessCardGui extends ModularPanel {
 
     private void drawHighlight(int y) {
         int bottom = y + ROW_HEIGHT - 1;
-        drawRect(9, y, xSize - 9, bottom, highlight);
-        drawRect(9, y, xSize - 9, y + 1, highlightTop);
-        drawRect(9, bottom - 1, xSize - 9, bottom, highlightShadow);
+        drawRect(9, y, xSize - SCROLL_SPACE - 9, bottom, highlight);
+        drawRect(9, y, xSize - SCROLL_SPACE - 9, y + 1, highlightTop);
+        drawRect(9, bottom - 1, xSize - SCROLL_SPACE - 9, bottom, highlightShadow);
     }
 
     private static boolean highlighted(NBTTagList rows, int index, int hovered) {
         return index == hovered || rows.getCompoundTagAt(index)
             .getBoolean("expanded");
+    }
+
+    private class ListScrollbar extends Widget<ListScrollbar> implements Interactable {
+
+        private final ScrollArea area = new ScrollArea();
+        private final VerticalScrollData scroll = new VerticalScrollData(false, SCROLL_WIDTH);
+        private int dragMouseY, dragOffset;
+
+        private ListScrollbar() {
+            area.setScrollDataY(scroll);
+            area.setScrollBarBackgroundColor(0);
+            if (variant != null) scroll.texture(variant.scroller);
+            listenGuiAction((IGuiAction.MouseReleased) button -> {
+                area.mouseReleased(0, 0);
+                return false;
+            });
+        }
+
+        @Override
+        public ScrollArea getArea() {
+            return area;
+        }
+
+        @Override
+        public boolean canHover() {
+            return true;
+        }
+
+        private void sync() {
+            scroll.setScrollSize(view().getInteger("rowCount") * ROW_HEIGHT);
+            scroll.scrollTo(area, view().getInteger("scroll") * ROW_HEIGHT);
+        }
+
+        @Override
+        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+            sync();
+            drawRect(0, 0, area.width, area.height, palette.track | 0xFF000000);
+            var scrollbarTheme = getPanel().getTheme()
+                .getScrollbarTheme();
+            area.drawScrollbar(context, scrollbarTheme.getTheme(isHovering()), null);
+        }
+
+        @Override
+        public Result onMousePressed(int button) {
+            if (button != 0 || !layoutReady()) return Result.STOP;
+            sync();
+            int x = getContext().getAbsMouseX() - area.x, y = getContext().getAbsMouseY() - area.y;
+            if (!area.mouseClicked(x, y)) return Result.STOP;
+            int length = scroll.getScrollBarLength(area), start = scroll.getScrollBarStart(area, length, false);
+            if (y < start || y > start + length) {
+                scrollTo(Math.round(scroll.getProgress(area, y, x) * view().getInteger("maxScroll")));
+            }
+            // Anchor to the exact row offset; the rendered thumb's integer position loses precision on long lists.
+            dragMouseY = getContext().getAbsMouseY();
+            dragOffset = view().getInteger("scroll");
+            return Result.SUCCESS;
+        }
+
+        @Override
+        public void onMouseDrag(int button, long timeSinceClick) {
+            if (button != 0 || !layoutReady() || !scroll.isDragging()) return;
+            sync();
+            if (!scroll.isScrollBarActive(area)) return;
+            int travel = scroll.getFullVisibleSize(area) - scroll.getScrollBarLength(area);
+            if (travel <= 0) return;
+            int delta = getContext().getAbsMouseY() - dragMouseY;
+            scrollTo(dragOffset + Math.round((float) delta * view().getInteger("maxScroll") / travel));
+        }
+
+        @Override
+        public boolean onMouseRelease(int button) {
+            area.mouseReleased(0, 0);
+            return true;
+        }
     }
 
     public static class Palette {
