@@ -78,8 +78,7 @@ public class VoidCoverGui extends CoverBaseGui<VoidCover> {
             .key(
                 'I',
                 index -> new PhantomItemSlot().slot(new ModularSlot(cover.lockedInventoryHandler, index))
-                    .background(GTGuiTextures.SLOT_ITEM_STANDARD)
-                    .backgroundOverlay(GTGuiTextures.OVERLAY_SLOT_FILTER))
+                    .background(GTGuiTextures.SLOT_ITEM_STANDARD, GTGuiTextures.OVERLAY_SLOT_FILTER))
             .build()
             .marginTop(WIDGET_MARGIN);
     }
