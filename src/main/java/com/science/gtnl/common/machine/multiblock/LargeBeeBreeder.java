@@ -39,6 +39,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidContainerRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
@@ -609,7 +610,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         }
         foundationFluids.clear();
         for (FluidStack fluid : getStoredFluids()) {
-            if (fluid != null && fluid.amount > 0 && fluid.getFluid() != null) {
+            if (fluid != null && fluid.amount >= FluidContainerRegistry.BUCKET_VOLUME && fluid.getFluid() != null) {
                 foundationFluids.add(fluid.getFluid());
             }
         }
