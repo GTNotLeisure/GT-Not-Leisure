@@ -43,6 +43,8 @@ public class VoidCoverGui extends CoverBaseGui<VoidCover> {
         BooleanSyncValue inputModeSyncer = new BooleanSyncValue(cover::isInputMode, cover::setInputMode).allowC2S();
         syncManager.syncValue("input_mode", inputModeSyncer);
 
+        column.marginBottom(TICK_RATE_BUTTON_SIZE + 2);
+
         column.child(
             Flow.column()
                 .coverChildren()
