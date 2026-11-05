@@ -736,6 +736,7 @@ gtnl.tooltip_export.reason.no_channel=结构里没有对应的等级通道
 gtnl.tooltip_export.reason.irregular=公式不是每级固定加或固定乘
 gtnl.tooltip_export.note.no_stats=不显示并行、速度、功率系数
 gtnl.tooltip_export.note.no_own_lines=没有找到机器自己的说明（md 或 .tooltip.N）
+gtnl.tooltip_export.note.manual_tooltip=使用手写提示，已禁用自动生成和探测
 gtnl.tooltip_export.stat.parallel=并行
 gtnl.tooltip_export.stat.speed=速度
 gtnl.tooltip_export.stat.energy=功率系数
@@ -857,6 +858,9 @@ gtnl.machine.assembler_matrix.mode.operating=运行模式
 
 gtnl.machine.atomic_energy_excitation_plant.name=原子能激发工厂
 gtnl.machine.atomic_energy_excitation_plant.recipe_type=燃料精炼复合体
+gtnl.machine.atomic_energy_excitation_plant.tooltip.0=每超过配方温度900K，耗能均将乘以95%(不计超频)
+gtnl.machine.atomic_energy_excitation_plant.tooltip.1=每超过配方温度1800K，将进行一次无损超频
+gtnl.machine.atomic_energy_excitation_plant.tooltip.2=使用剪线钳开启/关闭动画特效
 
 gtnl.machine.eden_garden.name=“伊甸”生态奇点
 gtnl.machine.eden_garden.recipe_type=作物农场
@@ -1015,7 +1019,30 @@ gtnl.machine.primitive_distillation_tower.recipe_type=蒸馏塔
 
 gtnl.machine.meteor_miner.name=坠星采矿场
 gtnl.machine.meteor_miner.recipe_type=坠星采矿
+gtnl.machine.meteor_miner.tooltip.0=为了正常工作，坠星中心的高度必须比多方块结构最高点至少高出1个方块
+gtnl.machine.meteor_miner.tooltip.1=激光将从坠星中心开始，在XZ轴方向上对半径50个方块范围内的区域进行开采
+gtnl.machine.meteor_miner.tooltip.2=所有涉及的区块必须被强加载
+gtnl.machine.meteor_miner.tooltip.3=激光将根据陨石自动设置其作用半径
+gtnl.machine.meteor_miner.tooltip.4=如果找不到任何陨石，它将等待陨石生成
+gtnl.machine.meteor_miner.tooltip.5=同时考虑到陨石中心正上方的方块(类似于守卫者玻璃)
+gtnl.machine.meteor_miner.tooltip.6=重置按钮可以在不改变半径的情况下重启机器
 gtnl.gui.meteor_miner.drilling_radius=重置钻探半径
+gtnl.machine.meteor_miner.tooltip.7=§c§l等级I
+gtnl.machine.meteor_miner.tooltip.8=每个周期开采一个方块
+gtnl.machine.meteor_miner.tooltip.9=默认时运等级为0，可以通过在输入总线中放入特殊的镐来增加时运等级：
+gtnl.machine.meteor_miner.tooltip.10=时运II：炽心镐
+gtnl.machine.meteor_miner.tooltip.11=时运III：约束之镐
+gtnl.machine.meteor_miner.tooltip.12=时运IV：泰拉粉碎者
+gtnl.machine.meteor_miner.tooltip.13=§c§l等级II
+gtnl.machine.meteor_miner.tooltip.14=始终为时运V
+gtnl.machine.meteor_miner.tooltip.15=每个周期开采一排方块
+gtnl.machine.meteor_miner.tooltip.16=只能安装1个ULV输入总线！
+gtnl.machine.meteor_miner.tooltip.17=§9§l终于，有像样的坠星自动化了！
+gtnl.machine.meteor_miner.tooltip.casing.0.0=坠星仪式上方第二层的中心
+gtnl.machine.meteor_miner.tooltip.casing.0.1=任意围绕控制器的太阳能塔机械方块
+gtnl.machine.meteor_miner.tooltip.casing.0.2=控制器下方
+gtnl.machine.meteor_miner.tooltip.casing.1.0=坠星仪式的最高层
+gtnl.machine.meteor_miner.tooltip.casing.1.1=任意在控制器下方的中子采矿机械方块
 gtnl.machine.meteor_miner.info.machine_tier=机器等级：
 gtnl.machine.meteor_miner.info.fortune_tier=时运等级：
 gtnl.machine.meteor_miner.render.enabled=开启激光渲染
@@ -1726,6 +1753,9 @@ gtnl.machine.steam_greenhouse_module.recipe_type=作物农场
 gtnl.machine.rocket_assembler.name=火箭组装厂
 gtnl.recipe.rocket_assembler=火箭组装厂
 gtnl.machine.rocket_assembler.recipe_type=火箭组装厂
+gtnl.machine.rocket_assembler.info.0=§d§l我有一个航天梦
+gtnl.machine.rocket_assembler.info.1=使用剪线钳开启/关闭动画特效
+gtnl.machine.rocket_assembler.casing=任意洁净不锈钢机械方块
 gtnl.nei.rocket_assembler.special_value=需要%s阶火箭NASA工作台图纸
 
 gtnl.machine.steam_oil_drill_module.1.name=蒸汽流体钻机模块 I
@@ -1822,6 +1852,7 @@ gtnl.machine.data_center.recipe_type=数据库
 
 gtnl.machine.kerr_newman_homogenizer.name=克尔·纽曼均质仪
 gtnl.machine.kerr_newman_homogenizer.recipe_type=搅拌机
+gtnl.machine.kerr_newman_homogenizer.casing=任意强化镀铱机械方块
 
 gtnl.machine.large_steam_bending.name=大型蒸汽卷板机
 gtnl.machine.large_steam_bending.recipe_type=卷板机
@@ -1848,6 +1879,12 @@ gtnl.machine.swarm_core.current_tier=锻炉等级：%s
 gtnl.machine.hyper_naquadah_reactor.name=超能硅岩反应堆
 
 gtnl.machine.advanced_hyper_naquadah_reactor.name=进阶超能硅岩反应堆
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.0=固定并行为%s
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.1=可以在配方开始的时候输入熔融时空
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.2=这会让时间减少%s倍，功率翻%s倍
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.3=代价是每秒会消耗%sL的熔融时空
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.4=不安装动力仓将自动进入无线模式
+gtnl.machine.advanced_hyper_naquadah_reactor.casing=任意硅岩合金聚合机械方块
 
 gtnl.machine.transliminal_oasis.name=超限绿洲
 gtnl.machine.transliminal_oasis.recipe_type=伐木场

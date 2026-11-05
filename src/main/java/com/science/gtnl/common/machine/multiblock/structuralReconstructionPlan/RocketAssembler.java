@@ -9,6 +9,7 @@ import java.util.List;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
@@ -22,7 +23,6 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.GTMMultiMachineBase;
-import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.render.tile.RocketAssemblerRenderer;
 import com.science.gtnl.utils.StructureUtils;
@@ -244,9 +244,24 @@ public class RocketAssembler extends GTMMultiMachineBase<RocketAssembler>
     }
 
     @Override
+    public boolean supportsAutoTooltip() {
+        return false;
+    }
+
+    @Override
     public MultiblockTooltipBuilder createTooltip() {
-        GTNLMultiblockTooltipBuilder tt = new GTNLMultiblockTooltipBuilder();
-        tt.addAutoTooltip(this)
+        MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
+        tt.addMachineType(StatCollector.translateToLocal("gtnl.machine.rocket_assembler.recipe_type"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.rocket_assembler.info.0"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.common.gtm.tooltip.3"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.rocket_assembler.info.1"))
+            .addSupportAny()
+            .beginStructureBlock(17, 24, 16, true)
+            .addInputHatch("0+", StatCollector.translateToLocal("gtnl.machine.rocket_assembler.casing"))
+            .addInputBus("0+", StatCollector.translateToLocal("gtnl.machine.rocket_assembler.casing"))
+            .addOutputBus("0+", StatCollector.translateToLocal("gtnl.machine.rocket_assembler.casing"))
+            .addEnergyHatch("0+", StatCollector.translateToLocal("gtnl.machine.rocket_assembler.casing"))
+            .addMaintenanceHatch("0+", StatCollector.translateToLocal("gtnl.machine.rocket_assembler.casing"))
             .toolTipFinisher();
         return tt;
     }

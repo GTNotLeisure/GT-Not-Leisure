@@ -10,6 +10,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChunkCoordinates;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -23,7 +24,6 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.GTMMultiMachineBase;
-import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.render.tile.AtomicEnergyExcitationPlantRenderer;
 import com.science.gtnl.utils.StructureUtils;
@@ -457,9 +457,33 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
     }
 
     @Override
+    public boolean supportsAutoTooltip() {
+        return false;
+    }
+
+    @Override
     public MultiblockTooltipBuilder createTooltip() {
-        GTNLMultiblockTooltipBuilder tt = new GTNLMultiblockTooltipBuilder();
-        tt.addAutoTooltip(this)
+        MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
+        tt.addMachineType(StatCollector.translateToLocal("gtnl.machine.atomic_energy_excitation_plant.recipe_type"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.common.gtm.tooltip.0"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.common.gtm.tooltip.1"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.atomic_energy_excitation_plant.tooltip.0"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.atomic_energy_excitation_plant.tooltip.1"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.common.gtm.tooltip.2"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.common.gtm.tooltip.3"))
+            .addInfo(StatCollector.translateToLocal("gtnl.machine.atomic_energy_excitation_plant.tooltip.2"))
+            .addPerfectOCInfo()
+            .addSupportAny()
+            .beginStructureBlock(17, 29, 23, true)
+            .addInputHatch("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addOutputHatch("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addInputBus("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addOutputBus("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addEnergyHatch("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addMaintenanceHatch("0+", StatCollector.translateToLocal("gt.blockcasings.9.11.name"))
+            .addSubChannelUsage(GTStructureChannels.HEATING_COIL)
+            .addSubChannelUsage(GTStructureChannels.TIER_MACHINE_CASING)
+            .addSubChannelUsage(GTStructureChannels.BOROGLASS)
             .toolTipFinisher();
         return tt;
     }

@@ -74,6 +74,7 @@ public class GTNLMultiblockTooltipBuilder extends MultiblockTooltipBuilder {
 
     public <T extends MTEEnhancedMultiBlockBase<T>> GTNLMultiblockTooltipBuilder addAutoTooltip(T machine,
         String keyPrefix) {
+        if (machine instanceof IMultiblockTooltipRules rules && !rules.supportsAutoTooltip()) return this;
         addAutoInfo(machine, keyPrefix);
         addAutoStructure(machine);
         return this;

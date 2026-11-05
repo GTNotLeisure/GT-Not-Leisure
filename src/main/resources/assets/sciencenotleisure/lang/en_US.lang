@@ -736,6 +736,7 @@ gtnl.tooltip_export.reason.no_channel=the structure has no matching tier channel
 gtnl.tooltip_export.reason.irregular=the formula is neither a fixed step nor a fixed factor per tier
 gtnl.tooltip_export.note.no_stats=Does not show parallels, speed and power coefficient
 gtnl.tooltip_export.note.no_own_lines=No own description found (md or .tooltip.N)
+gtnl.tooltip_export.note.manual_tooltip=Uses a manual tooltip; automatic generation and probing are disabled
 gtnl.tooltip_export.stat.parallel=parallels
 gtnl.tooltip_export.stat.speed=speed
 gtnl.tooltip_export.stat.energy=power coefficient
@@ -857,6 +858,9 @@ gtnl.machine.assembler_matrix.mode.operating=Operating Mode
 
 gtnl.machine.atomic_energy_excitation_plant.name=Atomic Energy Excitation Plant
 gtnl.machine.atomic_energy_excitation_plant.recipe_type=Fuel Refining Complex
+gtnl.machine.atomic_energy_excitation_plant.tooltip.0=For every 900K above the recipe temperature, energy consumption is multiplied by 95% (excluding overclocking)
+gtnl.machine.atomic_energy_excitation_plant.tooltip.1=For every 1800K above the recipe temperature, perform one Perfect Overclock
+gtnl.machine.atomic_energy_excitation_plant.tooltip.2=Use a wire cutter to turn on/off the animation effects.
 
 gtnl.machine.eden_garden.name=Eden Garden
 gtnl.machine.eden_garden.recipe_type=Crop Farm
@@ -1015,7 +1019,30 @@ gtnl.machine.primitive_distillation_tower.recipe_type=Distillation Tower
 
 gtnl.machine.meteor_miner.name=Meteor Miner
 gtnl.machine.meteor_miner.recipe_type=Meteor Mining
+gtnl.machine.meteor_miner.tooltip.0=To function properly, the height of the meteor core must be at least one block higher than the highest point of the multiblock structure.
+gtnl.machine.meteor_miner.tooltip.1=The laser will mine in a radius of up to 50 blocks in the XZ axis from the center of the meteor
+gtnl.machine.meteor_miner.tooltip.2=All involved chunks must be force-loaded.
+gtnl.machine.meteor_miner.tooltip.3=The laser will automatically set its radius based on the meteor.
+gtnl.machine.meteor_miner.tooltip.4=If no meteor is found, it will wait for a meteor to spawn.
+gtnl.machine.meteor_miner.tooltip.5=Also considers the block directly above the meteor center.
+gtnl.machine.meteor_miner.tooltip.6=The reset button can restart the machine without changing the radius.
 gtnl.gui.meteor_miner.drilling_radius=Reset drilling radius
+gtnl.machine.meteor_miner.tooltip.7=§c§lTier I
+gtnl.machine.meteor_miner.tooltip.8=Mines one block per cycle.
+gtnl.machine.meteor_miner.tooltip.9=Default Fortune level is 0, can be increased by placing special picks in the input bus:
+gtnl.machine.meteor_miner.tooltip.10=Fortune I: Fiery Pickaxe
+gtnl.machine.meteor_miner.tooltip.11=Fortune II: Bound Pickaxe
+gtnl.machine.meteor_miner.tooltip.12=Fortune III: Terra Shatterer
+gtnl.machine.meteor_miner.tooltip.13=§c§lTier II
+gtnl.machine.meteor_miner.tooltip.14=Always Fortune III.
+gtnl.machine.meteor_miner.tooltip.15=Mines a row of blocks per cycle.
+gtnl.machine.meteor_miner.tooltip.16=Only have 1 ULV Input Bus!
+gtnl.machine.meteor_miner.tooltip.17=§9§lFinally, some good meteor automation!
+gtnl.machine.meteor_miner.tooltip.casing.0.0=Center of the second layer above the meteor ritual.
+gtnl.machine.meteor_miner.tooltip.casing.0.1=Any Solar Tower Machine Block around the controller.
+gtnl.machine.meteor_miner.tooltip.casing.0.2=Below the controller.
+gtnl.machine.meteor_miner.tooltip.casing.1.0=Top layer of the meteor ritual.
+gtnl.machine.meteor_miner.tooltip.casing.1.1=Any Neutron Mining Machine Block below the controller.
 gtnl.machine.meteor_miner.info.machine_tier=Machine Tier:
 gtnl.machine.meteor_miner.info.fortune_tier=Fortune Tier:
 gtnl.machine.meteor_miner.render.enabled=Enable Laser Render
@@ -1726,6 +1753,9 @@ gtnl.machine.steam_greenhouse_module.recipe_type=Crop Farm
 gtnl.machine.rocket_assembler.name=Rocket Assembler
 gtnl.recipe.rocket_assembler=Rocket Assembler
 gtnl.machine.rocket_assembler.recipe_type=Rocket Assembler
+gtnl.machine.rocket_assembler.info.0=§d§lI have a space dream
+gtnl.machine.rocket_assembler.info.1=Use a wire cutter to turn on/off the animation effects.
+gtnl.machine.rocket_assembler.casing=Any clean stainless steel machine block
 gtnl.nei.rocket_assembler.special_value=Requires %s tier Rocket NASA Workbench Blueprint
 
 gtnl.machine.steam_oil_drill_module.1.name=Steam Oil Drill Module I
@@ -1822,6 +1852,7 @@ gtnl.machine.data_center.recipe_type=Data Bank
 
 gtnl.machine.kerr_newman_homogenizer.name=Kerr Newman Homogenizer
 gtnl.machine.kerr_newman_homogenizer.recipe_type=Mixer
+gtnl.machine.kerr_newman_homogenizer.casing=Any Reinforced Iridium Machine Block
 
 gtnl.machine.large_steam_bending.name=Large Steam Bender
 gtnl.machine.large_steam_bending.recipe_type=Bender
@@ -1848,6 +1879,12 @@ gtnl.machine.swarm_core.current_tier=Machine Tier: %s
 gtnl.machine.hyper_naquadah_reactor.name=Hyper Naquadah Reactor
 
 gtnl.machine.advanced_hyper_naquadah_reactor.name=Advanced Hyper Naquadah Reactor
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.0=Fixed parallel of %s
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.1=Can input spacetime at the start of the recipe
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.2=This will make time %s times shorter and power %s times greater
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.3=The cost is %sL of spacetime consumed per second
+gtnl.machine.advanced_hyper_naquadah_reactor.tooltip.4=If no dynamo hatch is installed, it will automatically enter §bWireless Mode§7
+gtnl.machine.advanced_hyper_naquadah_reactor.casing=Any Naquadah Alloy Fusion Casing
 
 gtnl.machine.transliminal_oasis.name=Transliminal Oasis
 gtnl.machine.transliminal_oasis.recipe_type=Woodcutter

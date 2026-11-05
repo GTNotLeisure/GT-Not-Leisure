@@ -111,6 +111,7 @@ public class MultiblockTooltipReader {
     }
 
     public static <T extends MTEEnhancedMultiBlockBase<T>> StructureSummary readStructure(T machine) {
+        if (machine instanceof IMultiblockTooltipRules rules && !rules.supportsAutoTooltip()) return null;
         try {
             return withPrototype(machine, MultiblockTooltipReader::readPrototype);
         } catch (RuntimeException e) {
@@ -150,6 +151,7 @@ public class MultiblockTooltipReader {
 
     public static <T extends MTEEnhancedMultiBlockBase<T>> InfoSummary readInfo(T machine, String keyPrefix,
         StructureSummary structure) {
+        if (machine instanceof IMultiblockTooltipRules rules && !rules.supportsAutoTooltip()) return null;
         try {
             return withPrototype(machine, controller -> readPrototypeInfo(machine, controller, keyPrefix, structure));
         } catch (RuntimeException e) {

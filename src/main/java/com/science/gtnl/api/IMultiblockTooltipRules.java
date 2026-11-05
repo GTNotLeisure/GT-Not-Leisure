@@ -11,6 +11,11 @@ import gregtech.api.structure.IStructureChannels;
 
 public interface IMultiblockTooltipRules {
 
+    /** Whether automatic tooltip generation and its audit may probe this machine. */
+    default boolean supportsAutoTooltip() {
+        return true;
+    }
+
     /** Tier skip count of a machine that runs no recipe above the tier of its energy input. */
     int NO_TIER_SKIP = 0;
     /** Tier skip count of a machine that runs recipes of any tier. */

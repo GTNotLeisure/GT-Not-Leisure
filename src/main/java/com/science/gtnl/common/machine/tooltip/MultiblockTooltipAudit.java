@@ -126,8 +126,10 @@ public class MultiblockTooltipAudit {
         List<String> notes = new ObjectArrayList<>();
         List<String> autoInfo = Collections.emptyList();
         List<String> autoStructure = Collections.emptyList();
+        boolean automatic = !(machine instanceof IMultiblockTooltipRules rules) || rules.supportsAutoTooltip();
+        if (!automatic) notes.add(text("note.manual_tooltip"));
         long start = System.nanoTime();
-        if (machine instanceof MTEEnhancedMultiBlockBase enhanced) {
+        if (automatic && machine instanceof MTEEnhancedMultiBlockBase enhanced) {
             try {
                 MultiblockTooltipBuilder auto = new GTNLMultiblockTooltipBuilder().addAutoTooltip(enhanced)
                     .toolTipFinisher();
@@ -137,11 +139,11 @@ public class MultiblockTooltipAudit {
                 ScienceNotLeisure.LOG.warn("Cannot build the automatic tooltip of {}", machine.getLocalName(), e);
                 problems.add(text("problem.generation_failed", e));
             }
-        } else {
+        } else if (automatic) {
             problems.add(text("problem.unsupported"));
         }
         long micros = (System.nanoTime() - start) / NANOS_PER_MICRO;
-        if (machine instanceof MTEEnhancedMultiBlockBase enhanced) check(enhanced, problems, notes);
+        if (automatic && machine instanceof MTEEnhancedMultiBlockBase enhanced) check(enhanced, problems, notes);
         List<String> currentInfo = Collections.emptyList();
         List<String> currentStructure = Collections.emptyList();
         try {
