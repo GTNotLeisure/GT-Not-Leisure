@@ -867,8 +867,12 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     }
 
     private GTNLOverclockCalculator createBreedingOverclockCalculator(int extraOverclocks) {
-        int voltageUpgrades = Math.max(0, Math.min(getBreedingVoltageTier(), VoltageIndex.MAX) - BASE_VOLTAGE_TIER)
-            + extraOverclocks;
+        int voltageUpgrades = Math.max(0, Math.min(getBreedingVoltageTier(), VoltageIndex.MAX) - BASE_VOLTAGE_TIER);
+        long availablePower = Math.max(0L, getMaxInputPower()) >> getGlassUpgrades();
+        while (voltageUpgrades > 0 && (BASE_EUT_PER_BREEDING << (2 * voltageUpgrades)) > availablePower) {
+            voltageUpgrades--;
+        }
+        voltageUpgrades += extraOverclocks;
         return new GTNLOverclockCalculator().setRecipeEUt(BASE_EUT_PER_BREEDING)
             .setEUt(BASE_EUT_PER_BREEDING << (2 * voltageUpgrades))
             .setDuration(TICKS_PER_BREEDING)
