@@ -91,7 +91,8 @@ public class EyeOfHarmonyInjectorStatusPanel {
                 return new EmptyWidget();
             }
             return createLinkedUnitsList(panelSyncManager, linkedUnitsSyncer);
-        }).allowC2S();
+        })
+            .allowC2S();
         linkedUnitsSyncer.setChangeListener(() -> linkedUnitsWidgetSyncer.notifyUpdate(packet -> {}));
         syncManager.syncValue(LINKED_UNITS_WIDGET_SYNC_KEY, linkedUnitsWidgetSyncer);
     }

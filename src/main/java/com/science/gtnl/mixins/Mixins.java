@@ -129,6 +129,13 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.WirelessCraftingTerminal)),
 
+    YOG_SOTHOTH_TERMINAL_BOGO(new MixinBuilder("Yog-Sothoth terminal network amount tooltips")
+        .addCommonMixins("inventoryBogoSorter.MixinAe2AmountServiceYogTerminal")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.InventoryBogoSorter)
+        .addRequiredMod(ModList.AppliedEnergistics)
+        .addRequiredMod(ModList.Baubles)),
+
     FLOATING_WINDOW_MODULAR_UI(new MixinBuilder("Floating window ModularUI hover blocking")
         .addClientMixins("modularUI.MixinFloatingWindowModularGui")
         .setPhase(Phase.LATE)),
