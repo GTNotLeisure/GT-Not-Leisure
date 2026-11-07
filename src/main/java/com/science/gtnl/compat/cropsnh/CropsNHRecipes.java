@@ -1,10 +1,14 @@
 package com.science.gtnl.compat.cropsnh;
 
+import static gregtech.api.util.GTRecipeBuilder.SECONDS;
+
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
 
 import com.gtnewhorizon.cropsnh.api.CropsNHItemList;
+import com.gtnewhorizon.cropsnh.init.CropsNHFluids;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.ModsItemlist;
 import com.science.gtnl.utils.recipes.RecipeBuilder;
@@ -23,6 +27,17 @@ public class CropsNHRecipes {
 
     @Optional.Method(modid = "cropsnh")
     private static void assemblerRecipes() {
+        RecipeBuilder.builder()
+            .itemInputs(
+                CropsNHItemList.IndustrialFarmController.get(8),
+                CropsNHItemList.cropSticks.get(64),
+                new ItemStack(Blocks.dirt, 64))
+            .fluidInputs(new FluidStack(CropsNHFluids.enrichedFertilizer, 32000))
+            .itemOutputs(GTNLItemList.LargeCropBreeder.get(1))
+            .duration(20 * SECONDS)
+            .eut(TierEU.RECIPE_MV)
+            .addTo(RecipeMaps.assemblerRecipes);
+
         RecipeBuilder.builder()
             .itemInputs(
                 CropsNHItemList.CropManager_LV.get(2),

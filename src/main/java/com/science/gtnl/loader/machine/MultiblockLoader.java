@@ -36,6 +36,7 @@ import com.science.gtnl.common.machine.multiblock.LargeBeeBreeder;
 import com.science.gtnl.common.machine.multiblock.LargeBioLab;
 import com.science.gtnl.common.machine.multiblock.LargeBrewer;
 import com.science.gtnl.common.machine.multiblock.LargeCircuitAssembler;
+import com.science.gtnl.common.machine.multiblock.LargeCropBreeder;
 import com.science.gtnl.common.machine.multiblock.LargeEssentiaGenerator;
 import com.science.gtnl.common.machine.multiblock.LargeGasCollector;
 import com.science.gtnl.common.machine.multiblock.LargeIncubator;
@@ -1472,6 +1473,15 @@ public class MultiblockLoader {
                 "LargeBeeBreeder",
                 StatCollector.translateToLocal("gtnl.machine.large_bee_breeder.name")));
         AnimatedTooltipHandler.addItemTooltip(GTNLItemList.LargeBeeBreeder.get(1), AnimatedText.GT_NOT_LEISURE);
+
+        if (Mods.CropsNH.isModLoaded()) {
+            GTNLItemList.LargeCropBreeder.set(
+                new LargeCropBreeder(
+                    GTNLMachineID.LARGE_CROP_BREEDER.ID,
+                    "LargeCropBreeder",
+                    StatCollector.translateToLocal("gtnl.machine.large_crop_breeder.name")));
+            AnimatedTooltipHandler.addItemTooltip(GTNLItemList.LargeCropBreeder.get(1), AnimatedText.GT_NOT_LEISURE);
+        }
 
         // Special Machine
         GTNLItemList.CheatOreProcessingFactory.set(

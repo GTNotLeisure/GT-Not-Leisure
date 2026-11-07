@@ -76,6 +76,28 @@ public class MachineConfig {
 
     }
 
+    @Name("crop_breeder")
+    @LangKey("gtnl.gui.config.machine.crop_breeder")
+    public static final CropBreeder crop_breeder = new CropBreeder();
+
+    @Sync
+    @RequiresMcRestart
+    @Comment("Large Crop Breeder")
+    public static class CropBreeder {
+
+        @Comment("Success percentages for breeding grades 1 to 5, independent of machine voltage.")
+        @Config.DefaultIntList({ 100, 80, 60, 40, 20 })
+        @Config.RangeInt(min = 0, max = 100)
+        @Config.LangKey("gtnl.gui.config.machine.crop_breeder.tier_chances")
+        public int[] tierChances = { 100, 80, 60, 40, 20 };
+
+        @Comment({ "Per-crop overrides: CropsNH registry ID=percent (0-100).",
+            "Invalid entries are ignored. The last valid entry wins." })
+        @Config.DefaultStringList({})
+        @Config.LangKey("gtnl.gui.config.machine.crop_breeder.crop_overrides")
+        public String[] cropOverrides = {};
+    }
+
     public static final QuantumComputer quantum_computer = new QuantumComputer();
 
     @Comment("Quantum Computer")
