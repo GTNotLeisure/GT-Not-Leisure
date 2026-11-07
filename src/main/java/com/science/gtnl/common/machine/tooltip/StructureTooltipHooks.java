@@ -35,9 +35,20 @@ public class StructureTooltipHooks {
 
     public record PieceCall(String piece, int horizontalOffset, int verticalOffset, int depthOffset) {}
 
-    public record HatchRule(List<String> hatchKeys, int min, int max, int perLayer) {}
+    public record HatchRule(List<String> hatchKeys, int min, int max, int perLayer) {
 
-    public record CheckRecord(List<Integer> casingMinimums, List<HatchRule> hatchRules, String failure) {}
+        public HatchRule {
+            hatchKeys = List.copyOf(hatchKeys);
+        }
+    }
+
+    public record CheckRecord(List<Integer> casingMinimums, List<HatchRule> hatchRules, String failure) {
+
+        public CheckRecord {
+            casingMinimums = failure == null ? List.copyOf(casingMinimums) : List.of();
+            hatchRules = failure == null ? List.copyOf(hatchRules) : List.of();
+        }
+    }
 
     public static <T> IStructureElement<T> describeAsHatch(IStructureElement<T> element, String... nameKeys) {
         List<String> keys = Arrays.asList(nameKeys);
@@ -114,20 +125,37 @@ public class StructureTooltipHooks {
 
     public static List<PieceCall> recordConstruct(MTEEnhancedMultiBlockBase<?> controller, int stackSize,
         Set<String> channels) {
+        return recordConstruct(controller, stackSize, channels, new ObjectArrayList<>());
+    }
+
+    public static List<PieceCall> recordConstruct(MTEEnhancedMultiBlockBase<?> controller, int stackSize,
+        Set<String> channels, List<String> problems) {
         ItemStack trigger = channelProbe(stackSize, channels);
         ChannelDataAccessor.setChannelData(trigger, GTNLStructureChannels.STRUCTURE_RENDER.get(), 1);
-        return record(controller, "structure pieces", () -> controller.construct(trigger, true)).pieces;
+        Recording recording = record(controller, "structure pieces", () -> controller.construct(trigger, true));
+        if (recording.failure != null) {
+            problems.add("Structure pieces at projector size " + stackSize + ": " + recording.failure);
+            return List.of();
+        }
+        return List.copyOf(recording.pieces);
     }
 
     public static <T> void recordChannels(T controller, IStructureElement<T> element, Set<String> channels) {
+        recordChannels(controller, element, channels, new ObjectArrayList<>());
+    }
+
+    public static <T> void recordChannels(T controller, IStructureElement<T> element, Set<String> channels,
+        List<String> problems) {
         try {
+            channels.addAll(element.getChannels());
             element.getBlocksToPlace(controller, null, 0, 0, 0, channelProbe(1, channels), null);
         } catch (RuntimeException e) {
+            problems.add("Structure element channels: " + e);
             ScienceNotLeisure.LOG.debug(
-                "Cannot probe a structure element of {} for its channels",
+                "Cannot probe a structure element of {} for its channels: {}",
                 controller.getClass()
                     .getSimpleName(),
-                e);
+                e.toString());
         }
     }
 
@@ -176,11 +204,11 @@ public class StructureTooltipHooks {
         } catch (RuntimeException e) {
             recording.failure = e;
             ScienceNotLeisure.LOG.warn(
-                "Cannot read the {} of {} for its tooltip",
+                "Cannot read the {} of {} for its tooltip: {}",
                 subject,
                 controller.getClass()
                     .getSimpleName(),
-                e);
+                e.toString());
         } finally {
             if (previous == null) RECORDING.remove();
             else RECORDING.set(previous);

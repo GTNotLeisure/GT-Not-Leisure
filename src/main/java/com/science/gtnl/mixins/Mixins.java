@@ -384,6 +384,10 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .setApplyIf(() -> ItemConfig.stick.enableStickItem)),
 
+    STRUCTURE_BOUNDS(
+        new MixinBuilder("Multiblock structure bounds").addCommonMixins("gregtech.MixinStructureCenterWalker")
+            .setPhase(Phase.LATE)),
+
     AUTO_STRUCTURE_TOOLTIP(new MixinBuilder("Automatic multiblock structure tooltips")
         .addCommonMixins(
             "structureLib.MixinLazyStructureElement",

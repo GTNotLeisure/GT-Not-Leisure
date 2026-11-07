@@ -89,6 +89,8 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
     public boolean isRenderActive = false;
     public float rotation = 0;
 
+    private boolean structurePiecesValid;
+
     public AtomicEnergyExcitationPlant(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
     }
@@ -283,6 +285,7 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
 
     @Override
     public void checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack, List<StructureError> errors) {
+        structurePiecesValid = false;
         machineTier = -1;
         if (isRenderActive) {
             if (!checkPiece(STRUCTURE_PIECE_MAIN, HORIZONTAL_OFF_SET, VERTICAL_OFF_SET, DEPTH_OFF_SET, errors)
@@ -292,7 +295,6 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
                     VERTICAL_OFF_SET_SPHERE,
                     DEPTH_OFF_SET_SPHERE,
                     errors)) {
-                buildSphere();
                 return;
             }
         } else if (!checkPiece(STRUCTURE_PIECE_MAIN, HORIZONTAL_OFF_SET, VERTICAL_OFF_SET, DEPTH_OFF_SET, errors)
@@ -304,17 +306,24 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
                 errors)) {
                     return;
                 }
+        structurePiecesValid = true;
         setupParameters();
         checkHatch(errors);
         checkCasingMin(errors, mCountCasing, 350);
+    }
 
-        if (!isRenderActive && enableRender && mTotalRunTime > 0) {
+    @Override
+    protected void onStructureCheckFinished(IGregTechTileEntity base) {
+        super.onStructureCheckFinished(base);
+        if (!structurePiecesValid) {
+            if (isRenderActive) buildSphere();
+        } else if (!isRenderActive && enableRender && mTotalRunTime > 0) {
             destroySphere();
         } else if (isRenderActive && !enableRender) {
             buildSphere();
         }
 
-        getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
+        base.sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
     }
 
     @Override

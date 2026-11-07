@@ -6,10 +6,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 
+import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.oredict.OreDictionary;
 
 import forestry.api.apiculture.BeeManager;
@@ -413,6 +417,15 @@ public final class BeeBreedingHelper {
             int requiredId = OreDictionary.getOreID(oreName);
             for (int id : OreDictionary.getOreIDs(stack)) if (id == requiredId) return true;
             return false;
+        }
+
+        public ItemStack findFluidFoundation(Set<Fluid> fluids) {
+            if (fluids.isEmpty()) return null;
+            for (ItemStack candidate : getAlternatives()) {
+                Fluid fluid = FluidRegistry.lookupFluidForBlock(Block.getBlockFromItem(candidate.getItem()));
+                if (fluid != null && fluids.contains(fluid)) return candidate;
+            }
+            return null;
         }
 
         public List<ItemStack> getAlternatives() {

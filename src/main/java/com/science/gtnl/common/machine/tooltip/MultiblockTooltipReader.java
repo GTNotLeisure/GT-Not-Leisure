@@ -47,11 +47,8 @@ import com.science.gtnl.common.machine.tooltip.StructureTooltipHooks.HatchRule;
 import com.science.gtnl.common.machine.tooltip.StructureTooltipHooks.PieceCall;
 import com.science.gtnl.utils.enums.GTNLStructureChannels;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.HeatingCoilLevel;
-import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
-import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.logic.ProcessingLogic;
 import gregtech.api.metatileentity.implementations.MTEEnhancedMultiBlockBase;
 import gregtech.api.recipe.RecipeMap;
@@ -111,20 +108,25 @@ public class MultiblockTooltipReader {
     }
 
     public static <T extends MTEEnhancedMultiBlockBase<T>> StructureSummary readStructure(T machine) {
-        try {
-            return withPrototype(machine, MultiblockTooltipReader::readPrototype);
-        } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the structure of {} for its tooltip", nameOf(machine), e);
-            return null;
-        }
+        return readStructureResult(machine).summary();
     }
 
-    // NEI builds tooltips on worker threads, so two threads can dry run the same prototype at once.
-    public static <T extends MTEEnhancedMultiBlockBase<T>, R> R withPrototype(T machine, Function<T, R> read) {
-        T prototype = prototypeOf(machine);
-        synchronized (prototype) {
-            return read.apply(prototype);
+    public static <T extends MTEEnhancedMultiBlockBase<T>> StructureReadResult readStructureResult(T machine) {
+        List<String> problems = new ObjectArrayList<>();
+        StructureSummary summary = null;
+        try {
+            summary = TooltipProbeFactory.withProbe(machine, controller -> readPrototype(controller, problems));
+        } catch (RuntimeException e) {
+            problems.add("Structure of " + nameOf(machine) + ": " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the structure of {} for its tooltip: {}", nameOf(machine), e.toString());
         }
+        return new StructureReadResult(summary, problems);
+    }
+
+    /** Retained for callers that used the old prototype reader; the callback now receives an isolated instance. */
+    public static <T extends MTEEnhancedMultiBlockBase<T>, R> R withPrototype(T machine, Function<T, R> read) {
+        return TooltipProbeFactory.withProbe(machine, read);
     }
 
     public static String keyPrefixOf(MTEEnhancedMultiBlockBase<?> machine) {
@@ -150,16 +152,37 @@ public class MultiblockTooltipReader {
 
     public static <T extends MTEEnhancedMultiBlockBase<T>> InfoSummary readInfo(T machine, String keyPrefix,
         StructureSummary structure) {
+        return readInfo(machine, keyPrefix, structure, new ObjectArrayList<>());
+    }
+
+    public static <T extends MTEEnhancedMultiBlockBase<T>> InfoSummary readInfo(T machine, String keyPrefix,
+        StructureSummary structure, List<String> problems) {
         try {
-            return withPrototype(machine, controller -> readPrototypeInfo(machine, controller, keyPrefix, structure));
+            return TooltipProbeFactory.withProbe(
+                machine,
+                controller -> readPrototypeInfo(machine, controller, keyPrefix, structure, problems));
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the information of {} for its tooltip", nameOf(machine), e);
-            return null;
+            problems.add("Tooltip information: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the information of {} for its tooltip: {}", nameOf(machine), e.toString());
+            return new InfoSummary(
+                keyPrefix == null ? null : translatedOrNull(keyPrefix + RECIPE_TYPE_SUFFIX),
+                null,
+                List.of(),
+                keyPrefix == null ? List.of() : ownLines(keyPrefix, Collections.emptyMap(), problems),
+                List.of(),
+                null,
+                List.of(),
+                OptionalInt.empty(),
+                0,
+                List.of(),
+                false,
+                false);
         }
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> InfoSummary readPrototypeInfo(T machine, T controller,
-        String keyPrefix, StructureSummary structure) {
+        String keyPrefix, StructureSummary structure, List<String> problems) {
         IMultiblockTooltipRules rules = controller instanceof IMultiblockTooltipRules machineRules ? machineRules
             : null;
         if (rules != null) rules.setTooltipCasingName(structure == null ? null : structure.casingName());
@@ -176,16 +199,19 @@ public class MultiblockTooltipReader {
             }
             if (stats != null) tierSkips = rules.getTooltipTierSkips();
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the numbers of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip numbers: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the numbers of {} for its tooltip: {}", nameOf(machine), e.toString());
         }
         String machineType = keyPrefix == null ? null : translatedOrNull(keyPrefix + RECIPE_TYPE_SUFFIX);
-        if (machineType == null) machineType = recipeMapNames(machine, controller);
+        if (machineType == null) machineType = recipeMapNames(machine, controller, problems);
         List<String> lines = keyPrefix == null ? new ObjectArrayList<>()
-            : ownLines(keyPrefix, tooltipVars(machine, rules, stats));
+            : ownLines(keyPrefix, tooltipVars(machine, rules, stats, problems), problems);
         List<String> hatchKeys = structure == null ? Collections.emptyList() : structure.hatchKeys();
-        List<String> features = rules == null ? new ObjectArrayList<>() : featureLines(machine, rules);
-        HeatRules heat = rules == null || stats == null ? null : heatRules(machine, rules);
-        List<List<String>> groups = rules == null ? new ObjectArrayList<>() : lineGroups(machine, rules, hatchKeys);
+        List<String> features = rules == null ? new ObjectArrayList<>() : featureLines(machine, rules, problems);
+        HeatRules heat = rules == null || stats == null ? null : heatRules(machine, rules, problems);
+        List<List<String>> groups = rules == null ? new ObjectArrayList<>()
+            : lineGroups(machine, rules, hatchKeys, problems);
         boolean supportAny = hatchKeys.contains(HatchElement.ExoticEnergy.getDescriptionLangKey());
         boolean supportMultiAmp = !supportAny
             && hatchKeys.contains(HatchElement.MultiAmpEnergy.getDescriptionLangKey());
@@ -198,23 +224,26 @@ public class MultiblockTooltipReader {
             heat,
             perfectFrom,
             tierSkips,
-            pollutionOf(controller),
+            pollutionOf(controller, problems),
             groups,
             supportAny,
             supportMultiAmp);
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> HeatRules heatRules(T machine,
-        IMultiblockTooltipRules rules) {
+        IMultiblockTooltipRules rules, List<String> problems) {
         try {
             return rules.getTooltipHeatRules();
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the heat rules of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip heat rules: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the heat rules of {} for its tooltip: {}", nameOf(machine), e.toString());
             return null;
         }
     }
 
-    private static <T extends MTEEnhancedMultiBlockBase<T>> String recipeMapNames(T machine, T controller) {
+    private static <T extends MTEEnhancedMultiBlockBase<T>> String recipeMapNames(T machine, T controller,
+        List<String> problems) {
         Set<String> names = new ObjectLinkedOpenHashSet<>();
         int original = controller.machineMode;
         try {
@@ -225,7 +254,9 @@ public class MultiblockTooltipReader {
                 }
             }
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the recipe maps of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip recipe maps: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the recipe maps of {} for its tooltip: {}", nameOf(machine), e.toString());
         } finally {
             controller.machineMode = original;
         }
@@ -249,17 +280,19 @@ public class MultiblockTooltipReader {
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> List<String> featureLines(T machine,
-        IMultiblockTooltipRules rules) {
+        IMultiblockTooltipRules rules, List<String> problems) {
         try {
             return new ObjectArrayList<>(rules.getTooltipFeatureLines());
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the feature lines of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip feature lines: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the feature lines of {} for its tooltip: {}", nameOf(machine), e.toString());
             return new ObjectArrayList<>();
         }
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> List<List<String>> lineGroups(T machine,
-        IMultiblockTooltipRules rules, List<String> hatchKeys) {
+        IMultiblockTooltipRules rules, List<String> hatchKeys, List<String> problems) {
         List<List<String>> groups = new ObjectArrayList<>();
         try {
             List<String> hatchLines = new ObjectArrayList<>();
@@ -268,14 +301,17 @@ public class MultiblockTooltipReader {
             List<String> upgradeLines = rules.getTooltipUpgradeLines();
             if (!upgradeLines.isEmpty()) groups.add(upgradeLines);
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG
-                .warn("Cannot read the hatch and upgrade lines of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip hatch and upgrade lines: " + e);
+            ScienceNotLeisure.LOG.warn(
+                "Cannot read the hatch and upgrade lines of {} for its tooltip: {}",
+                nameOf(machine),
+                e.toString());
         }
         return groups;
     }
 
-    private static List<String> ownLines(String keyPrefix, Map<String, Object> vars) {
-        List<String> lines = markdownLines(keyPrefix, vars);
+    private static List<String> ownLines(String keyPrefix, Map<String, Object> vars, List<String> problems) {
+        List<String> lines = markdownLines(keyPrefix, vars, problems);
         if (lines != null) return lines;
         lines = numberedLines(keyPrefix + ".tooltip");
         if (lines.isEmpty()) lines = numberedLines(keyPrefix + ".info");
@@ -283,7 +319,7 @@ public class MultiblockTooltipReader {
         return lines;
     }
 
-    private static List<String> markdownLines(String keyPrefix, Map<String, Object> vars) {
+    private static List<String> markdownLines(String keyPrefix, Map<String, Object> vars, List<String> problems) {
         String name = keyPrefix.substring(keyPrefix.lastIndexOf('.') + 1)
             .replace('_', '-');
         try {
@@ -292,14 +328,15 @@ public class MultiblockTooltipReader {
                     .loadStandardPath(new ResourceLocation(ScienceNotLeisure.RESOURCE_ROOT_ID, name), vars));
         } catch (RuntimeException e) {
             if (!(e.getCause() instanceof IOException)) {
-                ScienceNotLeisure.LOG.warn("Cannot parse the markdown tooltip {}", name, e);
+                problems.add("Tooltip markdown: " + e);
+                ScienceNotLeisure.LOG.warn("Cannot parse the markdown tooltip {}: {}", name, e.toString());
             }
             return null;
         }
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> Map<String, Object> tooltipVars(T machine,
-        IMultiblockTooltipRules rules, TooltipStats stats) {
+        IMultiblockTooltipRules rules, TooltipStats stats, List<String> problems) {
         Map<String, Object> vars = new Object2ObjectOpenHashMap<>();
         if (stats != null) {
             vars.put("parallels", String.valueOf(stats.parallels()));
@@ -309,7 +346,8 @@ public class MultiblockTooltipReader {
         try {
             if (rules != null) vars.putAll(rules.getTooltipVars());
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the tooltip values of {}", nameOf(machine), e);
+            problems.add("Tooltip variables: " + e);
+            ScienceNotLeisure.LOG.warn("Cannot read the tooltip values of {}: {}", nameOf(machine), e.toString());
         }
         return vars;
     }
@@ -327,11 +365,13 @@ public class MultiblockTooltipReader {
             .find()) lines.add(line);
     }
 
-    private static int pollutionOf(MTEEnhancedMultiBlockBase<?> machine) {
+    private static int pollutionOf(MTEEnhancedMultiBlockBase<?> machine, List<String> problems) {
         try {
             return machine.getPollutionPerSecond(null);
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot read the pollution of {} for its tooltip", nameOf(machine), e);
+            problems.add("Tooltip pollution: " + e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot read the pollution of {} for its tooltip: {}", nameOf(machine), e.toString());
             return 0;
         }
     }
@@ -340,7 +380,8 @@ public class MultiblockTooltipReader {
         try {
             return logic.get() != null;
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.debug("Cannot build the processing logic of {} for its tooltip", nameOf(machine), e);
+            ScienceNotLeisure.LOG
+                .debug("Cannot build the processing logic of {} for its tooltip: {}", nameOf(machine), e.toString());
             return true;
         }
     }
@@ -501,21 +542,15 @@ public class MultiblockTooltipReader {
         return key != null && StatCollector.canTranslate(key) ? StatCollector.translateToLocal(key) : null;
     }
 
-    @SuppressWarnings("unchecked")
-    private static <T extends MTEEnhancedMultiBlockBase<T>> T prototypeOf(T machine) {
-        IGregTechTileEntity base = machine.getBaseMetaTileEntity();
-        if (base == null) return machine;
-        // The dry runs below must never touch a machine that is built in a world.
-        IMetaTileEntity prototype = GregTechAPI.METATILEENTITIES[base.getMetaTileID()];
-        return machine.getClass()
-            .isInstance(prototype) ? (T) prototype : machine;
-    }
-
-    private static <T extends MTEEnhancedMultiBlockBase<T>> StructureSummary readPrototype(T controller) {
+    private static <T extends MTEEnhancedMultiBlockBase<T>> StructureSummary readPrototype(T controller,
+        List<String> problems) {
         IStructureDefinition<T> definition = controller.getStructureDefinition();
         Set<String> channelNames = new ObjectLinkedOpenHashSet<>();
-        List<List<PieceCall>> sizes = recordSizes(controller, channelNames);
+        List<List<PieceCall>> sizes = TooltipProbeFactory
+            .withProbe(controller, layout -> recordSizes(layout, channelNames, problems));
+        if (!problems.isEmpty()) return null;
         if (sizes.isEmpty()) {
+            problems.add("No structure pieces found for " + nameOf(controller));
             ScienceNotLeisure.LOG.warn("Cannot find the structure pieces of {} for its tooltip", nameOf(controller));
             return null;
         }
@@ -529,7 +564,7 @@ public class MultiblockTooltipReader {
         boolean layered = layer != null;
         List<List<PieceCall>> tiers = layered ? sizes.subList(0, 1) : structureTiers(sizes);
         boolean independentTiers = !layered && tiers.size() > 1 && !isAdditive(sizes);
-        CheckRecord checks = independentTiers ? null : StructureTooltipHooks.recordChecks(controller);
+        CheckRecord checks = independentTiers ? null : readChecks(controller, Collections.emptyMap(), problems);
         List<PieceCall> largest = sizes.get(layered || tiers.size() > 1 ? sizes.size() - 1 : 0);
         List<List<Cell<T>>> tierCells = new ObjectArrayList<>();
         for (List<PieceCall> tier : tiers) tierCells.add(readCells(definition, tier, solid));
@@ -543,16 +578,23 @@ public class MultiblockTooltipReader {
         Set<String> hatchKeys = new ObjectLinkedOpenHashSet<>();
         for (int tier = 0; tier < tierCells.size(); tier++) {
             List<Cell<T>> cells = tierCells.get(tier);
-            Map<String, HatchGroup> tierHatches = independentTiers ? new Object2ObjectLinkedOpenHashMap<>() : hatches;
-            CheckRecord tierCheck = independentTiers
-                ? StructureTooltipHooks.recordChecks(controller, pieceResults(sizes, tiers.get(tier)))
-                : checks;
-            List<BlockGroup> groups = readGroups(controller, cells, materialTiers, rules, tierHatches);
-            casingRequirements.add(
-                independentTiers || tier == 0 ? casingRequirements(groups, tierCheck.casingMinimums(), rules)
-                    : Collections.emptyList());
-            tierGroups.add(groups);
-            for (HatchGroup hatch : tierHatches.values()) hatchKeys.addAll(hatch.keys);
+            List<PieceCall> pieces = independentTiers ? tiers.get(tier) : Collections.emptyList();
+            TierRead read = independentTiers
+                ? TooltipProbeFactory.withProbe(
+                    controller,
+                    tierController -> readTier(
+                        tierController,
+                        cells,
+                        materialTiers,
+                        new Object2ObjectLinkedOpenHashMap<>(),
+                        readChecks(tierController, pieceResults(sizes, pieces), problems),
+                        true,
+                        true,
+                        problems))
+                : readTier(controller, cells, materialTiers, hatches, checks, false, tier == 0, problems);
+            casingRequirements.add(independentTiers || tier == 0 ? read.casingRequirements() : Collections.emptyList());
+            tierGroups.add(read.groups());
+            hatchKeys.addAll(read.hatchKeys());
             tierDetails.add(
                 independentTiers
                     ? new TierDetails(
@@ -561,7 +603,7 @@ public class MultiblockTooltipReader {
                             Collections.singletonList(cells),
                             readCells(definition, tiers.get(tier), element -> element == air)),
                         controllerPosition(cells),
-                        toHatchLines(tierHatches, tierCheck.hatchRules()))
+                        read.hatchLines())
                     : null);
         }
         Map<IStructureElement<T>, Set<String>> elementChannels = new Object2ObjectLinkedOpenHashMap<>();
@@ -569,7 +611,7 @@ public class MultiblockTooltipReader {
             elementChannels.computeIfAbsent(cell.element(), element -> new ObjectLinkedOpenHashSet<>());
         }
         for (Map.Entry<IStructureElement<T>, Set<String>> entry : elementChannels.entrySet()) {
-            StructureTooltipHooks.recordChannels(controller, entry.getKey(), entry.getValue());
+            StructureTooltipHooks.recordChannels(controller, entry.getKey(), entry.getValue(), problems);
             channelNames.addAll(entry.getValue());
         }
         Set<IStructureChannels> channels = new ObjectLinkedOpenHashSet<>();
@@ -588,35 +630,65 @@ public class MultiblockTooltipReader {
                     casingRequirements.get(tier)));
         }
         IStructureChannels materialChannel = rules == null ? null : rules.getStructureTooltipMaterialTierChannel();
+        if (materialTiers > 0 && materialChannel != null) channels.add(materialChannel);
 
-        IStructureElement<T> casing = casingElement(controller, elementChannels);
-        StructureSummary summary = new StructureSummary(
+        IStructureElement<T> casing = casingElement(controller, elementChannels, problems);
+        return new StructureSummary(
             size(tierCells.subList(0, 1)),
             size(largestCells),
             isHollow(largestCells, airCells),
             controllerPosition(tierCells.get(0)),
-            independentTiers ? Collections.emptyList() : toHatchLines(hatches, checks.hatchRules()),
+            independentTiers ? Collections.emptyList()
+                : toHatchLines(hatches, checks.hatchRules(), checks.failure() == null),
             new ObjectArrayList<>(hatchKeys),
             sections,
             new ObjectArrayList<>(channels),
-            casingTierNames(controller, casing),
-            casingName(controller, casing),
+            casingTierNames(controller, casing, problems),
+            casingName(controller, casing, problems),
             layered);
-        if (summary.hasMaterialTiers() && materialChannel != null
-            && !summary.channels()
-                .contains(materialChannel)) {
-            summary.channels()
-                .add(materialChannel);
-        }
-        return summary;
     }
 
-    private static List<List<PieceCall>> recordSizes(MTEEnhancedMultiBlockBase<?> controller,
-        Set<String> channelNames) {
+    private static CheckRecord readChecks(MTEEnhancedMultiBlockBase<?> controller, Map<PieceCall, Boolean> pieces,
+        List<String> problems) {
+        CheckRecord checks = StructureTooltipHooks.recordChecks(controller, pieces);
+        if (checks.failure() != null) problems.add("Structure requirements " + pieces + ": " + checks.failure());
+        return checks;
+    }
+
+    private static <T> TierRead readTier(T controller, List<Cell<T>> cells, int materialTiers,
+        Map<String, HatchGroup> hatches, CheckRecord checks, boolean independent, boolean includeRequirements,
+        List<String> problems) {
+        IMultiblockTooltipRules rules = controller instanceof IMultiblockTooltipRules machineRules ? machineRules
+            : null;
+        List<BlockGroup> groups = readGroups(controller, cells, materialTiers, rules, hatches, problems);
+        List<String> requirements;
+        if (checks.failure() == null) {
+            requirements = includeRequirements ? casingRequirements(groups, checks.casingMinimums(), rules)
+                : Collections.emptyList();
+        } else {
+            for (BlockGroup group : groups) if (group.replaceable > 0) group.minimum = -1;
+            requirements = List.of(StatCollector.translateToLocal("gtnl.structure.tooltip.requirements_unknown"));
+        }
+        Set<String> keys = new ObjectLinkedOpenHashSet<>();
+        for (HatchGroup hatch : hatches.values()) keys.addAll(hatch.keys);
+        return new TierRead(
+            groups,
+            requirements,
+            new ObjectArrayList<>(keys),
+            independent ? toHatchLines(hatches, checks.hatchRules(), checks.failure() == null)
+                : Collections.emptyList());
+    }
+
+    private record TierRead(List<BlockGroup> groups, List<String> casingRequirements, List<String> hatchKeys,
+        List<HatchLine> hatchLines) {}
+
+    private static List<List<PieceCall>> recordSizes(MTEEnhancedMultiBlockBase<?> controller, Set<String> channelNames,
+        List<String> problems) {
         List<List<PieceCall>> sizes = new ObjectArrayList<>();
         Set<PieceCall> previous = Collections.emptySet();
         for (int stackSize = 1; stackSize <= MAX_PROJECTOR_STACK; stackSize++) {
-            List<PieceCall> calls = StructureTooltipHooks.recordConstruct(controller, stackSize, channelNames);
+            List<PieceCall> calls = StructureTooltipHooks
+                .recordConstruct(controller, stackSize, channelNames, problems);
             if (calls.isEmpty()) break;
             Set<PieceCall> current = new ObjectOpenHashSet<>(calls);
             if (current.equals(previous)) continue;
@@ -776,7 +848,7 @@ public class MultiblockTooltipReader {
     }
 
     private static <T> List<BlockGroup> readGroups(T controller, List<Cell<T>> cells, int materialTiers,
-        IMultiblockTooltipRules rules, Map<String, HatchGroup> hatches) {
+        IMultiblockTooltipRules rules, Map<String, HatchGroup> hatches, List<String> problems) {
         Map<IStructureElement<T>, Integer> counts = new Object2ObjectLinkedOpenHashMap<>();
         for (Cell<T> cell : cells) counts.merge(cell.element(), 1, Integer::sum);
         List<Map.Entry<IStructureElement<T>, Integer>> entries = new ObjectArrayList<>(counts.entrySet());
@@ -789,15 +861,19 @@ public class MultiblockTooltipReader {
             int count = entry.getValue();
             List<String> hatchKeys = new ObjectArrayList<>();
             List<String> blockKeys = new ObjectArrayList<>();
-            for (String key : describe(controller, entry.getKey())) {
+            for (String key : describe(controller, entry.getKey(), problems)) {
                 if (isHatchKey(key)) hatchKeys.add(key);
                 else blockKeys.add(key);
             }
 
             List<String> blockNames = Collections.emptyList();
             if (!blockKeys.isEmpty()) {
-                List<String> tierNames = tierNames(controller, entry.getKey(), Math.max(materialTiers, TIER_PROBES));
-                blockNames = blockNames(controller, entry.getKey(), blockKeys, tierNames);
+                List<String> tierNames = tierNames(
+                    controller,
+                    entry.getKey(),
+                    Math.max(materialTiers, TIER_PROBES),
+                    problems);
+                blockNames = blockNames(controller, entry.getKey(), blockKeys, tierNames, problems);
                 boolean byMaterialTier = materialTiers > 0 && tierNames != null && blockKeys.size() > 1;
                 List<String> names = blockNames;
                 BlockGroup group = blocks.computeIfAbsent(
@@ -829,47 +905,54 @@ public class MultiblockTooltipReader {
         return new ObjectArrayList<>(blocks.values());
     }
 
-    private static <T> List<String> describe(T controller, IStructureElement<T> element) {
+    private static <T> List<String> describe(T controller, IStructureElement<T> element, List<String> problems) {
         try {
             List<String> keys = StructureTooltipHooks.describe(controller, element);
             if (keys != null && !keys.isEmpty()) return keys;
             List<String> placed = placedNames(controller, element, 1);
             return placed == null ? Collections.emptyList() : placed;
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG
-                .warn("Cannot describe a structure element of {} for its tooltip", nameOf(controller), e);
+            problems.add("Structure element description: " + e);
+            ScienceNotLeisure.LOG.warn(
+                "Cannot describe a structure element of {} for its tooltip: {}",
+                nameOf(controller),
+                e.toString());
             return Collections.emptyList();
         }
     }
 
     private static <T> List<String> blockNames(T controller, IStructureElement<T> element, List<String> keys,
-        List<String> tierNames) {
+        List<String> tierNames, List<String> problems) {
         List<String> names = new ObjectArrayList<>();
         for (String key : keys) {
-            if (!StatCollector.canTranslate(key)) return placedNamesOr(controller, element, tierNames, keys);
+            if (!StatCollector.canTranslate(key)) return placedNamesOr(controller, element, tierNames, keys, problems);
             names.add(StatCollector.translateToLocal(key));
         }
         return names;
     }
 
     private static <T> List<String> placedNamesOr(T controller, IStructureElement<T> element, List<String> tierNames,
-        List<String> fallback) {
+        List<String> fallback, List<String> problems) {
         if (tierNames != null) return tierNames;
         try {
             List<String> placed = placedNames(controller, element, 1);
             if (placed != null && !placed.isEmpty()) return placed;
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.debug("Cannot name a structure element of {} for its tooltip", nameOf(controller), e);
+            problems.add("Structure element block names: " + e);
+            ScienceNotLeisure.LOG
+                .debug("Cannot name a structure element of {} for its tooltip: {}", nameOf(controller), e.toString());
         }
         return fallback;
     }
 
-    private static <T> List<String> tierNames(T controller, IStructureElement<T> element, int tiers) {
-        List<String> names = placedTierNames(controller, element, tiers);
+    private static <T> List<String> tierNames(T controller, IStructureElement<T> element, int tiers,
+        List<String> problems) {
+        List<String> names = placedTierNames(controller, element, tiers, problems);
         return names != null && names.size() == tiers ? names : null;
     }
 
-    private static <T> List<String> placedTierNames(T controller, IStructureElement<T> element, int tiers) {
+    private static <T> List<String> placedTierNames(T controller, IStructureElement<T> element, int tiers,
+        List<String> problems) {
         List<String> names = new ObjectArrayList<>();
         try {
             for (int tier = 1; tier <= tiers; tier++) {
@@ -878,30 +961,33 @@ public class MultiblockTooltipReader {
                 names.add(String.join(NAME_SEPARATOR, placed));
             }
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.debug("Cannot probe the block tiers of {} for its tooltip", nameOf(controller), e);
+            problems.add("Structure element tiers: " + e);
+            ScienceNotLeisure.LOG
+                .debug("Cannot probe the block tiers of {} for its tooltip: {}", nameOf(controller), e.toString());
             return null;
         }
         return new ObjectOpenHashSet<>(names).size() > 1 ? names : null;
     }
 
     private static <T> IStructureElement<T> casingElement(T controller,
-        Map<IStructureElement<T>, Set<String>> elementChannels) {
+        Map<IStructureElement<T>, Set<String>> elementChannels, List<String> problems) {
         IStructureElement<T> found = null;
         for (Map.Entry<IStructureElement<T>, Set<String>> entry : elementChannels.entrySet()) {
             if (!hasCasingChannel(entry.getValue())) continue;
-            if (placedTierNames(controller, entry.getKey(), TieredPart.CASING.maxTier + 1) == null) continue;
+            if (placedTierNames(controller, entry.getKey(), TieredPart.CASING.maxTier + 1, problems) == null) continue;
             if (found != null) return null;
             found = entry.getKey();
         }
         return found;
     }
 
-    private static <T> List<String> casingTierNames(T controller, IStructureElement<T> casing) {
-        List<String> names = casing == null ? null : placedTierNames(controller, casing, TieredPart.CASING.maxTier + 1);
+    private static <T> List<String> casingTierNames(T controller, IStructureElement<T> casing, List<String> problems) {
+        List<String> names = casing == null ? null
+            : placedTierNames(controller, casing, TieredPart.CASING.maxTier + 1, problems);
         return names == null ? Collections.emptyList() : names;
     }
 
-    private static <T> String casingName(T controller, IStructureElement<T> casing) {
+    private static <T> String casingName(T controller, IStructureElement<T> casing, List<String> problems) {
         if (casing == null) return null;
         Block block = null;
         try {
@@ -915,7 +1001,9 @@ public class MultiblockTooltipReader {
                 }
             }
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.debug("Cannot name the casing of {} for its tooltip", nameOf(controller), e);
+            problems.add("Structure casing name: " + e);
+            ScienceNotLeisure.LOG
+                .debug("Cannot name the casing of {} for its tooltip: {}", nameOf(controller), e.toString());
             return null;
         }
         if (block == null || !StatCollector.canTranslate(block.getUnlocalizedName() + ".name")) return null;
@@ -993,7 +1081,8 @@ public class MultiblockTooltipReader {
         return header != null ? header : StatCollector.translateToLocalFormatted("gtnl.structure.tooltip.tier", tier);
     }
 
-    private static List<HatchLine> toHatchLines(Map<String, HatchGroup> hatches, List<HatchRule> hatchRules) {
+    private static List<HatchLine> toHatchLines(Map<String, HatchGroup> hatches, List<HatchRule> hatchRules,
+        boolean requirementsKnown) {
         mergeLinkedLines(hatches, hatchRules);
         List<HatchGroup> groups = new ObjectArrayList<>(hatches.values());
         groups.sort(Comparator.comparingInt(group -> group.order));
@@ -1001,7 +1090,7 @@ public class MultiblockTooltipReader {
         for (HatchGroup hatch : groups) {
             lines.add(
                 new HatchLine(
-                    hatchCount(hatch, hatchRules),
+                    requirementsKnown || !hatch.replacesBlocks ? hatchCount(hatch, hatchRules) : unknownCount(),
                     new ObjectArrayList<>(hatch.names),
                     hatchLocations(hatch, hatchRules)));
         }
@@ -1051,6 +1140,10 @@ public class MultiblockTooltipReader {
         return StructureTooltipHooks.isHatchBlockKey(key);
     }
 
+    private static String unknownCount() {
+        return StatCollector.translateToLocal("gtnl.structure.tooltip.count_unknown");
+    }
+
     private static int hatchOrder(String hatchKey) {
         for (int i = 0; i < HATCH_ORDER.length; i++) {
             if (HATCH_ORDER[i].getDescriptionLangKey()
@@ -1090,6 +1183,7 @@ public class MultiblockTooltipReader {
         }
 
         private String countText() {
+            if (minimum < 0) return unknownCount() + "-" + total();
             if (replaceable == 0 || minimum == replaceable) return String.valueOf(total());
             return (fixed + minimum) + "-" + total();
         }

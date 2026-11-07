@@ -66,7 +66,6 @@ public class GTNLMultiblockTooltipBuilder extends MultiblockTooltipBuilder {
 
     private final List<List<String>> pendingGroups = new ObjectArrayList<>();
     private StructureSummary structure;
-    private boolean structureRead;
 
     public <T extends MTEEnhancedMultiBlockBase<T>> GTNLMultiblockTooltipBuilder addAutoTooltip(T machine) {
         return addAutoTooltip(machine, MultiblockTooltipReader.keyPrefixOf(machine));
@@ -74,13 +73,25 @@ public class GTNLMultiblockTooltipBuilder extends MultiblockTooltipBuilder {
 
     public <T extends MTEEnhancedMultiBlockBase<T>> GTNLMultiblockTooltipBuilder addAutoTooltip(T machine,
         String keyPrefix) {
-        addAutoInfo(machine, keyPrefix);
-        addAutoStructure(machine);
+        StructureReadResult result = MultiblockTooltipReader.readStructureResult(machine);
+        List<String> problems = new ObjectArrayList<>(result.problems());
+        addAutoTooltip(
+            MultiblockTooltipReader.readInfo(machine, keyPrefix, result.summary(), problems),
+            result.summary());
+        if (!problems.isEmpty()) {
+            addStructureInfo(StatCollector.translateToLocal("gtnl.structure.tooltip.incomplete"));
+        }
         return this;
     }
 
-    private <T extends MTEEnhancedMultiBlockBase<T>> void addAutoInfo(T machine, String keyPrefix) {
-        InfoSummary info = MultiblockTooltipReader.readInfo(machine, keyPrefix, structureOf(machine));
+    public GTNLMultiblockTooltipBuilder addAutoTooltip(InfoSummary info, StructureSummary structure) {
+        this.structure = structure;
+        addAutoInfo(info);
+        addAutoStructure(structure);
+        return this;
+    }
+
+    private void addAutoInfo(InfoSummary info) {
         if (info == null) return;
         if (info.machineType() != null) addMachineType(info.machineType());
         TooltipStats stats = info.stats();
@@ -123,8 +134,7 @@ public class GTNLMultiblockTooltipBuilder extends MultiblockTooltipBuilder {
         return StatCollector.translateToLocalFormatted(LAST_JOIN_KEY, joined, phrases.get(phrases.size() - 1));
     }
 
-    private <T extends MTEEnhancedMultiBlockBase<T>> void addAutoStructure(T machine) {
-        StructureSummary summary = structureOf(machine);
+    private void addAutoStructure(StructureSummary summary) {
         if (summary == null) return;
         boolean structureTiers = summary.sections()
             .size() > 1;
@@ -153,14 +163,6 @@ public class GTNLMultiblockTooltipBuilder extends MultiblockTooltipBuilder {
             addSection(section, !structureTiers);
         }
         addChannelLines(summary, structureTiers);
-    }
-
-    private <T extends MTEEnhancedMultiBlockBase<T>> StructureSummary structureOf(T machine) {
-        if (!structureRead) {
-            structure = MultiblockTooltipReader.readStructure(machine);
-            structureRead = true;
-        }
-        return structure;
     }
 
     private void addStatLines(TooltipStats stats, List<TierBonus> bonuses) {

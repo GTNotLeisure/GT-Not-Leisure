@@ -1422,6 +1422,7 @@ public abstract class MultiMachineBase<T extends MultiMachineBase<T>> extends MT
 
     @Override
     protected void onStructureCheckFinished(IGregTechTileEntity aBaseMetaTileEntity) {
+        super.onStructureCheckFinished(aBaseMetaTileEntity);
         updateHatchTexture();
     }
 

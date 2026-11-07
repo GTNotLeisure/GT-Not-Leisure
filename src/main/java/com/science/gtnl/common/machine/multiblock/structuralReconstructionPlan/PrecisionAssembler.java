@@ -201,7 +201,26 @@ public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> imp
             return;
         }
         checkCasingMin(errors, mCountCasing, 30);
-        getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
+    }
+
+    @Override
+    protected void onStructureCheckFinished(IGregTechTileEntity base) {
+        super.onStructureCheckFinished(base);
+        base.sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
+    }
+
+    @Override
+    public void runStructureTooltipCheck(Runnable check) {
+        int originalCasingTier = mCasingTier;
+        int originalMachineTier = mMachineTier;
+        try {
+            mCasingTier = 0;
+            mMachineTier = 0;
+            check.run();
+        } finally {
+            mCasingTier = originalCasingTier;
+            mMachineTier = originalMachineTier;
+        }
     }
 
     @Override
