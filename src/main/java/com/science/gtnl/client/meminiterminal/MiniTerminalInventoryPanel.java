@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
@@ -17,9 +18,11 @@ import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.IIcon;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
@@ -29,6 +32,7 @@ import com.cleanroommc.modularui.api.layout.IViewportStack;
 import com.cleanroommc.modularui.api.widget.IDragResizeable;
 import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
+import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.drawable.GuiTextures;
 import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.RichTooltip;
@@ -39,12 +43,16 @@ import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widget.WidgetTree;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
+import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.AE2Theme.Variant;
 import com.science.gtnl.client.floatingwindow.FloatingWindowPanel;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.meminiterminal.MiniTerminalPinSettings;
 import com.science.gtnl.common.meminiterminal.MiniTerminalStackTypes;
 import com.science.gtnl.compat.bogosorter.MiniTerminalBogoCompat;
 import com.science.gtnl.compat.lwjgl3ify.MouseWheelCompat;
 import com.science.gtnl.config.MiniTerminalClientConfig;
+import com.science.gtnl.mixins.late.appliedEnergistics.meminiterminal.AccessorGuiImgButton;
 
 import appeng.api.config.ActionItems;
 import appeng.api.config.OperationMode;
@@ -71,12 +79,15 @@ import appeng.helpers.MonitorableAction;
 import appeng.items.contents.PinList;
 import appeng.util.item.AEItemStack;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
     private static final UITexture MAGNET_CARD = UITexture.fullImage("ae2wct", "items/magnetCard");
+    private static final int TERMINAL_CELL = 7 * 16 + 8, RESET_CELL = 15 * 16, MOVE_CELL = 6 * 16 + 5,
+        PINS_SHOWN_CELL = 15 * 16 + 13, PINS_HIDDEN_CELL = 15 * 16 + 14;
 
     private static final UITexture TERMINAL_ICON = UITexture.builder()
         .location("appliedenergistics2", "guis/states")
@@ -181,11 +192,11 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                     + EnumChatFormatting.RESET);
             addKeybindTooltip(tooltip, "select", "full", "reconnect");
         }).syncState(button -> button.setEnabled(model.isDisplayOnline()))
-            .overlayIcon(TERMINAL_ICON))
+            .overlayIcon(TERMINAL_ICON, TERMINAL_CELL))
             .child(new TerminalButton(null, null, button -> {
                 layout.reset();
                 MiniTerminalClientConfig.saveWindow(layout);
-            }, (tooltip, button) -> tooltip.addLine(tr("reset_window"))).overlayIcon(RESET_ICON));
+            }, (tooltip, button) -> tooltip.addLine(tr("reset_window"))).overlayIcon(RESET_ICON, RESET_CELL));
         controls.child(
             new TerminalButton(
                 Settings.SORT_BY,
@@ -212,7 +223,8 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                     (tooltip, button) -> {
                         for (String line : button.getMessage()
                             .split("\n")) tooltip.addLine(line);
-                    }).syncState(button -> button.setEnabled(model.isDisplayOnline())))
+                    }).syncState(button -> button.setEnabled(model.isDisplayOnline()))
+                        .themedIcon(() -> layout.pinCount() > 0 ? PINS_SHOWN_CELL : PINS_HIDDEN_CELL))
             .child(
                 new TerminalButton(
                     Settings.OPERATION_MODE,
@@ -232,7 +244,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                         EnumChatFormatting.GRAY + tr(MiniTerminalClient.pickupToME() ? "pickup.on" : "pickup.off")
                             + EnumChatFormatting.RESET);
                 }).syncState(button -> button.setEnabled(MiniTerminalClient.pickupToME()))
-                    .overlayIcon(MAGNET_CARD))
+                    .overlayIcon(MAGNET_CARD, -1))
             .child(
                 new TerminalButton(
                     Settings.TERMINAL_STYLE,
@@ -471,6 +483,10 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                     .toLowerCase(Locale.ROOT));
     }
 
+    private static int iconIndex(GuiImgButton button) {
+        return ((AccessorGuiImgButton) button).gtnl$getIconIndex();
+    }
+
     private static GuiImgButton nativeButton(Enum<?> setting, Enum<?> value) {
         GuiImgButton button = new GuiImgButton(1, 1, setting, value);
         button.setHalfSize(true);
@@ -481,7 +497,9 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private final GuiImgButton button;
         private Consumer<GuiImgButton> syncState = button -> {};
+        private IntSupplier themedIcon;
         private UITexture overlayIcon;
+        private int overlayCell = -1;
 
         TerminalButton(Enum<?> setting, Enum<?> value, IntConsumer onPress,
             BiConsumer<RichTooltip, GuiImgButton> describe) {
@@ -497,23 +515,36 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                 .tooltipBuilder(tooltip -> describe.accept(tooltip, button));
         }
 
+        TerminalButton themedIcon(IntSupplier themedIcon) {
+            this.themedIcon = themedIcon;
+            return this;
+        }
+
         TerminalButton syncState(Consumer<GuiImgButton> syncState) {
             this.syncState = syncState;
             return this;
         }
 
-        TerminalButton overlayIcon(UITexture overlayIcon) {
+        TerminalButton overlayIcon(UITexture overlayIcon, int overlayCell) {
             this.overlayIcon = overlayIcon;
+            this.overlayCell = overlayCell;
             return this;
         }
 
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
             syncState.accept(button);
-            button.drawButton(Minecraft.getMinecraft(), context.getMouseX(), context.getMouseY());
+            Skin skin = Skin.current();
+            if (skin == null) button.drawButton(Minecraft.getMinecraft(), context.getMouseX(), context.getMouseY());
+            else skin.button(
+                themedIcon != null ? themedIcon.getAsInt() : iconIndex(button),
+                button.enabled,
+                button.xPosition,
+                button.yPosition);
             if (overlayIcon == null) return;
             if (!button.enabled) ScreenColor.setDimmedGuiColor();
-            overlayIcon.draw(2, 2, 6, 6);
+            if (skin != null && overlayCell >= 0) skin.cell(overlayCell, 2, 2, 6);
+            else overlayIcon.draw(2, 2, 6, 6);
             ScreenColor.resetGuiColor();
         }
     }
@@ -543,7 +574,13 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-            button.setEnabled(model.isTypeVisible(type));
+            boolean visible = model.isTypeVisible(type);
+            button.setEnabled(visible);
+            Skin skin = Skin.current();
+            if (skin != null) {
+                skin.button(type.getButtonTexture(), type.getButtonIcon(), visible, 1, 1);
+                return;
+            }
             float scale = 0.5F;
             GL11.glPushMatrix();
             try {
@@ -661,28 +698,45 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             int height = getArea().height;
             if (width <= 0 || height <= 0) return;
 
-            ScreenColor.setGuiColor();
-            GuiTextures.MC_BACKGROUND.draw(0, 0, width, height);
-            ScreenColor.resetGuiColor();
+            Skin skin = Skin.current();
+            if (skin != null) {
+                GL11.glColor4f(1, 1, 1, 1);
+                skin.variant.panel.draw(0, 0, width, height);
+            } else {
+                ScreenColor.setGuiColor();
+                GuiTextures.MC_BACKGROUND.draw(0, 0, width, height);
+                ScreenColor.resetGuiColor();
+            }
             if (!layout.expanded()) {
                 expandButton.xPosition = (width - 8) / 2;
                 expandButton.yPosition = (height - 8) / 2;
                 expandButton.setHalfSize(true);
-                expandButton.drawButton(mc, context.getMouseX(), context.getMouseY());
+                if (skin != null)
+                    skin.button(iconIndex(expandButton), true, expandButton.xPosition, expandButton.yPosition);
+                else expandButton.drawButton(mc, context.getMouseX(), context.getMouseY());
                 return;
             }
             dragButton.xPosition = layout.dragHandleX() + 1;
             dragButton.yPosition = MiniTerminalLayout.HEADER_Y + 1;
-            dragButton.drawButton(mc, context.getMouseX(), context.getMouseY());
-            MOVE_ICON.draw(layout.dragHandleX() + 2, MiniTerminalLayout.HEADER_Y + 2, 6, 6);
+            if (skin != null) {
+                skin.button(iconIndex(dragButton), true, dragButton.xPosition, dragButton.yPosition);
+                skin.cell(MOVE_CELL, layout.dragHandleX() + 2, MiniTerminalLayout.HEADER_Y + 2, 6);
+            } else {
+                dragButton.drawButton(mc, context.getMouseX(), context.getMouseY());
+                MOVE_ICON.draw(layout.dragHandleX() + 2, MiniTerminalLayout.HEADER_Y + 2, 6, 6);
+            }
             slots();
             ScreenColor.setGuiColor();
             mc.getTextureManager()
-                .bindTexture(texture);
+                .bindTexture(skin != null ? skin.terminal : texture);
             for (VirtualMEPinSlot pin : pins) drawSlotBackground(pin);
             for (VirtualMEMonitorableSlot slot : directory) drawSlotBackground(slot);
             ScreenColor.resetGuiColor();
-            VirtualMEPinSlot.drawSlotsBackground(pins, mc, 0);
+            if (skin != null) {
+                skin.closeEdges(pins);
+                skin.closeEdges(directory);
+                skin.pins(pins);
+            } else VirtualMEPinSlot.drawSlotsBackground(pins, mc, 0);
             int mouseX = context.getMouseX();
             int mouseY = context.getMouseY();
             RenderHelper.enableGUIStandardItemLighting();
@@ -711,11 +765,10 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             GL11.glDisable(GL11.GL_DEPTH_TEST);
             if (!model.isDisplayOnline()) {
                 ScreenColor.setGuiColor();
-                PANEL_FILL.draw(
-                    MiniTerminalLayout.GRID_X,
-                    layout.catalogY(),
-                    layout.columns() * MiniTerminalLayout.CELL,
-                    layout.rows() * MiniTerminalLayout.CELL);
+                int fillWidth = layout.columns() * MiniTerminalLayout.CELL,
+                    fillHeight = layout.rows() * MiniTerminalLayout.CELL;
+                if (skin != null) skin.fill(MiniTerminalLayout.GRID_X, layout.catalogY(), fillWidth, fillHeight);
+                else PANEL_FILL.draw(MiniTerminalLayout.GRID_X, layout.catalogY(), fillWidth, fillHeight);
                 ScreenColor.resetGuiColor();
                 String state = tr(
                     "status." + MiniTerminalClient.status()
@@ -732,13 +785,13 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                         text,
                         centerX - mc.fontRenderer.getStringWidth(text) / 2,
                         lineY,
-                        ColorUtils.guiTextColorGray.getColor());
+                        skin != null ? skin.variant.colors.muted() : ColorUtils.guiTextColorGray.getColor());
                     lineY += 10;
                 }
             }
             GuiScrollbar scrollbar = model.scrollbar();
             ScreenColor.setGuiColor();
-            SCROLL_TRACK.draw(
+            (skin != null ? skin.variant.inset : SCROLL_TRACK).draw(
                 scrollbar.getLeft() - 1,
                 scrollbar.getTop() - 1,
                 scrollbar.getWidth() + 2,
@@ -748,8 +801,14 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             boolean active = model.isDisplayOnline() && maximum > 0;
 
             int offset = active ? scrollbar.getCurrentScroll() * (scrollbar.getHeight() - 15) / maximum : 0;
-            (active ? THUMB_ACTIVE : THUMB_DISABLED)
-                .draw(scrollbar.getLeft(), scrollbar.getTop() + offset, scrollbar.getWidth(), 15);
+            if (skin != null) {
+                if (!active) ScreenColor.setDimmedGuiColor();
+                skin.variant.scroller.draw(scrollbar.getLeft(), scrollbar.getTop() + offset, scrollbar.getWidth(), 15);
+                ScreenColor.resetGuiColor();
+            } else {
+                UITexture thumb = active ? THUMB_ACTIVE : THUMB_DISABLED;
+                thumb.draw(scrollbar.getLeft(), scrollbar.getTop() + offset, scrollbar.getWidth(), 15);
+            }
             GL11.glColor4f(1, 1, 1, 1);
         }
 
@@ -949,6 +1008,100 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             return Result.STOP;
         }
 
+    }
+
+    public static class Skin {
+
+        private static final int BLANK = 255, PIN = 5 * 16 + 14, HALF = 8, CELL = 16, SLOT = 18, SHEET = 256;
+        private static final float PIN_OPACITY = 0.4F;
+        private static final Skin[] THEMED = new Skin[Variant.values().length];
+
+        public final Variant variant;
+        public final ResourceLocation states, terminal;
+        private final LongOpenHashSet occupied = new LongOpenHashSet();
+
+        private Skin(Variant variant) {
+            this.variant = variant;
+            states = AE2Theme.legacyStates(variant);
+            terminal = AE2Theme.legacyTerminal(variant);
+        }
+
+        public static @Nullable Skin current() {
+            Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
+            if (variant == null) return null;
+            Skin skin = THEMED[variant.ordinal()];
+            if (skin == null) skin = THEMED[variant.ordinal()] = new Skin(variant);
+            return skin;
+        }
+
+        public void button(int icon, boolean enabled, int x, int y) {
+            frame(enabled, x, y);
+            cell(icon, x, y, HALF);
+            ScreenColor.resetGuiColor();
+        }
+
+        public void button(ResourceLocation texture, IIcon icon, boolean enabled, int x, int y) {
+            frame(enabled, x, y);
+            GuiDraw.drawTexture(
+                AE2Theme.legacyStates(null)
+                    .equals(texture) ? states : texture,
+                x,
+                y,
+                x + HALF,
+                y + HALF,
+                icon.getMinU(),
+                icon.getMinV(),
+                icon.getMaxU(),
+                icon.getMaxV(),
+                true);
+            ScreenColor.resetGuiColor();
+        }
+
+        public void cell(int index, float x, float y, float size) {
+            AE2Theme.drawLegacyState(variant, index, x, y, size);
+        }
+
+        public void closeEdges(VirtualMESlot[] slots) {
+            occupied.clear();
+            for (VirtualMESlot slot : slots) occupied.add(cellKey(slot.getX(), slot.getY()));
+            int edge = variant.colors.edge();
+            for (VirtualMESlot slot : slots) {
+                int x = slot.getX() - 1, y = slot.getY() - 1;
+                if (!occupied.contains(cellKey(slot.getX() + SLOT, slot.getY())))
+                    Gui.drawRect(x + SLOT - 1, y, x + SLOT, y + SLOT, edge);
+                if (!occupied.contains(cellKey(slot.getX(), slot.getY() + SLOT)))
+                    Gui.drawRect(x, y + SLOT - 1, x + SLOT, y + SLOT, edge);
+            }
+        }
+
+        private static long cellKey(int x, int y) {
+            return (long) x << 32 | y & 0xFFFFFFFFL;
+        }
+
+        public void pins(VirtualMEPinSlot[] pins) {
+            int crafting = ColorUtils.craftingPinSlotBackground.getColor(),
+                player = ColorUtils.playerPinSlotBackground.getColor();
+            for (VirtualMEPinSlot pin : pins) {
+                int color = pin.isCraftingSlot() ? crafting : player;
+                if (color != 0)
+                    Gui.drawRect(pin.getX() - 1, pin.getY() - 1, pin.getX() - 1 + SLOT, pin.getY() - 1 + SLOT, color);
+            }
+            GL11.glColor4f(1, 1, 1, PIN_OPACITY);
+            for (VirtualMEPinSlot pin : pins) cell(PIN, pin.getX(), pin.getY(), CELL);
+            GL11.glColor4f(1, 1, 1, 1);
+        }
+
+        public void fill(int x, int y, int width, int height) {
+            float from = 4F / SHEET, to = 5F / SHEET;
+            GuiDraw.drawTexture(terminal, x, y, x + width, y + height, from, from, to, to, false);
+        }
+
+        private void frame(boolean enabled, int x, int y) {
+            if (enabled) ScreenColor.setGuiColor();
+            else ScreenColor.setDimmedGuiColor();
+            cell(BLANK, x, y, HALF);
+            if (enabled) ScreenColor.resetGuiColor();
+        }
     }
 
     public static class Input {

@@ -24,8 +24,8 @@ import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.equipment.IEquipmentElectricItem;
 import com.science.gtnl.common.equipment.IEquipmentItem;
+import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentContainer;
-import com.science.gtnl.common.gui.equipment.EquipmentTheme;
 import com.science.gtnl.common.gui.equipment.RailgunGui;
 import com.science.gtnl.common.railgun.RailgunBeamService;
 import com.science.gtnl.common.railgun.RailgunData;
@@ -156,7 +156,7 @@ public class ElectromagneticRailgun extends Item
     @Override
     @SideOnly(Side.CLIENT)
     public ModularScreen createScreen(PlayerInventoryGuiData data, ModularPanel panel) {
-        return new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(EquipmentTheme.selected());
+        return new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(ScreenThemes.railgun());
     }
 
     @Override

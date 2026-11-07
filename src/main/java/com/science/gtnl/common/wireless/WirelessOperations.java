@@ -174,6 +174,17 @@ public class WirelessOperations {
         return WirelessCardTeleport.teleport(player, view.target()) ? Result.APPLIED : Result.UNCHANGED;
     }
 
+    static Result teleport(EntityPlayerMP player, WirelessFrequency source, IWirelessLinkView view, IGridNode device) {
+        if (!WirelessClusterManager.isCurrentLink(source, view) || !view.members()
+            .contains(device)) return Result.STALE;
+        IGridNode controller = WirelessFrequencies.controllerNode(source);
+        if (controller == null) return Result.UNAVAILABLE;
+        if (!canBuild(controller, player) || !canBuild(device, player)) return Result.DENIED;
+        Address address = WirelessClusterManager.deviceAddress(device);
+        if (address == null) return Result.STALE;
+        return WirelessCardTeleport.teleport(player, address) ? Result.APPLIED : Result.UNCHANGED;
+    }
+
     static void clear() {
         ADOPTIONS.clear();
     }

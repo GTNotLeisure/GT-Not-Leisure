@@ -17,13 +17,14 @@ import com.science.gtnl.common.railgun.RailgunData;
 import com.science.gtnl.common.railgun.RailgunEnergy;
 import com.science.gtnl.common.railgun.RailgunModule;
 import com.science.gtnl.common.railgun.RailgunSetting;
+import com.science.gtnl.config.ScreenThemeConfig;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class RailgunGui extends EquipmentGui {
 
     public RailgunGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
-        super(data, sync);
+        super(data, sync, ScreenThemeConfig.railgun);
     }
 
     @Override

@@ -5,6 +5,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ChatComponentTranslation;
+import net.minecraft.util.StatCollector;
 
 import org.lwjgl.input.Keyboard;
 
@@ -13,9 +14,9 @@ import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import com.gtnllib.gui.theme.AE2Theme;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 
-import appeng.core.localization.ColorUtils;
 import appeng.core.localization.GuiText;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -37,12 +38,10 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
         this.container = owner.container;
         this.name = owner.textField(32);
         size(260, 96);
-        background(owner.getBackground());
         child(ButtonWidget.panelCloseButton());
         child(
             IKey.str(GuiText.Renamer.getLocal())
                 .asWidget()
-                .color(ColorUtils.guiTextColorGray.getColor())
                 .pos(10, 10)
                 .size(220, 18));
         child(
@@ -53,15 +52,11 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
     }
 
     private ButtonWidget<?> dialogButton(String key, Runnable action) {
-        return new ButtonWidget<>().size(116, 20)
-            .background(WirelessCardButton.BUTTON_TEXTURES[1])
-            .hoverBackground(WirelessCardButton.BUTTON_TEXTURES[2])
-            .overlay(
-                IKey.lang(key)
-                    .color(0xffe0e0e0)
-                    .shadow(true))
-            .onMousePressed(button -> {
-                if (button != 0 || finished) return false;
+        ButtonWidget<?> button = new ButtonWidget<>();
+        return button.size(116, 20)
+            .overlay(AE2Theme.label(button, () -> StatCollector.translateToLocal(key), () -> true, () -> false))
+            .onMousePressed(pressed -> {
+                if (pressed != 0 || finished) return false;
                 action.run();
                 return true;
             });

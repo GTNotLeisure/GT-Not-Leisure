@@ -4,6 +4,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.CLOSE_DETAILS
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
 import static com.science.gtnl.common.wireless.WirelessCardActions.SET_VISUALISATION;
@@ -14,6 +15,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.TOGGLE_PAUSE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.isRowAction;
 
 import java.util.Comparator;
+import java.util.List;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -21,6 +23,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.ChatComponentTranslation;
+
+import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
+import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 public class WirelessCardActionHandler {
 
@@ -43,12 +48,20 @@ public class WirelessCardActionHandler {
             return;
         }
         if (isRowAction(action) && action != OPEN_DETAILS
+            && action != OPEN_ENTRANCES
             && action != TOGGLE_PAUSE
             && action != TELEPORT
             && action != HIGHLIGHT) return;
         if (!acceptRequest(player.worldObj.getTotalWorldTime())) return;
-        if (action == OPEN_DETAILS) session.update(false);
+        if (action == OPEN_DETAILS || action == OPEN_ENTRANCES) session.update(false);
         if (session.revision != revision) {
+            session.update(true);
+            return;
+        }
+        var device = session.view.detailDevices && session.snapshot != null ? session.snapshot.device(targetId) : null;
+        if (device != null && (action == TELEPORT || action == HIGHLIGHT)) {
+            if (binding == null) message("stale");
+            else if (action == TELEPORT ? teleportDevice(device, binding) : highlightDevice(device, binding)) return;
             session.update(true);
             return;
         }
@@ -111,7 +124,6 @@ public class WirelessCardActionHandler {
                     row.target()
                         .dimension());
             } else {
-                session.pendingHighlight = new NBTTagList();
                 var targets = WirelessClusterManager.highlight(row)
                     .stream()
                     .filter(target -> target.dimension() == player.dimension)
@@ -119,24 +131,18 @@ public class WirelessCardActionHandler {
                         Comparator.comparingDouble(target -> player.getDistanceSq(target.x(), target.y(), target.z())))
                     .limit(512)
                     .toList();
-                for (var target : targets) {
-                    NBTTagCompound pos = new NBTTagCompound();
-                    pos.setInteger("dimension", target.dimension());
-                    pos.setInteger("x", target.x());
-                    pos.setInteger("y", target.y());
-                    pos.setInteger("z", target.z());
-                    session.pendingHighlight.appendTag(pos);
-                }
-                message("highlight_started", targets.size());
+                highlight(targets);
             }
         } else if (action == TOGGLE_AUTO) {
             WirelessAutoConnect.toggleAutomatic(player, card);
         } else if (action == TOGGLE_GROUPING && session.view.detailNode == null) {
             WirelessCardBinding.toggleGrouping(card);
             WirelessCardInventory.sync(player, card);
-        } else if (action == OPEN_DETAILS) {
-            if (session.view.detailNode == null && row instanceof IWirelessLinkView.ClusterView)
+        } else if (action == OPEN_DETAILS || action == OPEN_ENTRANCES) {
+            if (session.view.detailNode == null && row instanceof IWirelessLinkView.ClusterView) {
                 session.view.detailNode = row.node();
+                session.view.detailDevices = action == OPEN_DETAILS;
+            }
         } else if (action == TOGGLE_PAUSE) {
             try {
                 WirelessOperations.setPaused(player, binding.frequency(), row);
@@ -147,6 +153,59 @@ public class WirelessCardActionHandler {
             }
         } else if (action != REFRESH) return;
         session.update(true);
+    }
+
+    private boolean teleportDevice(Device device, WirelessCardBinding binding) {
+        if (!(session.player instanceof EntityPlayerMP serverPlayer)) return false;
+        try {
+            switch (WirelessOperations.teleport(serverPlayer, binding.frequency(), device.link(), device.node())) {
+                case STALE -> message("stale");
+                case UNAVAILABLE -> message("teleport_unavailable");
+                case DENIED -> message("denied");
+                case APPLIED -> {
+                    return true;
+                }
+                default -> {}
+            }
+        } catch (PhysicalClusterTracker.ScanLimitException limit) {
+            message("stale");
+        }
+        return false;
+    }
+
+    private boolean highlightDevice(Device device, WirelessCardBinding binding) {
+        try {
+            if (!WirelessClusterManager.isCurrentLink(binding.frequency(), device.link()) || !device.link()
+                .members()
+                .contains(device.node())) {
+                message("stale");
+                return false;
+            }
+        } catch (PhysicalClusterTracker.ScanLimitException limit) {
+            message("stale");
+            return true;
+        }
+        var address = WirelessClusterManager.deviceAddress(device.node());
+        if (address == null) {
+            message("stale");
+            return false;
+        }
+        if (address.dimension() != session.player.dimension) message("highlight_dimension", address.dimension());
+        else highlight(List.of(address));
+        return false;
+    }
+
+    private void highlight(List<Address> targets) {
+        session.pendingHighlight = new NBTTagList();
+        for (var target : targets) {
+            NBTTagCompound pos = new NBTTagCompound();
+            pos.setInteger("dimension", target.dimension());
+            pos.setInteger("x", target.x());
+            pos.setInteger("y", target.y());
+            pos.setInteger("z", target.z());
+            session.pendingHighlight.appendTag(pos);
+        }
+        message("highlight_started", targets.size());
     }
 
     private boolean acceptRequest(long tick) {

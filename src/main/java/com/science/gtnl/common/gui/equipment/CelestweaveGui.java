@@ -38,6 +38,7 @@ import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.Size;
+import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ButtonPurpose;
 import com.gtnllib.gui.widget.SlideSwitch;
 import com.gtnllib.gui.widget.StepSlider;
@@ -52,6 +53,7 @@ import com.science.gtnl.common.celestweave.CelestweaveModule;
 import com.science.gtnl.common.celestweave.CelestweaveModuleSetting;
 import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.item.items.armor.CelestweaveArmor;
+import com.science.gtnl.config.ScreenThemeConfig;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -77,7 +79,7 @@ public class CelestweaveGui extends EquipmentGui {
     private int viewing;
 
     public CelestweaveGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
-        super(data, sync);
+        super(data, sync, ScreenThemeConfig.celestweave);
         this.piece = ((CelestweaveArmor) stack.getItem()).armorType;
     }
 
@@ -280,7 +282,7 @@ public class CelestweaveGui extends EquipmentGui {
             lines.add(
                 rows.section(
                     IKey.dynamic(() -> (installed(module) ? "" : UNAVAILABLE) + tr(SHORT_LANG + module.id)),
-                    client ? accent() : 0));
+                    client ? titleColor() : 0));
             lines.addAll(sliders);
             if (!toggles.isEmpty())
                 lines.add(rows.adaptiveGrid(style.spacingSmall, widestSwitch(labels), MAX_COLUMNS, toggles));
@@ -289,8 +291,8 @@ public class CelestweaveGui extends EquipmentGui {
     }
 
     @SideOnly(Side.CLIENT)
-    private static int accent() {
-        return EquipmentTheme.colors().accent;
+    private int titleColor() {
+        return EquipmentTheme.titleColor(themeId);
     }
 
     private static String settingKey(CelestweaveModuleSetting setting) {
@@ -385,20 +387,7 @@ public class CelestweaveGui extends EquipmentGui {
         IntSyncValue color = cosmeticValue(option);
         if (client && option == CelestweaveCosmeticOption.GLOW_COLOR) followGlow(panel, color);
         IPanelHandler picker = !client ? null
-            : IPanelHandler.simple(
-                panel,
-                (parent,
-                    player) -> new ColorPickerDialog(
-                        "celestweave_color_picker",
-                        picked -> color.setIntValue(picked & 0xFFFFFF),
-                        0xFF000000 | color.getIntValue(),
-                        false).setDraggable(true)
-                            .relative(panel)
-                            .top(0)
-                            .leftRel(1f)
-                            .background(IDrawable.EMPTY)
-                            .disableThemeBackground(false),
-                true);
+            : IPanelHandler.simple(panel, (parent, player) -> colorPicker(panel, color), true);
         List<Widget<?>> cells = new ObjectArrayList<>();
         List<Size> sizes = new ObjectArrayList<>();
         cells.add(Layout.label(IKey.lang(GUI_LANG + option.lang), style));
@@ -441,6 +430,22 @@ public class CelestweaveGui extends EquipmentGui {
     }
 
     @SideOnly(Side.CLIENT)
+    private ModularPanel colorPicker(ModularPanel panel, IntSyncValue color) {
+        ModularPanel picker = new ColorPickerDialog(
+            "celestweave_color_picker",
+            picked -> color.setIntValue(picked & 0xFFFFFF),
+            0xFF000000 | color.getIntValue(),
+            false).setDraggable(true)
+                .relative(panel)
+                .top(0)
+                .leftRel(1f)
+                .background(IDrawable.EMPTY)
+                .disableThemeBackground(false);
+        AE2Theme.sliderHandles(picker, themeId);
+        return picker;
+    }
+
+    @SideOnly(Side.CLIENT)
     private static String markColor(int rgb) {
         return ColorMath.contrast(0, rgb) >= ColorMath.contrast(0xFFFFFF, rgb) ? "§0" : "§f";
     }
@@ -471,7 +476,7 @@ public class CelestweaveGui extends EquipmentGui {
                 style.spacingMedium,
                 Arrays.asList(
                     Size.fill(),
-                    Size.content(SlideSwitch.widthFor(textWidth(tr(GUI_LANG + option.minLabel)))),
+                    Size.content(SlideSwitch.widthFor(style, textWidth(tr(GUI_LANG + option.minLabel)))),
                     sliderSize()),
                 Arrays.asList(
                     Layout.label(label, style),
