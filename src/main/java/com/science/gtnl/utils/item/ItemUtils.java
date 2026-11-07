@@ -171,6 +171,10 @@ public class ItemUtils {
 
     public static boolean isExtraItem(ItemStack stack) {
         if (stack == null) return false;
+        for (int oreId : OreDictionary.getOreIDs(stack)) {
+            String oreName = OreDictionary.getOreName(oreId);
+            if (oreName.startsWith("lens") || oreName.startsWith("craftingLens")) return true;
+        }
         if (MTEChemicalPlant.isCatalyst(stack) || MTEIsaMill.isMillingBall(stack)) return true;
 
         Item item = stack.getItem();

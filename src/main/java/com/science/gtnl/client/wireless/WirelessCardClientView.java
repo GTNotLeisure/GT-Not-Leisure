@@ -1,8 +1,6 @@
 package com.science.gtnl.client.wireless;
 
-import static com.science.gtnl.common.wireless.WirelessCardActions.NEXT_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
-import static com.science.gtnl.common.wireless.WirelessCardActions.PREVIOUS_PAGE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.rowIndex;
 import static com.science.gtnl.common.wireless.WirelessCardActions.type;
 
@@ -14,8 +12,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.network.NetHandlerPlayClient;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
@@ -23,14 +23,21 @@ import net.minecraft.nbt.NBTTagList;
 
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.me.InterfaceNameLocalization;
+import com.science.gtnl.common.wireless.WirelessCardBinding;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 import com.science.gtnl.common.wireless.WirelessCardLayout;
 import com.science.gtnl.common.wireless.WirelessCardViewCodec;
+import com.science.gtnl.common.wireless.WirelessFrequency;
 import com.science.gtnl.compat.nech.NechSearchMatcher;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -40,24 +47,78 @@ public class WirelessCardClientView {
 
     public static final int STATES = 6;
     private static final int MAX_ORDERS = 64;
+    private static final int MAX_SAVED_NETWORKS = 32;
+    private static final Map<NetHandlerPlayClient, Object2ObjectLinkedOpenHashMap<WirelessFrequency, State>> SAVED = new WeakHashMap<>();
     private final WirelessCardContainer container;
     private final NechSearchMatcher matcher = new NechSearchMatcher();
     private final Object2ObjectLinkedOpenHashMap<SortView, List<RowOrder>> orders = new Object2ObjectLinkedOpenHashMap<>(
         16);
     private NBTTagCompound source = new NBTTagCompound();
     private List<Row> roots = List.of();
+    private List<Row> listing = List.of();
     private final Set<String> expanded = new ObjectOpenHashSet<>();
+    private final Long2IntOpenHashMap displayModes = new Long2IntOpenHashMap();
+    private final Long2ObjectOpenHashMap<PendingMode> pendingModes = new Long2ObjectOpenHashMap<>();
     private String query = "";
     private Integer dimension;
-    private int state, page, detailPage;
-    private int pageSize = WirelessCardLayout.MIN_ROWS;
+    private int state, scroll, detailScroll;
+    private int visibleRows = WirelessCardLayout.MIN_ROWS;
     private List<int[]> dimensions = List.of();
     private byte[] incoming;
     private long incomingRevision = -1;
     private int received;
+    private String restoredTarget;
+
+    public record State(String search, Integer dimension, int filter, Set<String> expanded, int scroll,
+        int detailScroll, String detailTarget) {}
+
+    public record GroupDetails(NBTTagCompound header, List<NBTTagCompound> devices) {}
+
+    private record PendingMode(long sequence, int mode) {}
 
     public WirelessCardClientView(WirelessCardContainer container) {
         this.container = container;
+    }
+
+    public State save(String search) {
+        return new State(
+            search,
+            dimension,
+            state,
+            Set.copyOf(expanded),
+            scroll,
+            detailScroll,
+            source.getString("detailTarget"));
+    }
+
+    public State recall() {
+        var saved = SAVED.get(
+            Minecraft.getMinecraft()
+                .getNetHandler());
+        return saved == null || container.binding == null ? null
+            : saved.getAndMoveToLast(container.binding.frequency());
+    }
+
+    public void remember(String search) {
+        var connection = Minecraft.getMinecraft()
+            .getNetHandler();
+        if (connection == null || container.binding == null || !source.hasKey("session")) return;
+        var saved = SAVED.computeIfAbsent(connection, ignored -> new Object2ObjectLinkedOpenHashMap<>());
+        saved.putAndMoveToLast(container.binding.frequency(), save(search));
+        if (saved.size() > MAX_SAVED_NETWORKS) saved.removeFirst();
+    }
+
+    public void restore(State saved) {
+        query = saved.search()
+            .strip()
+            .toLowerCase(Locale.ROOT);
+        dimension = saved.dimension();
+        state = saved.filter() >= 0 && saved.filter() < STATES ? saved.filter() : 0;
+        expanded.clear();
+        expanded.addAll(saved.expanded());
+        scroll = saved.scroll();
+        detailScroll = saved.detailScroll();
+        restoredTarget = saved.detailTarget();
     }
 
     public void acceptChunk(long revision, int total, int offset, byte[] chunk) {
@@ -81,18 +142,24 @@ public class WirelessCardClientView {
     }
 
     private void accept(NBTTagCompound data) {
-        if (data.getBoolean("detail") && (!source.getBoolean("detail") || !data.getString("detailTarget")
-            .equals(source.getString("detailTarget")))) detailPage = 0;
+        String target = data.getString("detailTarget");
+        if (data.getBoolean("detail") && !target.equals(restoredTarget)
+            && (!source.getBoolean("detail") || !target.equals(source.getString("detailTarget")))) detailScroll = 0;
+        restoredTarget = null;
         if (source.hasKey("session") && data.getBoolean("collapseTypes") != source.getBoolean("collapseTypes"))
-            page = 0;
+            scroll = 0;
         WirelessCardViewCodec.localizeDimensions(data);
         source = data;
+        displayModes.clear();
+        long acknowledged = data.getLong("displayAck");
+        pendingModes.values()
+            .removeIf(pending -> pending.sequence() <= acknowledged);
         List<Row> next = new ObjectArrayList<>();
         NBTTagList rows = data.getTagList("rows", 10);
         for (int i = 0; i < rows.tagCount(); i++) {
             NBTTagCompound row = rows.getCompoundTagAt(i);
             String prefix = row.getBoolean("group") || !row.getString("typeKey")
-                .isEmpty() ? iconName(row, "icon") : "";
+                .isEmpty() ? iconName(row) : "";
             next.add(readRow(row, prefix, row.getString("position")));
         }
         roots = List.copyOf(next);
@@ -107,20 +174,32 @@ public class WirelessCardClientView {
     private Row readRow(NBTTagCompound data, String prefix, String position) {
         WirelessCardViewCodec.localizePosition(data, "position", source.getCompoundTag("dimensions"));
         WirelessCardViewCodec.localizeInterfaceNames(data);
+        readDisplayMode(data);
+        StringBuilder names = new StringBuilder(prefix);
+        NBTTagList devices = data.getTagList("displayDevices", 10);
+        for (int i = 0; i < devices.tagCount(); i++) {
+            NBTTagCompound device = devices.getCompoundTagAt(i);
+            readDisplayMode(device);
+            WirelessCardViewCodec.localizePosition(device, "position", source.getCompoundTag("dimensions"));
+            WirelessCardViewCodec.localizeInterfaceNames(device);
+            names.append(' ')
+                .append(iconName(device));
+        }
         List<Row> children = new ObjectArrayList<>();
         NBTTagList entries = data.getTagList("children", 10);
         for (int i = 0; i < entries.tagCount(); i++)
             children.add(readRow(entries.getCompoundTagAt(i), prefix, position));
-        StringBuilder names = new StringBuilder(prefix);
         NBTTagList customNames = data.getTagList("customNames", 8);
         for (int i = 0; i < customNames.tagCount(); i++) names.append(' ')
             .append(customNames.getStringTagAt(i));
         names.append(' ')
-            .append(iconName(data, "searchIcon"));
+            .append(iconName(data));
         NBTTagList labels = data.getTagList("searchLabels", 10);
         for (int i = 0; i < labels.tagCount(); i++) {
             NBTTagCompound label = labels.getCompoundTagAt(i);
             names.append(' ')
+                .append(label.getString("customName"))
+                .append(' ')
                 .append(label.getString("serverName"))
                 .append(' ')
                 .append(
@@ -140,10 +219,13 @@ public class WirelessCardClientView {
             (position + " " + data.getString("position")).toLowerCase(Locale.ROOT));
     }
 
-    private static String iconName(NBTTagCompound data, String key) {
-        ItemStack icon = ItemStack.loadItemStackFromNBT(data.getCompoundTag(key));
-        return data.getString(key.equals("searchIcon") ? "serverDeviceName" : "serverIconName") + " "
-            + (icon == null ? "" : icon.getDisplayName());
+    private void readDisplayMode(NBTTagCompound data) {
+        if (data.hasKey("displayId", 4)) displayModes.put(data.getLong("displayId"), data.getInteger("displayMode"));
+    }
+
+    private static String iconName(NBTTagCompound data) {
+        ItemStack icon = ItemStack.loadItemStackFromNBT(data.getCompoundTag("icon"));
+        return data.getString("serverIconName") + " " + (icon == null ? "" : icon.getDisplayName());
     }
 
     public void filter(String text, Integer dimension, int state) {
@@ -154,7 +236,7 @@ public class WirelessCardClientView {
         query = nextQuery;
         this.dimension = dimension;
         this.state = state;
-        page = 0;
+        scroll = 0;
         rebuild();
     }
 
@@ -176,41 +258,115 @@ public class WirelessCardClientView {
     }
 
     public void resize(int rows) {
-        if (!WirelessCardLayout.validRows(rows) || rows == pageSize) return;
-        page = page * pageSize / rows;
-        detailPage = detailPage * pageSize / rows;
-        pageSize = rows;
+        if (!WirelessCardLayout.validRows(rows) || rows == visibleRows) return;
+        visibleRows = rows;
         rebuild();
+    }
+
+    public void scrollTo(int offset) {
+        int next = Math.max(0, Math.min(offset, container.display.getInteger("maxScroll")));
+        if (next == container.display.getInteger("scroll")) return;
+        if (source.getBoolean("detail")) detailScroll = next;
+        else scroll = next;
+        rebuild();
+    }
+
+    public int displayMode(NBTTagCompound row) {
+        if (!row.hasKey("displayId", 4)) return 0;
+        long id = row.getLong("displayId");
+        PendingMode pending = pendingModes.get(id);
+        return pending == null ? displayModes.get(id) : pending.mode();
+    }
+
+    public boolean setDisplayMode(List<NBTTagCompound> devices, int mode) {
+        if (mode < 0 || mode >= WirelessCardBinding.DISPLAY_MODES) return false;
+        var ids = new LongLinkedOpenHashSet();
+        for (NBTTagCompound device : devices) {
+            if (!device.hasKey("displayId", 4)) continue;
+            long id = device.getLong("displayId");
+            ids.add(id);
+        }
+        if (mode > 0 && ids.size() > WirelessCardBinding.MAX_DISPLAY_ENTRIES) return false;
+        if (ids.isEmpty()) return true;
+        long sequence = container.sync.requestDisplay(ids.toLongArray(), mode);
+        if (sequence == 0) return true;
+        for (long id : ids) pendingModes.put(id, new PendingMode(sequence, mode));
+        rebuild();
+        return true;
+    }
+
+    public void cycleDisplayMode(NBTTagCompound device) {
+        setDisplayMode(List.of(device), (displayMode(device) + 1) % WirelessCardBinding.DISPLAY_MODES);
+    }
+
+    public GroupDetails groupDetails(String key) {
+        Row group = findRow(listing, key);
+        if (group == null) return null;
+        Long2ObjectLinkedOpenHashMap<NBTTagCompound> devices = new Long2ObjectLinkedOpenHashMap<>();
+        collectDevices(group, devices);
+        return new GroupDetails(copy(group.data()), List.copyOf(devices.values()));
+    }
+
+    private static Row findRow(List<Row> rows, String key) {
+        for (Row row : rows) {
+            if (key.equals(
+                row.data()
+                    .getString("key")))
+                return row;
+            Row child = findRow(row.children(), key);
+            if (child != null) return child;
+        }
+        return null;
+    }
+
+    private static void collectDevices(Row row, Long2ObjectMap<NBTTagCompound> devices) {
+        if (!row.children()
+            .isEmpty()) {
+            for (Row child : row.children()) collectDevices(child, devices);
+            return;
+        }
+        NBTTagList entries = row.data()
+            .getTagList("displayDevices", 10);
+        for (int i = 0; i < entries.tagCount(); i++) {
+            NBTTagCompound device = entries.getCompoundTagAt(i);
+            if (device.hasKey("displayId", 4)) devices.putIfAbsent(device.getLong("displayId"), copy(device));
+        }
     }
 
     public boolean navigate(int action) {
         boolean detail = source.getBoolean("detail");
-        if (action == PREVIOUS_PAGE || action == NEXT_PAGE) {
-            int change = action == NEXT_PAGE ? 1 : -1;
-            if (detail) detailPage += change;
-            else page += change;
-        } else if (type(action) == OPEN_DETAILS && !detail) {
+        String revealGroup = null;
+        if (type(action) == OPEN_DETAILS && !detail) {
             NBTTagList rows = container.display.getTagList("rows", 10);
             int index = rowIndex(action);
             if (index < 0 || index >= rows.tagCount()) return true;
             NBTTagCompound row = rows.getCompoundTagAt(index);
             if (!row.getBoolean("group")) return false;
             String key = row.getString("key");
-            if (!expanded.remove(key)) expanded.add(key);
+            if (!expanded.remove(key)) {
+                expanded.add(key);
+                revealGroup = key;
+            }
         } else return false;
-        rebuild();
+        rebuild(revealGroup);
         return true;
     }
 
     public void rebuild() {
-        if (!source.hasKey("session")) return;
-        boolean detail = source.getBoolean("detail");
-        container.display = buildListing(detail ? detailPage : page);
-        if (detail) detailPage = container.display.getInteger("page");
-        else page = container.display.getInteger("page");
+        rebuild(null);
     }
 
-    private NBTTagCompound buildListing(int requestedPage) {
+    private void rebuild(String revealGroup) {
+        if (!source.hasKey("session")) return;
+        boolean detail = source.getBoolean("detail");
+        container.display = buildListing(detail ? detailScroll : scroll, revealGroup);
+        // The first snapshot can be empty while GT rebuilds machine ownership.
+        if (source.getBoolean("initializing")) return;
+        if (detail) detailScroll = container.display.getInteger("scroll");
+        else scroll = container.display.getInteger("scroll");
+    }
+
+    private NBTTagCompound buildListing(int requestedScroll, String revealGroup) {
         boolean detail = source.getBoolean("detail");
         NBTTagCompound data = copy(source);
         List<Shown> shown = new ObjectArrayList<>();
@@ -243,19 +399,35 @@ public class WirelessCardClientView {
             }
             if (data.getBoolean("collapseTypes")) rows = collapse(rows);
             order(rows, "", data.getBoolean("collapseTypes"));
+            listing = List.copyOf(rows);
             flatten(rows, 0, 0, data.getBoolean("collapseTypes"), shown);
         }
         data.setInteger("rowCount", shown.size());
-        int pages = Math.max(1, (shown.size() + pageSize - 1) / pageSize);
-        int currentPage = Math.max(0, Math.min(requestedPage, pages - 1));
-        data.setInteger("page", currentPage);
-        data.setInteger("pageSize", pageSize);
-        data.setInteger("pages", pages);
+        int maxScroll = Math.max(0, shown.size() - visibleRows);
+        int offset = Math.max(0, Math.min(requestedScroll, maxScroll));
+        if (revealGroup != null) {
+            for (int start = 0; start < shown.size(); start++) {
+                Shown group = shown.get(start);
+                if (!revealGroup.equals(
+                    group.row()
+                        .data()
+                        .getString("key")))
+                    continue;
+                int end = start + 1;
+                while (end < shown.size() && shown.get(end)
+                    .depth() > group.depth()) end++;
+                // Reveal the expanded subtree with minimal movement, keeping its header visible.
+                offset = Math.min(start, Math.max(offset, end - visibleRows));
+                break;
+            }
+        }
+        data.setInteger("scroll", offset);
+        data.setInteger("visibleRows", visibleRows);
+        data.setInteger("maxScroll", maxScroll);
         data.setInteger("filterState", state);
         data.setBoolean("filtered", !query.isEmpty() || dimension != null || state != 0);
         NBTTagList entries = new NBTTagList();
-        for (Shown entry : shown
-            .subList(currentPage * pageSize, Math.min(shown.size(), (currentPage + 1) * pageSize))) {
+        for (Shown entry : shown.subList(offset, Math.min(shown.size(), offset + visibleRows))) {
             NBTTagCompound row = copy(
                 entry.row()
                     .data());
@@ -265,6 +437,7 @@ public class WirelessCardClientView {
             row.setInteger("treeLines", entry.lines());
             row.setBoolean("treeLast", entry.last());
             row.setBoolean("expanded", row.getBoolean("group") && expanded.contains(row.getString("key")));
+            row.setInteger("displayMode", displayMode(row));
             entries.appendTag(row);
         }
         data.setTag("rows", entries);
@@ -373,6 +546,7 @@ public class WirelessCardClientView {
                 category.setString("position", "D" + category.getInteger("dimension"));
                 category.setInteger("items", children.size());
                 category.removeTag("targetId");
+                category.removeTag("energyHatches");
                 result.add(new Row(category, List.copyOf(children), "", ""));
             }
         });
@@ -381,10 +555,11 @@ public class WirelessCardClientView {
 
     private static NBTTagCompound aggregate(NBTTagCompound template, List<Row> rows) {
         NBTTagCompound data = copy(template);
-        int devices = 0, online = 0, missing = 0, entrances = 0, clusters = 0;
+        int devices = 0, online = 0, missing = 0, entrances = 0, clusters = 0, groupItems = 0;
         boolean stable = true, paused = true, conflict = false, limited = false, active = true;
         for (Row row : rows) {
             NBTTagCompound child = row.data();
+            if (child.getBoolean("group") || !child.getBoolean("singleDevice")) groupItems++;
             devices += child.getInteger("devices");
             online += child.getInteger("online");
             missing += child.getInteger("missing");
@@ -403,6 +578,7 @@ public class WirelessCardClientView {
         data.setInteger("missing", missing);
         data.setInteger("entrances", entrances);
         data.setInteger("clusters", clusters);
+        data.setInteger("groupItems", groupItems);
         data.setBoolean("stable", stable);
         data.setBoolean("paused", paused);
         data.setBoolean("conflicted", conflict);

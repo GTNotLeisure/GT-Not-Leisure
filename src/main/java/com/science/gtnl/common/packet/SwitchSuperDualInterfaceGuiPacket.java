@@ -34,6 +34,10 @@ public class SwitchSuperDualInterfaceGuiPacket extends ServerboundPacket {
 
     @Override
     public void handleServer(EntityPlayerMP player) {
+        GuiType[] types = GuiType.values();
+        if (targetGuiId < 0 || targetGuiId >= types.length) return;
+        GuiType target = types[targetGuiId];
+        if (target != GuiType.SuperDualInterfaceGUI && target != GuiType.SuperDualInterfaceFluidGUI) return;
         Container container = player.openContainer;
         if (!(container instanceof AEBaseContainer aeContainer)) {
             return;
@@ -49,13 +53,7 @@ public class SwitchSuperDualInterfaceGuiPacket extends ServerboundPacket {
             return;
         }
 
-        GTNLGuiHandler.openGui(
-            player,
-            GuiType.values()[targetGuiId],
-            openContext.getSide(),
-            tile.getWorldObj(),
-            tile.xCoord,
-            tile.yCoord,
-            tile.zCoord);
+        GTNLGuiHandler
+            .openGui(player, target, openContext.getSide(), tile.getWorldObj(), tile.xCoord, tile.yCoord, tile.zCoord);
     }
 }

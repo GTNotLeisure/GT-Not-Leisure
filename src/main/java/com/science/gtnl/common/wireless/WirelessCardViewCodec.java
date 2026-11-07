@@ -65,39 +65,54 @@ public class WirelessCardViewCodec {
     static void writeInterfaceNames(NBTTagCompound data, List<WirelessInterfaceView.Name> names) {
         if (names.isEmpty()) return;
         NBTTagList entries = new NBTTagList();
-        for (var name : names.subList(0, Math.min(4, names.size()))) {
-            NBTTagCompound entry = new NBTTagCompound();
-            entry.setString("rawName", name.rawName());
-            entry.setString("suffix", name.suffix());
-            writeIcon(entry, "icon", name.icon());
-            entries.appendTag(entry);
-        }
+        for (var name : names.subList(0, Math.min(4, names.size()))) entries.appendTag(writeInterfaceName(name));
         data.setTag("interfaceNames", entries);
         data.setInteger("interfaceNameCount", names.size());
-        writeIcon(
-            data,
-            "icon",
-            names.get(0)
-                .icon());
+        for (var name : names) {
+            if (!name.connected()) continue;
+            writeIcon(data, "linkedIcon", name.icon());
+            data.setTag("linkedName", writeInterfaceName(name));
+            break;
+        }
+        for (var name : names) {
+            if (name.configurationIcon() == null) continue;
+            writeIcon(data, "configurationIcon", name.configurationIcon());
+            data.setTag("configurationName", writeInterfaceName(name));
+            break;
+        }
+    }
+
+    private static NBTTagCompound writeInterfaceName(WirelessInterfaceView.Name name) {
+        NBTTagCompound entry = new NBTTagCompound();
+        entry.setString("rawName", name.rawName());
+        entry.setString("customName", name.customName());
+        entry.setString("suffix", name.suffix());
+        writeIcon(entry, "icon", name.icon());
+        return entry;
     }
 
     public static void localizeInterfaceNames(NBTTagCompound row) {
         NBTTagList entries = row.getTagList("interfaceNames", 10);
         if (entries.tagCount() == 0) return;
         List<String> names = new ObjectArrayList<>();
-        for (int i = 0; i < entries.tagCount(); i++) {
-            NBTTagCompound entry = entries.getCompoundTagAt(i);
-            names.add(
-                InterfaceNameLocalization.localizeName(
-                    entry.getString("rawName"),
-                    entry.getString("suffix"),
-                    ItemStack.loadItemStackFromNBT(entry.getCompoundTag("icon")),
-                    EnumChatFormatting.AQUA));
-        }
+        for (int i = 0; i < entries.tagCount(); i++) names.add(localizeInterfaceName(entries.getCompoundTagAt(i)));
         int count = row.getInteger("interfaceNameCount");
         String targetName = String.join(" / ", names) + (count > entries.tagCount() ? " … [" + count + "]" : "");
         row.setString("targetName", targetName);
-        if (row.getString("name")
-            .isEmpty()) row.setString("name", targetName);
+        if (row.hasKey("configurationIcon", 10))
+            row.setString("configurationLabel", localizeInterfaceName(row.getCompoundTag("configurationName")));
+        if (row.hasKey("linkedIcon", 10))
+            row.setString("linkedLabel", localizeInterfaceName(row.getCompoundTag("linkedName")));
+    }
+
+    private static String localizeInterfaceName(NBTTagCompound entry) {
+        String customName = entry.getString("customName");
+        if (!customName.isEmpty()) return customName
+            + InterfaceNameLocalization.resolveSuffix(entry.getString("suffix"), EnumChatFormatting.AQUA);
+        return InterfaceNameLocalization.localizeName(
+            entry.getString("rawName"),
+            entry.getString("suffix"),
+            ItemStack.loadItemStackFromNBT(entry.getCompoundTag("icon")),
+            EnumChatFormatting.AQUA);
     }
 }

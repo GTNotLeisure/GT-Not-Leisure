@@ -491,7 +491,7 @@ public class WirelessClusterManager {
             .contains(canonical(source)) ? cluster : null;
     }
 
-    static Address deviceAddress(IGridNode node) {
+    public static Address deviceAddress(IGridNode node) {
         return TOPOLOGY.nodeAddress(node);
     }
 

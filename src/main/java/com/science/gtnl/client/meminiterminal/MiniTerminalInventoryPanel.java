@@ -790,22 +790,25 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
                 }
             }
             GuiScrollbar scrollbar = model.scrollbar();
-            ScreenColor.setGuiColor();
-            (skin != null ? skin.variant.inset : SCROLL_TRACK).draw(
-                scrollbar.getLeft() - 1,
-                scrollbar.getTop() - 1,
-                scrollbar.getWidth() + 2,
-                scrollbar.getHeight() + 2);
-            ScreenColor.resetGuiColor();
             int maximum = model.maximumScroll();
             boolean active = model.isDisplayOnline() && maximum > 0;
 
             int offset = active ? scrollbar.getCurrentScroll() * (scrollbar.getHeight() - 15) / maximum : 0;
-            if (skin != null) {
-                if (!active) ScreenColor.setDimmedGuiColor();
-                skin.variant.scroller.draw(scrollbar.getLeft(), scrollbar.getTop() + offset, scrollbar.getWidth(), 15);
+            if (skin != null) AE2Theme.drawSmallScrollbar(
+                skin.variant,
+                scrollbar.getLeft(),
+                scrollbar.getTop() - 1,
+                scrollbar.getHeight() + 2,
+                offset,
+                active);
+            else {
+                ScreenColor.setGuiColor();
+                SCROLL_TRACK.draw(
+                    scrollbar.getLeft() - 1,
+                    scrollbar.getTop() - 1,
+                    scrollbar.getWidth() + 2,
+                    scrollbar.getHeight() + 2);
                 ScreenColor.resetGuiColor();
-            } else {
                 UITexture thumb = active ? THUMB_ACTIVE : THUMB_DISABLED;
                 thumb.draw(scrollbar.getLeft(), scrollbar.getTop() + offset, scrollbar.getWidth(), 15);
             }
