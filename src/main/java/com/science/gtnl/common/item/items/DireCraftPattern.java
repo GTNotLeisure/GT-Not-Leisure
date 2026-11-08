@@ -19,8 +19,12 @@ public class DireCraftPattern extends ItemEncodedPattern {
 
     @Override
     public ICraftingPatternDetails getPatternForItem(final ItemStack is, final World w) {
+        return getPatternForItem(is, w, 1);
+    }
+
+    public DireCraftingPatternDetails getPatternForItem(final ItemStack is, final World w, final int multiply) {
         try {
-            return new DireCraftingPatternDetails(is);
+            return new DireCraftingPatternDetails(is, multiply);
         } catch (final Throwable t) {
             return null;
         }

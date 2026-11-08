@@ -37,6 +37,7 @@ import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
 import gregtech.api.interfaces.IRecipeMap;
 import gregtech.api.objects.SubstituteFluidStack;
+import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipeBuilder;
 import gregtech.api.util.GTRecipeConstants;
@@ -2023,7 +2024,109 @@ public class AssemblingLineRecipes implements IRecipePool {
             1000 * GTRecipeBuilder.SECONDS,
             (int) TierEU.RECIPE_UMV);
 
+        loadCelestweaveRecipes();
         NHCoreRecipes.assemblyLine();
     }
 
+    private void loadCelestweaveRecipes() {
+        RecipeBuilder.builder()
+            .metadata(GTRecipeConstants.RESEARCH_ITEM, GTNLItemList.CelestweaveModuleHazard.get(1))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(45 * GTRecipeBuilder.SECONDS, TierEU.RECIPE_LuV))
+            .itemInputs(
+                WerkstoffLoader.RhodiumPlatedPalladium.get(OrePrefixes.plate, 4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LuV, 2),
+                ItemList.Electric_Pump_LuV.get(2),
+                ItemList.Sensor_LuV.get(1),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Polybenzimidazole, 4),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Void, 4),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "ItemBathSalts", 4, 0))
+            .fluidInputs(Materials.SolderingAlloy.getMolten(8 * GTRecipeBuilder.INGOTS), Materials.Milk.getFluid(2_000))
+            .itemOutputs(GTNLItemList.CelestweaveModulePurification.get(1))
+            .duration(45 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_LuV)
+            .addTo(AL);
+
+        RecipeBuilder.builder()
+            .metadata(GTRecipeConstants.RESEARCH_ITEM, GTNLItemList.CelestweaveModuleWalkAssist.get(1))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(45 * GTRecipeBuilder.SECONDS, TierEU.RECIPE_LuV))
+            .itemInputs(
+                WerkstoffLoader.RhodiumPlatedPalladium.get(OrePrefixes.plate, 4),
+                WerkstoffLoader.RhodiumPlatedPalladium.get(OrePrefixes.screw, 8),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LuV, 2),
+                ItemList.Electric_Piston_LuV.get(2),
+                ItemList.Electric_Motor_LuV.get(2),
+                GTOreDictUnificator.get(OrePrefixes.spring, Materials.HSSS, 4),
+                GTOreDictUnificator.get(OrePrefixes.wireGt04, Materials.SuperconductorLuV, 2))
+            .fluidInputs(Materials.SolderingAlloy.getMolten(8 * GTRecipeBuilder.INGOTS), Materials.Helium.getGas(2_000))
+            .itemOutputs(GTNLItemList.CelestweaveModuleDash.get(1))
+            .duration(45 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_LuV)
+            .addTo(AL);
+
+        RecipeBuilder.builder()
+            .metadata(
+                GTRecipeConstants.RESEARCH_ITEM,
+                GTModHandler.getModItem(Mods.Botania.ID, "terrasteelChest", 1, 0))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(1 * GTRecipeBuilder.MINUTES, TierEU.RECIPE_LuV))
+            .itemInputs(
+                GTModHandler.getModItem(Mods.Botania.ID, "terrasteelHelm", 1, GTRecipeBuilder.WILDCARD),
+                GTModHandler.getModItem(Mods.Botania.ID, "terrasteelChest", 1, GTRecipeBuilder.WILDCARD),
+                GTModHandler.getModItem(Mods.Botania.ID, "terrasteelLegs", 1, GTRecipeBuilder.WILDCARD),
+                GTModHandler.getModItem(Mods.Botania.ID, "terrasteelBoots", 1, GTRecipeBuilder.WILDCARD),
+                WerkstoffLoader.RhodiumPlatedPalladium.get(OrePrefixes.plate, 4),
+                ModsItemlist.BotaniaTerrasteelIngot.get(4),
+                ModsItemlist.BotaniaGaiaSpirit.get(8),
+                ModsItemlist.BotaniaDragonstone.get(2),
+                ModsItemlist.BotaniaNaturaPylon.get(2),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LuV, 4),
+                ItemList.Emitter_LuV.get(2),
+                ItemList.Field_Generator_LuV.get(1))
+            .fluidInputs(Materials.SolderingAlloy.getMolten(8 * GTRecipeBuilder.INGOTS), Materials.Helium.getGas(2_000))
+            .itemOutputs(GTNLItemList.CelestweaveModuleTerrasteel.get(1))
+            .duration(90 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_LuV)
+            .addTo(AL);
+
+        RecipeBuilder.builder()
+            .metadata(GTRecipeConstants.RESEARCH_ITEM, ModsItemlist.ThaumcraftPrimordialPearl.get(1))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(2 * GTRecipeBuilder.MINUTES, TierEU.RECIPE_LuV))
+            .itemInputs(
+                ModsItemlist.ThaumcraftPrimordialPearl.get(1),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "ItemAmuletVis", 1, 1),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "blockStoneDevice", 1, 5),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "ItemBathSalts", 4, 0),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Void, 4),
+                WerkstoffLoader.RhodiumPlatedPalladium.get(OrePrefixes.plateDouble, 4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LuV, 4),
+                ItemList.Field_Generator_LuV.get(2),
+                ItemList.Emitter_LuV.get(2),
+                ItemList.Sensor_LuV.get(1))
+            .fluidInputs(
+                Materials.SolderingAlloy.getMolten(8 * GTRecipeBuilder.INGOTS),
+                Materials.Thaumium.getMolten(8 * GTRecipeBuilder.INGOTS),
+                Materials.Helium.getGas(2_000))
+            .itemOutputs(GTNLItemList.CelestweaveModuleThaumic.get(1))
+            .duration(90 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_LuV)
+            .addTo(AL);
+
+        RecipeBuilder.builder()
+            .metadata(GTRecipeConstants.RESEARCH_ITEM, GTNLItemList.CelestweaveModuleShield.get(1))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(90 * GTRecipeBuilder.SECONDS, TierEU.RECIPE_ZPM))
+            .itemInputs(
+                GTOreDictUnificator.get(OrePrefixes.plateDouble, Materials.Naquadria, 2),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.CosmicNeutronium, 2),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.ZPM, 2),
+                ItemList.Emitter_ZPM.get(4),
+                ItemList.Sensor_ZPM.get(1),
+                ItemList.Field_Generator_ZPM.get(1),
+                ModsItemlist.ThaumcraftFocusPrimal.get(1))
+            .fluidInputs(
+                Materials.SolderingAlloy.getMolten(16 * GTRecipeBuilder.INGOTS),
+                Materials.Helium.getGas(2_000))
+            .itemOutputs(GTNLItemList.CelestweaveModuleReflect.get(1))
+            .duration(90 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_ZPM)
+            .addTo(AL);
+    }
 }

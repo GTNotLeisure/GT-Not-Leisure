@@ -403,6 +403,24 @@ public enum GTNLItemList implements IItemContainer {
     CelestweaveConduit,
     CelestweaveStride,
     CelestweaveModule,
+    CelestweaveModuleApiarist,
+    CelestweaveModuleNightVision,
+    CelestweaveModuleSaturation,
+    CelestweaveModuleRevealing,
+    CelestweaveModuleHolo,
+    CelestweaveModuleShield,
+    CelestweaveModuleReflect,
+    CelestweaveModulePurification,
+    CelestweaveModuleHazard,
+    CelestweaveModuleSoulbound,
+    CelestweaveModuleReach,
+    CelestweaveModuleTerrasteel,
+    CelestweaveModuleBackpack,
+    CelestweaveModuleFlight,
+    CelestweaveModuleWalkAssist,
+    CelestweaveModuleDash,
+    CelestweaveModuleDigAffinity,
+    CelestweaveModuleThaumic,
     PortalGun,
     PortalGunC137,
 
@@ -1336,6 +1354,12 @@ public enum GTNLItemList implements IItemContainer {
     GasCollectorUIV,
     GasCollectorUMV,
     GasCollectorUXV;
+
+    public static final GTNLItemList[] CELESTWEAVE_MODULE = { CelestweaveModuleApiarist, CelestweaveModuleNightVision,
+        CelestweaveModuleSaturation, CelestweaveModuleRevealing, CelestweaveModuleHolo, CelestweaveModuleShield,
+        CelestweaveModuleReflect, CelestweaveModulePurification, CelestweaveModuleHazard, CelestweaveModuleSoulbound,
+        CelestweaveModuleReach, CelestweaveModuleTerrasteel, CelestweaveModuleBackpack, CelestweaveModuleFlight,
+        CelestweaveModuleWalkAssist, CelestweaveModuleDash, CelestweaveModuleDigAffinity, CelestweaveModuleThaumic };
 
     public static final GTNLItemList[] ENERGY_HATCH_LV = { EnergyHatchLV, EnergyHatchLV4A, EnergyHatchLV16A,
         EnergyHatchLV64A };

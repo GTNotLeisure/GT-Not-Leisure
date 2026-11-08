@@ -126,22 +126,40 @@ public class MultiblockTooltipAudit {
         List<String> notes = new ObjectArrayList<>();
         List<String> autoInfo = Collections.emptyList();
         List<String> autoStructure = Collections.emptyList();
+        StructureSummary structure = null;
+        InfoSummary info = null;
         long start = System.nanoTime();
         if (machine instanceof MTEEnhancedMultiBlockBase enhanced) {
             try {
-                MultiblockTooltipBuilder auto = new GTNLMultiblockTooltipBuilder().addAutoTooltip(enhanced)
-                    .toolTipFinisher();
+                StructureReadResult result = MultiblockTooltipReader.readStructureResult(enhanced);
+                structure = result.summary();
+                problems.addAll(result.problems());
+                info = MultiblockTooltipReader
+                    .readInfo(enhanced, MultiblockTooltipReader.keyPrefixOf(enhanced), structure, problems);
+                MultiblockTooltipBuilder auto = new GTNLMultiblockTooltipBuilder().addAutoTooltip(info, structure);
+                if (!problems.isEmpty()) {
+                    auto.addStructureInfo(StatCollector.translateToLocal("gtnl.structure.tooltip.incomplete"));
+                }
+                auto.toolTipFinisher();
                 autoInfo = Arrays.asList(auto.getInformation());
                 autoStructure = Arrays.asList(auto.getStructureInformation());
             } catch (RuntimeException e) {
-                ScienceNotLeisure.LOG.warn("Cannot build the automatic tooltip of {}", machine.getLocalName(), e);
+                ScienceNotLeisure.LOG
+                    .warn("Cannot build the automatic tooltip of {}: {}", machine.getLocalName(), e.toString());
                 problems.add(text("problem.generation_failed", e));
             }
         } else {
             problems.add(text("problem.unsupported"));
         }
         long micros = (System.nanoTime() - start) / NANOS_PER_MICRO;
-        if (machine instanceof MTEEnhancedMultiBlockBase enhanced) check(enhanced, problems, notes);
+        if (machine instanceof MTEEnhancedMultiBlockBase enhanced) {
+            try {
+                check(enhanced, info, structure, problems, notes);
+            } catch (RuntimeException e) {
+                problems.add(text("problem.check_failed", e.toString()));
+                ScienceNotLeisure.LOG.warn("Cannot audit the tooltip of {}: {}", machine.getLocalName(), e.toString());
+            }
+        }
         List<String> currentInfo = Collections.emptyList();
         List<String> currentStructure = Collections.emptyList();
         try {
@@ -152,7 +170,8 @@ public class MultiblockTooltipAudit {
                 currentInfo = Arrays.asList(machine.getDescription());
             }
         } catch (RuntimeException e) {
-            ScienceNotLeisure.LOG.warn("Cannot build the current tooltip of {}", machine.getLocalName(), e);
+            ScienceNotLeisure.LOG
+                .warn("Cannot build the current tooltip of {}: {}", machine.getLocalName(), e.toString());
             problems.add(text("problem.current_failed", e));
         }
         return new MachineReport(
@@ -169,18 +188,11 @@ public class MultiblockTooltipAudit {
             currentStructure);
     }
 
-    private static <T extends MTEEnhancedMultiBlockBase<T>> void check(T machine, List<String> problems,
-        List<String> notes) {
+    private static <T extends MTEEnhancedMultiBlockBase<T>> void check(T machine, InfoSummary info,
+        StructureSummary structure, List<String> problems, List<String> notes) {
         String keyPrefix = MultiblockTooltipReader.keyPrefixOf(machine);
         if (keyPrefix == null) problems.add(text("problem.no_key_prefix"));
-        StructureSummary structure = MultiblockTooltipReader.readStructure(machine);
         if (structure == null) problems.add(text("problem.no_structure"));
-        String checkFailure = MultiblockTooltipReader.withPrototype(
-            machine,
-            prototype -> StructureTooltipHooks.recordChecks(prototype)
-                .failure());
-        if (checkFailure != null) problems.add(text("problem.check_failed", checkFailure));
-        InfoSummary info = MultiblockTooltipReader.readInfo(machine, keyPrefix, structure);
         if (info == null) {
             problems.add(text("problem.no_info"));
             return;
@@ -199,7 +211,7 @@ public class MultiblockTooltipAudit {
         if (heat != null && !heat.usesRecipeHeat() && (heat.discount() || heat.freePerfectOverclocks() == 0)) {
             problems.add(text("problem.heat_without_recipe_heat"));
         }
-        problems.addAll(MultiblockTooltipReader.withPrototype(machine, prototype -> probe(prototype, info, structure)));
+        problems.addAll(TooltipProbeFactory.withProbe(machine, prototype -> probe(prototype, info, structure)));
     }
 
     private static <T extends MTEEnhancedMultiBlockBase<T>> List<String> probe(T machine, InfoSummary info,
@@ -207,25 +219,32 @@ public class MultiblockTooltipAudit {
         IMultiblockTooltipRules rules = (IMultiblockTooltipRules) machine;
         List<String> problems = new ObjectArrayList<>();
         List<IStructureChannels> channels = structure == null ? Collections.emptyList() : structure.channels();
-        checkPart(problems, rules, info, TieredPart.VOLTAGE, true);
-        checkPart(problems, rules, info, TieredPart.COIL, channels.contains(GTStructureChannels.HEATING_COIL));
-        checkPart(problems, rules, info, TieredPart.GLASS, channels.contains(GTStructureChannels.BOROGLASS));
-        checkPart(problems, rules, info, TieredPart.CASING, true);
-        checkFields(problems, machine, rules, shownFields(rules, structure));
-        checkModes(problems, machine, rules);
+        for (TieredPart part : PROBED_PARTS) {
+            boolean present = switch (part) {
+                case COIL -> channels.contains(GTStructureChannels.HEATING_COIL);
+                case GLASS -> channels.contains(GTStructureChannels.BOROGLASS);
+                default -> true;
+            };
+            TooltipProbeFactory.withProbe(machine, controller -> {
+                checkPart(problems, (IMultiblockTooltipRules) controller, info, part, present);
+                return null;
+            });
+        }
+        checkFields(problems, machine, shownFields(rules, structure));
+        checkModes(problems, machine);
         return problems;
     }
 
-    private static void checkModes(List<String> problems, MTEEnhancedMultiBlockBase<?> machine,
-        IMultiblockTooltipRules rules) {
+    private static <T extends MTEEnhancedMultiBlockBase<T>> void checkModes(List<String> problems, T machine) {
         List<Integer> modes = MultiblockTooltipReader.machineModes(machine);
         if (modes.size() <= 1) return;
-        int original = machine.machineMode;
         try {
             List<TooltipStats> stats = new ObjectArrayList<>();
             for (int mode : modes) {
-                machine.machineMode = mode;
-                stats.add(rules.getTooltipStats());
+                stats.add(TooltipProbeFactory.withProbe(machine, controller -> {
+                    controller.machineMode = mode;
+                    return ((IMultiblockTooltipRules) controller).getTooltipStats();
+                }));
             }
             for (TooltipStats other : stats) {
                 if (!changedFamilies(stats.get(0), other).isEmpty()) {
@@ -234,10 +253,9 @@ public class MultiblockTooltipAudit {
                 }
             }
         } catch (RuntimeException e) {
+            problems.add(text("problem.check_failed", "Machine modes: " + e));
             ScienceNotLeisure.LOG
-                .debug("Cannot probe the modes of {} for the tooltip export", machine.getLocalName(), e);
-        } finally {
-            machine.machineMode = original;
+                .debug("Cannot probe the modes of {} for the tooltip export: {}", machine.getLocalName(), e.toString());
         }
     }
 
@@ -310,11 +328,16 @@ public class MultiblockTooltipAudit {
         return shown;
     }
 
-    private static void checkFields(List<String> problems, Object machine, IMultiblockTooltipRules rules,
+    private static <T extends MTEEnhancedMultiBlockBase<T>> void checkFields(List<String> problems, T machine,
         Set<String> shown) {
-        List<Supplier<TooltipStats>> contexts = probeContexts(rules);
         for (Field field : stateFields(machine.getClass())) {
-            Set<StatFamily> changed = fieldEffects(field, machine, contexts);
+            Set<StatFamily> changed = TooltipProbeFactory.withProbe(
+                machine,
+                controller -> fieldEffects(
+                    field,
+                    controller,
+                    probeContexts((IMultiblockTooltipRules) controller),
+                    problems));
             if (shown.contains(field.getName())) changed.retainAll(EnumSet.of(StatFamily.PERFECT_OC));
             if (!changed.isEmpty()) {
                 problems.add(text("problem.field_not_shown", field.getName(), displayNames(changed)));
@@ -355,7 +378,8 @@ public class MultiblockTooltipAudit {
             .matches();
     }
 
-    private static Set<StatFamily> fieldEffects(Field field, Object machine, List<Supplier<TooltipStats>> contexts) {
+    private static Set<StatFamily> fieldEffects(Field field, Object machine, List<Supplier<TooltipStats>> contexts,
+        List<String> problems) {
         Set<StatFamily> changed = EnumSet.noneOf(StatFamily.class);
         try {
             Object original = field.get(machine);
@@ -370,12 +394,13 @@ public class MultiblockTooltipAudit {
                 field.set(machine, original);
             }
         } catch (IllegalAccessException | RuntimeException e) {
+            problems.add(text("problem.check_failed", "Field " + field.getName() + ": " + e));
             ScienceNotLeisure.LOG.debug(
-                "Cannot probe field {} of {} for the tooltip export",
+                "Cannot probe field {} of {} for the tooltip export: {}",
                 field.getName(),
                 machine.getClass()
                     .getSimpleName(),
-                e);
+                e.toString());
         }
         return changed;
     }

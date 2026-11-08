@@ -392,5 +392,30 @@ public class ItemConfig {
         @DefaultDouble(100)
         @RangeDouble(min = 0, max = 1.0E12)
         public double manaEu = 100;
+
+        @Comment("Vis cost discount in percentage points while the thaumic module is powered")
+        @DefaultInt(40)
+        @RangeInt(min = 0, max = 100)
+        public int visDiscount = 40;
+
+        @Comment("Maximum Vis supplied per primal aspect each second, shared across charged wands")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 1000)
+        public int visPerSecond = 1;
+
+        @Comment("EU paid per point of Vis supplied by the thaumic module")
+        @DefaultDouble(10000)
+        @RangeDouble(min = 0, max = 1.0E12)
+        public double visEu = 10000;
+
+        @Comment("Capacity multiplier for carried wands while the thaumic module capacity boost is powered")
+        @DefaultInt(2)
+        @RangeInt(min = 1, max = 16)
+        public int visCapacityMultiplier = 2;
+
+        @Comment("EU paid per tick for Warp Ward and removal of active warp ailments")
+        @DefaultDouble(100)
+        @RangeDouble(min = 0, max = 1.0E12)
+        public double warpSuppressionEuPerTick = 100;
     }
 }

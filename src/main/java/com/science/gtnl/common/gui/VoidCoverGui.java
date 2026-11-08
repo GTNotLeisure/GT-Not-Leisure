@@ -43,6 +43,8 @@ public class VoidCoverGui extends CoverBaseGui<VoidCover> {
         BooleanSyncValue inputModeSyncer = new BooleanSyncValue(cover::isInputMode, cover::setInputMode).allowC2S();
         syncManager.syncValue("input_mode", inputModeSyncer);
 
+        column.marginBottom(TICK_RATE_BUTTON_SIZE + 2);
+
         column.child(
             Flow.column()
                 .coverChildren()
@@ -78,8 +80,7 @@ public class VoidCoverGui extends CoverBaseGui<VoidCover> {
             .key(
                 'I',
                 index -> new PhantomItemSlot().slot(new ModularSlot(cover.lockedInventoryHandler, index))
-                    .background(GTGuiTextures.SLOT_ITEM_STANDARD)
-                    .backgroundOverlay(GTGuiTextures.OVERLAY_SLOT_FILTER))
+                    .background(GTGuiTextures.SLOT_ITEM_STANDARD, GTGuiTextures.OVERLAY_SLOT_FILTER))
             .build()
             .marginTop(WIDGET_MARGIN);
     }

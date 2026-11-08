@@ -3,127 +3,115 @@ package com.science.gtnl.utils;
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.Constants;
 
-import com.science.gtnl.common.gui.container.ContainerDirePatternEncoder;
-
+import appeng.api.AEApi;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.api.storage.data.IAEStack;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import appeng.util.item.ItemList;
 import lombok.Getter;
 
-public class DireCraftingPatternDetails implements ICraftingPatternDetails {
+public final class DireCraftingPatternDetails implements ICraftingPatternDetails {
 
     private final ItemStack pattern;
     private final IAEItemStack patternKey;
     private final IAEItemStack[] inputs;
-    private IAEItemStack[] condensedInputs;
-    private final long[] baseInputSizes;
+    private final IAEItemStack[] condensedInputs;
     private final IAEItemStack[] outputs;
-    private final long[] baseOutputSizes;
     @Getter
-    private int multiply = 1;
+    private final int multiply;
 
     public DireCraftingPatternDetails(ItemStack is) {
-        pattern = is;
-        patternKey = createPatternKey(is);
+        this(is, 1);
+    }
 
-        if (is.hasTagCompound()) {
-            inputs = new IAEItemStack[81];
-            baseInputSizes = new long[inputs.length];
-            outputs = new IAEItemStack[1];
-            baseOutputSizes = new long[outputs.length];
-            var list = new ItemList();
-            var tag = is.getTagCompound();
-            var in = tag.getTagList("in", Constants.NBT.TAG_COMPOUND);
-            for (var i = 0; i < in.tagCount(); i++) {
-                var item = fromTagCreateAEItem(in.getCompoundTagAt(i));
-                inputs[i] = item;
-                if (item != null) {
-                    baseInputSizes[i] = item.getStackSize();
-                    list.addStorage(item);
-                }
-            }
-            outputs[0] = fromTagCreateAEItem(tag.getCompoundTag("out"));
-            if (outputs[0] != null) {
-                baseOutputSizes[0] = outputs[0].getStackSize();
-            }
-
-            this.condensedInputs = list.toArray(new IAEItemStack[0]);
-        } else {
-            throw new IllegalArgumentException("No pattern here!");
-        }
+    public DireCraftingPatternDetails(ItemStack is, int multiply) {
+        this(readInputs(is), readOutputs(is), multiply);
     }
 
     public DireCraftingPatternDetails(ICraftingPatternDetails is) {
-        pattern = is.getPattern()
-            .copy();
-        patternKey = createPatternKey(pattern);
-        inputs = copyStacks(is.getInputs());
-        baseInputSizes = captureStackSizes(inputs);
-        var list = new ItemList();
-        for (IAEItemStack ii : inputs) {
-            if (ii == null) continue;
-            list.addStorage(ii);
-        }
-        condensedInputs = list.toArray(new IAEItemStack[0]);
-        outputs = copyStacks(is.getCondensedOutputs());
-        baseOutputSizes = captureStackSizes(outputs);
+        this(is, 1);
     }
 
-    public void setMultiply(int multiply) {
+    public DireCraftingPatternDetails(ICraftingPatternDetails is, int multiply) {
+        this(is.getAEInputs(), is.getCondensedAEOutputs(), multiply);
+    }
+
+    private DireCraftingPatternDetails(IAEStack<?>[] inputs, IAEStack<?>[] outputs, int multiply) {
         this.multiply = Math.max(1, multiply);
-        for (var i = 0; i < inputs.length; i++) {
-            var input = inputs[i];
-            if (input == null) continue;
-            input.setStackSize(multiplyStackSize(baseInputSizes[i], this.multiply));
-        }
+        this.inputs = multiplyStacks(inputs, this.multiply);
+        this.outputs = multiplyStacks(outputs, this.multiply);
         var list = new ItemList();
-        for (var i = 0; i < inputs.length; i++) {
-            var ii = inputs[i];
-            if (ii == null) continue;
-            inputs[i] = ii.copy();
-            list.addStorage(ii);
+        for (IAEItemStack input : this.inputs) {
+            if (input != null) list.addStorage(input);
         }
         condensedInputs = list.toArray(new IAEItemStack[0]);
-        for (var i = 0; i < outputs.length; i++) {
-            var output = outputs[i];
-            if (output == null) continue;
-            output.setStackSize(multiplyStackSize(baseOutputSizes[i], this.multiply));
-        }
+        pattern = createProcessingPattern(this.inputs, this.outputs);
+        patternKey = AEItemStack.create(pattern);
     }
 
-    private static IAEItemStack createPatternKey(ItemStack pattern) {
-        ItemStack forComparison = pattern.copy();
-        NBTTagCompound tag = forComparison.getTagCompound();
-        if (tag != null) {
-            tag.removeTag("author");
-            tag.removeTag("encodedAt");
+    private static IAEItemStack[] readInputs(ItemStack stack) {
+        if (!stack.hasTagCompound()) throw new IllegalArgumentException("No pattern here!");
+        IAEItemStack[] inputs = new IAEItemStack[81];
+        NBTTagList in = stack.getTagCompound()
+            .getTagList("in", Constants.NBT.TAG_COMPOUND);
+        if (in.tagCount() > inputs.length) throw new IllegalArgumentException("Too many pattern inputs!");
+        for (int i = 0; i < in.tagCount(); i++) {
+            inputs[i] = fromTagCreateAEItem(in.getCompoundTagAt(i));
         }
-        return AEItemStack.create(forComparison);
+        return inputs;
     }
 
-    private static IAEItemStack[] copyStacks(IAEItemStack[] stacks) {
-        IAEItemStack[] copy = stacks.clone();
-        for (var i = 0; i < copy.length; i++) {
-            if (copy[i] != null) {
-                copy[i] = copy[i].copy();
+    private static IAEItemStack[] readOutputs(ItemStack stack) {
+        if (!stack.hasTagCompound()) throw new IllegalArgumentException("No pattern here!");
+        return new IAEItemStack[] { fromTagCreateAEItem(
+            stack.getTagCompound()
+                .getCompoundTag("out")) };
+    }
+
+    private static ItemStack createProcessingPattern(IAEItemStack[] inputs, IAEItemStack[] outputs) {
+        ItemStack pattern = AEApi.instance()
+            .definitions()
+            .items()
+            .encodedUltimatePattern()
+            .maybeStack(1)
+            .get();
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setTag("in", writeStacks(inputs));
+        tag.setTag("out", writeStacks(outputs));
+        tag.setBoolean("crafting", false);
+        tag.setBoolean("substitute", false);
+        tag.setBoolean("beSubstitute", false);
+        pattern.setTagCompound(tag);
+        return pattern;
+    }
+
+    private static NBTTagList writeStacks(IAEItemStack[] stacks) {
+        NBTTagList list = new NBTTagList();
+        for (IAEItemStack stack : stacks) {
+            list.appendTag(stack == null ? new NBTTagCompound() : stack.toNBTGeneric());
+        }
+        return list;
+    }
+
+    private static IAEItemStack[] multiplyStacks(IAEStack<?>[] stacks, int multiply) {
+        IAEItemStack[] copy = new IAEItemStack[stacks.length];
+        for (int i = 0; i < stacks.length; i++) {
+            IAEItemStack stack = Platform.stackConvert(stacks[i]);
+            if (stacks[i] != null && stack == null) {
+                throw new IllegalArgumentException("Unsupported assembler pattern stack type!");
+            }
+            if (stack != null) {
+                copy[i] = stack.copy()
+                    .setStackSize(multiplyStackSize(stack.getStackSize(), multiply));
             }
         }
         return copy;
-    }
-
-    private static long[] captureStackSizes(IAEItemStack[] stacks) {
-        long[] sizes = new long[stacks.length];
-        for (var i = 0; i < stacks.length; i++) {
-            if (stacks[i] != null) {
-                sizes[i] = stacks[i].getStackSize();
-            }
-        }
-        return sizes;
     }
 
     private static long multiplyStackSize(long stackSize, int multiplier) {
@@ -132,9 +120,10 @@ public class DireCraftingPatternDetails implements ICraftingPatternDetails {
         return stackSize * multiplier;
     }
 
-    private static AEItemStack fromTagCreateAEItem(final NBTTagCompound i) {
-        if (ContainerDirePatternEncoder.empty.equals(i)) return null;
-        return AEItemStack.create(Platform.loadItemStackFromNBT(i));
+    private static IAEItemStack fromTagCreateAEItem(final NBTTagCompound tag) {
+        if (tag.hasNoTags()) return null;
+        if (tag.hasKey("Cnt")) return AEItemStack.loadItemStackFromNBT(tag);
+        return AEItemStack.create(Platform.loadItemStackFromNBT(tag));
     }
 
     @Override
@@ -153,23 +142,47 @@ public class DireCraftingPatternDetails implements ICraftingPatternDetails {
     }
 
     @Override
-    public IAEItemStack[] getInputs() {
+    public IAEItemStack[] getAEInputs() {
         return inputs;
     }
 
     @Override
-    public IAEItemStack[] getCondensedInputs() {
+    public IAEItemStack[] getCondensedAEInputs() {
         return condensedInputs;
     }
 
     @Override
-    public IAEItemStack[] getCondensedOutputs() {
+    public IAEItemStack[] getCondensedAEOutputs() {
         return outputs;
     }
 
     @Override
-    public IAEItemStack[] getOutputs() {
+    public IAEItemStack[] getAEOutputs() {
         return outputs;
+    }
+
+    @Deprecated
+    @Override
+    public IAEItemStack[] getInputs() {
+        return getAEInputs();
+    }
+
+    @Deprecated
+    @Override
+    public IAEItemStack[] getCondensedInputs() {
+        return getCondensedAEInputs();
+    }
+
+    @Deprecated
+    @Override
+    public IAEItemStack[] getCondensedOutputs() {
+        return getCondensedAEOutputs();
+    }
+
+    @Deprecated
+    @Override
+    public IAEItemStack[] getOutputs() {
+        return getAEOutputs();
     }
 
     @Override

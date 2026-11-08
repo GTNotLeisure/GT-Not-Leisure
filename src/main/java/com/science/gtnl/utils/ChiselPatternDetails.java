@@ -20,9 +20,8 @@ import appeng.api.storage.data.IAEItemStack;
 import appeng.util.item.AEItemStack;
 
 @Desugar
-public class ChiselPatternDetails implements ICraftingPatternDetails {
+public final class ChiselPatternDetails implements ICraftingPatternDetails {
 
-    // 我无法理解这个样板的作用，但是我写了，就这样
     private final ItemStack stack;
     private final IAEItemStack[] inputs, outputs;
 
@@ -33,22 +32,15 @@ public class ChiselPatternDetails implements ICraftingPatternDetails {
         stack = AEApi.instance()
             .definitions()
             .items()
-            .encodedPattern()
+            .encodedUltimatePattern()
             .maybeStack(1)
-            .orNull();
+            .get();
         final NBTTagCompound encodedValue = new NBTTagCompound();
 
-        final var in = input.getItemStack()
-            .writeToNBT(new NBTTagCompound());
-        in.setInteger("Count", 1);
-        final var out = output.getItemStack()
-            .writeToNBT(new NBTTagCompound());
-        out.setInteger("Count", 1);
-
         final NBTTagList tagIn = new NBTTagList();
-        tagIn.appendTag(in);
+        tagIn.appendTag(input.toNBTGeneric());
         final NBTTagList tagOut = new NBTTagList();
-        tagOut.appendTag(out);
+        tagOut.appendTag(output.toNBTGeneric());
 
         encodedValue.setTag("in", tagIn);
         encodedValue.setTag("out", tagOut);
@@ -62,6 +54,7 @@ public class ChiselPatternDetails implements ICraftingPatternDetails {
         @NotNull Collection<ChiselPatternDetails> patterns, int parallel) {
         if (input == null) return false;
         if (outputs == null || outputs.isEmpty()) return false;
+        parallel = Math.max(1, parallel);
         for (var itemStack : outputs) {
             var out = AEItemStack.create(itemStack);
             if (out != null && !MachineUtils.equlsItemStackAndAEItemStack(input, itemStack)) {
@@ -73,11 +66,6 @@ public class ChiselPatternDetails implements ICraftingPatternDetails {
             }
         }
         return true;
-    }
-
-    public void setParallel(int parallel) {
-        inputs[0].setStackSize(parallel);
-        outputs[0].setStackSize(parallel);
     }
 
     @Override
@@ -96,23 +84,48 @@ public class ChiselPatternDetails implements ICraftingPatternDetails {
     }
 
     @Override
-    public IAEItemStack[] getInputs() {
+    public IAEItemStack[] getAEInputs() {
         return inputs;
     }
 
+    @Override
+    public IAEItemStack[] getCondensedAEInputs() {
+        return inputs;
+    }
+
+    @Override
+    public IAEItemStack[] getCondensedAEOutputs() {
+        return outputs;
+    }
+
+    @Override
+    public IAEItemStack[] getAEOutputs() {
+        return outputs;
+    }
+
+    // Required by the current AE2 interface for legacy callers.
+    @Deprecated
+    @Override
+    public IAEItemStack[] getInputs() {
+        return getAEInputs();
+    }
+
+    @Deprecated
     @Override
     public IAEItemStack[] getCondensedInputs() {
-        return inputs;
+        return getCondensedAEInputs();
     }
 
+    @Deprecated
     @Override
     public IAEItemStack[] getCondensedOutputs() {
-        return outputs;
+        return getCondensedAEOutputs();
     }
 
+    @Deprecated
     @Override
     public IAEItemStack[] getOutputs() {
-        return outputs;
+        return getAEOutputs();
     }
 
     @Override

@@ -18,6 +18,10 @@ public class CelestweaveModuleItem extends EquipmentVariantItem<CelestweaveModul
 
     public CelestweaveModuleItem() {
         GTNLItemList.CelestweaveModule.set(new ItemStack(this));
+        for (CelestweaveModule module : CelestweaveModule.values()) {
+            GTNLItemList.CELESTWEAVE_MODULE[module.meta]
+                .set(GTNLItemList.CelestweaveModule.getWithDamage(1, module.meta));
+        }
     }
 
     @Override

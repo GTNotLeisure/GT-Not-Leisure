@@ -18,6 +18,7 @@ import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.api.layout.IViewport;
 import com.cleanroommc.modularui.api.layout.IViewportStack;
 import com.cleanroommc.modularui.api.widget.IDragResizeable;
+import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.drawable.UITexture;
 import com.cleanroommc.modularui.screen.RichTooltip;
@@ -178,14 +179,33 @@ public class YogTerminalPanel extends FloatingWindowPanel {
 
     @Override
     public boolean onKeyPressed(char character, int keyCode) {
+        if (hasForeignFocus()) return false;
         int mouseX = getContext().getAbsMouseX();
         int mouseY = getContext().getAbsMouseY();
         boolean closeKey = keyCode == Keyboard.KEY_ESCAPE
             || keyCode == Minecraft.getMinecraft().gameSettings.keyBindInventory.getKeyCode();
-        if (closeKey || !isMouseOver(mouseX, mouseY)) return super.onKeyPressed(character, keyCode);
+        if (closeKey || !isMouseOver(mouseX, mouseY)) {
+            boolean handled = super.onKeyPressed(character, keyCode);
+            if (!handled && closeKey
+                && !getScreen().isOverlay()
+                && getScreen().getPanelManager()
+                    .getTopMostPanel() == this
+                && !getContext().hasDraggable()) {
+                getScreen().getMainPanel()
+                    .closeIfOpen();
+                return true;
+            }
+            return handled;
+        }
         if (stackUnderMouse(mouseX, mouseY) != null) GuiContainerManager.getManager(inventory())
             .lastKeyTyped(keyCode, character);
         return true;
+    }
+
+    private boolean hasForeignFocus() {
+        IWidget focused = getContext().getFocusedWidget()
+            .getElement();
+        return focused != null && focused.isValid() && focused.getPanel() != this;
     }
 
     @Override

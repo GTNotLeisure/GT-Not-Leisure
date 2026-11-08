@@ -20,6 +20,7 @@ import com.science.gtnl.common.packet.CelestweaveKeyPacket;
 import com.science.gtnl.config.ItemConfig;
 
 import cpw.mods.fml.client.registry.ClientRegistry;
+import cpw.mods.fml.common.eventhandler.EventPriority;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -63,7 +64,7 @@ public class CelestweaveClientInput {
         if (backpack) ScienceNotLeisure.network.sendToServer(new CelestweaveKeyPacket(CelestweaveKeyPacket.BACKPACK));
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void playerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase != TickEvent.Phase.START || !(event.player instanceof EntityPlayerSP player)
             || player != Minecraft.getMinecraft().thePlayer) return;

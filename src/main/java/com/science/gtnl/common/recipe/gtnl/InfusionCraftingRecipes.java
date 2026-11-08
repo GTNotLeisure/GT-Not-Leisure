@@ -17,9 +17,11 @@ import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.TierEU;
 import gregtech.api.interfaces.IRecipeMap;
+import gregtech.api.objects.ItemData;
 import gregtech.api.objects.OreDictItemStack;
 import gregtech.api.recipe.RecipeMetadataKey;
 import gregtech.api.recipe.metadata.SimpleRecipeMetadataKey;
+import gregtech.api.util.GTOreDictUnificator;
 import thaumcraft.api.aspects.AspectList;
 
 public class InfusionCraftingRecipes implements IRecipePool {
@@ -39,23 +41,29 @@ public class InfusionCraftingRecipes implements IRecipePool {
     private static Object[] createInputs(TCRecipeTools.InfusionCraftingRecipe recipe) {
         ItemStack[] inputs = TCRecipeTools.checkInputSpecial(recipe.getInputItem());
         Object[] converted = TCRecipeTools.toGTInputs(inputs);
-        // Thaumcraft accepts pedestal items by ore name; only glass keeps that here, other components stay exact.
+        // Use registered ore identities for material components, preserving special inputs.
         for (int i = 1; i < inputs.length; i++) {
-            if (inputs[i] == null || inputs[i].stackSize <= 0) continue;
-            String glassOre = findGlassOreName(inputs[i]);
-            if (glassOre != null) converted[i] = new OreDictItemStack(glassOre, inputs[i].stackSize);
+            if (inputs[i] == null || inputs[i].stackSize <= 0 || inputs[i].hasTagCompound()) continue;
+            String oreName = findOreName(inputs[i]);
+            if (oreName != null) converted[i] = new OreDictItemStack(oreName, inputs[i].stackSize);
         }
         return converted;
     }
 
-    private static String findGlassOreName(ItemStack stack) {
+    private static String findOreName(ItemStack stack) {
         boolean plainPane = false;
         for (int oreId : OreDictionary.getOreIDs(stack)) {
             String oreName = OreDictionary.getOreName(oreId);
             if (TIERED_GLASS_ORES.contains(oreName)) return oreName;
             plainPane |= PLAIN_PANE_ORE.equals(oreName);
         }
-        return plainPane ? ANY_PANE_ORE : null;
+        if (plainPane) return ANY_PANE_ORE;
+
+        ItemData data = GTOreDictUnificator.getAssociation(stack);
+        if (data == null || !data.hasValidPrefixMaterialData()) return null;
+        String oreName = data.toString();
+        return OreDictionary.getOres(oreName, false)
+            .isEmpty() ? null : oreName;
     }
 
     @Override

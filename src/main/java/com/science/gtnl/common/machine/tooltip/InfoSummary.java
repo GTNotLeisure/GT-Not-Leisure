@@ -11,6 +11,16 @@ public record InfoSummary(String machineType, TooltipStats stats, List<TierBonus
     List<String> features, HeatRules heat, List<TierThreshold> perfectOverclockFrom, OptionalInt tierSkips,
     int pollution, List<List<String>> groups, boolean supportAny, boolean supportMultiAmp) {
 
+    public InfoSummary {
+        tierBonuses = List.copyOf(tierBonuses);
+        lines = List.copyOf(lines);
+        features = List.copyOf(features);
+        perfectOverclockFrom = List.copyOf(perfectOverclockFrom);
+        groups = groups.stream()
+            .map(List::copyOf)
+            .toList();
+    }
+
     public enum BonusStat {
         PARALLEL,
         SPEED,

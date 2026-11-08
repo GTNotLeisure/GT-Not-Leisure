@@ -27,7 +27,11 @@ public enum CelestweaveModuleSetting {
     REACH_LEVEL(CelestweaveModule.REACH, "Level", Format.LEVEL, 0, () -> 2, 0),
     REFLECT_PROJECTILE(CelestweaveModule.REFLECT, "Projectile", true),
     REFLECT_IGNITE(CelestweaveModule.REFLECT, "Ignite", true),
-    REFLECT_BLIND(CelestweaveModule.REFLECT, "Blind", true);
+    REFLECT_BLIND(CelestweaveModule.REFLECT, "Blind", true),
+    THAUMIC_RECHARGE(CelestweaveModule.THAUMIC, "Recharge", true),
+    THAUMIC_INVENTORY(CelestweaveModule.THAUMIC, "Inventory", false),
+    THAUMIC_CAPACITY(CelestweaveModule.THAUMIC, "Capacity", true),
+    THAUMIC_WARP_SUPPRESSION(CelestweaveModule.THAUMIC, "WarpSuppression", true);
 
     public enum Format {
         TOGGLE,

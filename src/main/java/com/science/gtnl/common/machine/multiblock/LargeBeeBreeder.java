@@ -8,6 +8,7 @@ import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 import static gregtech.api.enums.HatchElement.Energy;
 import static gregtech.api.enums.HatchElement.ExoticEnergy;
 import static gregtech.api.enums.HatchElement.InputBus;
+import static gregtech.api.enums.HatchElement.InputHatch;
 import static gregtech.api.enums.HatchElement.Maintenance;
 import static gregtech.api.enums.HatchElement.OutputBus;
 import static gregtech.api.enums.Textures.BlockIcons.OVERLAY_FRONT_DISTILLATION_TOWER;
@@ -20,6 +21,7 @@ import static gregtech.api.util.GTStructureUtility.chainAllGlasses;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,6 +38,9 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.fluids.Fluid;
+import net.minecraftforge.fluids.FluidContainerRegistry;
+import net.minecraftforge.fluids.FluidStack;
 
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -123,6 +128,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private byte activeOperation = OPERATION_NONE;
     private List<BreedingAttempt> activeBreedingBatch = new ArrayList<>();
     private final List<ItemStack> foundationInputs = new ArrayList<>();
+    private final Set<Fluid> foundationFluids = new HashSet<>();
     private final Map<String, ItemStack> foundationMatches = new HashMap<>();
     private long lastFoundationScanTick = Long.MIN_VALUE;
     private List<FoundationRequirement> missingFoundations = Collections.emptyList();
@@ -204,7 +210,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                     'H',
                     ofChain(
                         buildHatchAdder(LargeBeeBreeder.class)
-                            .atLeast(InputBus, OutputBus, Energy.or(ExoticEnergy), Maintenance)
+                            .atLeast(InputBus, OutputBus, InputHatch, Energy.or(ExoticEnergy), Maintenance)
                             .casingIndex(getCasingTextureID())
                             .hint(1)
                             .buildAndChain(),
@@ -602,6 +608,12 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
             copy.stackSize = 1;
             foundationInputs.add(copy);
         }
+        foundationFluids.clear();
+        for (FluidStack fluid : getStoredFluids()) {
+            if (fluid != null && fluid.amount >= FluidContainerRegistry.BUCKET_VOLUME && fluid.getFluid() != null) {
+                foundationFluids.add(fluid.getFluid());
+            }
+        }
         foundationMatches.clear();
         lastFoundationScanTick = mTotalRunTime;
         activeFoundationsChecked = false;
@@ -618,6 +630,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                     break;
                 }
             }
+            if (match == null) match = requirement.findFluidFoundation(foundationFluids);
             foundationMatches.put(key, match);
         }
         return foundationMatches.get(key);
@@ -792,6 +805,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         targetBeeSpecies = aNBT.getString("targetBeeSpecies");
         pendingPrincessOutputs = aNBT.getInteger("pendingPrincessOutputs");
         foundationInputs.clear();
+        foundationFluids.clear();
         foundationMatches.clear();
         lastFoundationScanTick = Long.MIN_VALUE;
         missingFoundations = Collections.emptyList();
@@ -854,8 +868,12 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     }
 
     private GTNLOverclockCalculator createBreedingOverclockCalculator(int extraOverclocks) {
-        int voltageUpgrades = Math.max(0, Math.min(getBreedingVoltageTier(), VoltageIndex.MAX) - BASE_VOLTAGE_TIER)
-            + extraOverclocks;
+        int voltageUpgrades = Math.max(0, Math.min(getBreedingVoltageTier(), VoltageIndex.MAX) - BASE_VOLTAGE_TIER);
+        long availablePower = Math.max(0L, getMaxInputPower()) >> getGlassUpgrades();
+        while (voltageUpgrades > 0 && (BASE_EUT_PER_BREEDING << (2 * voltageUpgrades)) > availablePower) {
+            voltageUpgrades--;
+        }
+        voltageUpgrades += extraOverclocks;
         return new GTNLOverclockCalculator().setRecipeEUt(BASE_EUT_PER_BREEDING)
             .setEUt(BASE_EUT_PER_BREEDING << (2 * voltageUpgrades))
             .setDuration(TICKS_PER_BREEDING)

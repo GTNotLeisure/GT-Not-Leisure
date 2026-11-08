@@ -17,9 +17,7 @@ import bartworks.system.material.WerkstoffLoader;
 import goodgenerator.items.GGMaterial;
 import gregtech.api.GregTechAPI;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.Mods;
 import gregtech.api.enums.OrePrefixes;
-import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTUtility;
 import gtnhlanth.common.register.WerkstoffMaterialPool;
@@ -232,7 +230,7 @@ public class CheatOreProcessingRecipes implements IRecipePool {
         ItemStack[] outputsRich = getOutputs(material, true);
 
         // registry normal stone ore
-        registryOreProcessRecipe(GTModHandler.getModItem(Mods.GregTech.ID, "gt.blockores", 1, ID), outputs);
+        registryOreProcessRecipe(new ItemStack(GregTechAPI.sBlockOres1, 1, ID), outputs);
 
         // registry gt stone ore
         for (OrePrefixes prefixes : basicStoneTypesExceptNormalStone) {

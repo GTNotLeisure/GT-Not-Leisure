@@ -39,6 +39,7 @@ import com.science.gtnl.common.gui.equipment.EquipmentContainer;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
 import com.science.gtnl.common.item.GTNLCreativeTabs;
 import com.science.gtnl.compat.holoinventory.HoloGlasses;
+import com.science.gtnl.compat.thaumcraft.CelestweaveVis;
 import com.science.gtnl.utils.enums.GTNLItemList;
 
 import cpw.mods.fml.common.Optional;
@@ -240,10 +241,11 @@ public class CelestweaveArmor extends ItemArmor implements IEquipmentElectricIte
 
     @Override
     public int getVisDiscount(ItemStack stack, EntityPlayer player, Aspect aspect) {
+        int discount = CelestweaveVis.discount(player, armorType, stack);
         ItemStack held = revealing(stack);
-        return held != null && held.getItem() instanceof IVisDiscountGear gear
-            ? gear.getVisDiscount(held, player, aspect)
-            : 0;
+        if (held != null && held.getItem() instanceof IVisDiscountGear gear)
+            discount += gear.getVisDiscount(held, player, aspect);
+        return discount;
     }
 
     @Override

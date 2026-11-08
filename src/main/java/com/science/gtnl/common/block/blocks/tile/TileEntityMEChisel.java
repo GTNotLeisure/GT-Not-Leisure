@@ -74,6 +74,9 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
             .setIdlePowerUsage(10);
         this.getProxy()
             .setValidSides(targets);
+        if (this.worldObj != null && !this.worldObj.isRemote) {
+            rebuildPatterns();
+        }
     }
 
     @MENetworkEventSubscribe
@@ -95,8 +98,12 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
     @Override
     public void onChangeInventory(IInventory inv, int slot, InvOperation invOperation, ItemStack removed,
         ItemStack added) {
-        if (!ChiselCompat.loaded()) return;
         if ((removed == null && added == null) || invOperation != InvOperation.setInventorySlotContents) return;
+        rebuildPatterns();
+    }
+
+    private void rebuildPatterns() {
+        if (!ChiselCompat.loaded()) return;
         patterns.clear();
         ItemStack s;
         if ((s = inv.getStackInSlot(0)) != null) {
@@ -123,17 +130,12 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
     }
 
     public void setParallel(int parallel) {
-        if (parallel < 1) parallel = 1;
+        parallel = Math.max(1, parallel);
+        if (this.parallel == parallel) return;
         this.parallel = parallel;
-        if (!this.worldObj.isRemote && inv.getStackInSlot(0) != null) {
-            for (var pattern : patterns) {
-                pattern.setParallel(this.parallel);
-            }
-            var n = this.getProxy()
-                .getNode();
-            if (n == null) return;
-            n.getGrid()
-                .postEvent(new MENetworkCraftingPatternChange(this, n));
+        if (this.worldObj != null && !this.worldObj.isRemote) {
+            rebuildPatterns();
+            markDirty();
         }
     }
 
@@ -152,9 +154,7 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
     @TileEvent(TileEventType.WORLD_NBT_READ)
     public void readCustomFromNBT(NBTTagCompound data) {
         this.parallel = Math.max(1, data.getInteger("parallel"));
-        for (var pattern : patterns) {
-            pattern.setParallel(this.parallel);
-        }
+        patterns.clear();
         this.cache.resetStatus();
         var list = data.getTagList("cacheItems", Constants.NBT.TAG_COMPOUND);
         for (var nbtBase : ((GTNLNBTTagList) list)) {
@@ -199,7 +199,11 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
 
     @Override
     public boolean pushPattern(ICraftingPatternDetails details, InventoryCrafting crafting) {
-        if (details.getCondensedInputs().length == 0 || details.getCondensedOutputs().length == 0) return false;
+        var inputs = details.getCondensedAEInputs();
+        var outputs = details.getCondensedAEOutputs();
+        if (inputs.length == 0 || outputs.length == 0
+            || !(inputs[0] instanceof IAEItemStack patternInput)
+            || !(outputs[0] instanceof IAEItemStack patternOutput)) return false;
         if (!(crafting instanceof LargeInventoryCrafting largeInventory)) {
             ScienceNotLeisure.LOG.error("ME Chisel received a crafting inventory without long batch metadata");
             return false;
@@ -210,20 +214,20 @@ public class TileEntityMEChisel extends AENetworkInvTile implements IInterfaceHo
             return false;
         }
 
-        var inputD = details.getCondensedInputs()[0].getItemStack();
+        var inputD = patternInput.getItemStack();
         for (var i = 0; i < crafting.getSizeInventory(); i++) {
             var input = crafting.getStackInSlot(i);
             if (input == null) continue;
             if (inputD.isItemEqual(input)) {
                 long outputAmount;
                 try {
-                    outputAmount = Math.multiplyExact(details.getCondensedOutputs()[0].getStackSize(), crafts);
+                    outputAmount = Math.multiplyExact(patternOutput.getStackSize(), crafts);
                 } catch (ArithmeticException exception) {
                     ScienceNotLeisure.LOG
                         .error("ME Chisel output overflowed after an accepted AE batch plan", exception);
                     return false;
                 }
-                var out = details.getCondensedOutputs()[0].copy()
+                var out = patternOutput.copy()
                     .setStackSize(outputAmount);
                 ExactStackCacheCommit.Result result = CACHE_COMMIT
                     .commit(out, new ExactStackCacheCommit.StackCache<>() {

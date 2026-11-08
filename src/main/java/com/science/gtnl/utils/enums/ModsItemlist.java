@@ -549,6 +549,11 @@ public enum ModsItemlist {
     ForestryAlvearyStabilizer(Mods.Forestry.ID, "alveary", 6),
     // 蜂蜡
     ForestryBeeswax(Mods.Forestry.ID, "beeswax", 0),
+    // Apiarist armor accepts any durability.
+    ForestryApiaristHelmet(Mods.Forestry.ID, "apiaristHelmet", OreDictionary.WILDCARD_VALUE),
+    ForestryApiaristChest(Mods.Forestry.ID, "apiaristChest", OreDictionary.WILDCARD_VALUE),
+    ForestryApiaristLegs(Mods.Forestry.ID, "apiaristLegs", OreDictionary.WILDCARD_VALUE),
+    ForestryApiaristBoots(Mods.Forestry.ID, "apiaristBoots", OreDictionary.WILDCARD_VALUE),
     // 农场齿轮箱
     ForestryFarmGearbox(Mods.Forestry.ID, "ffarm", 2),
     // 农场水阀
@@ -692,6 +697,12 @@ public enum ModsItemlist {
     IC2ItemPartCircuitAdv(Mods.IndustrialCraft2.ID, "itemPartCircuitAdv", 0),
     // 加厚中子反射板
     IC2ThickNeutronReflector(Mods.IndustrialCraft2.ID, "reactorReflectorThick", 1),
+    // Equipment recipe inputs accept any charge or durability.
+    IC2NightvisionGoggles(Mods.IndustrialCraft2.ID, "itemNightvisionGoggles", OreDictionary.WILDCARD_VALUE),
+    IC2HazmatHelmet(Mods.IndustrialCraft2.ID, "itemArmorHazmatHelmet", OreDictionary.WILDCARD_VALUE),
+    IC2HazmatChestplate(Mods.IndustrialCraft2.ID, "itemArmorHazmatChestplate", OreDictionary.WILDCARD_VALUE),
+    IC2HazmatLeggings(Mods.IndustrialCraft2.ID, "itemArmorHazmatLeggings", OreDictionary.WILDCARD_VALUE),
+    IC2RubberBoots(Mods.IndustrialCraft2.ID, "itemArmorRubBoots", OreDictionary.WILDCARD_VALUE),
 
     // 铁箱子
     IronChestsBlockIronChest(Mods.IronChests.ID, "BlockIronChest", 0),
@@ -921,6 +932,8 @@ public enum ModsItemlist {
     ThaumcraftMixedCrystal(Mods.Thaumcraft.ID, "blockCrystal", 6),
     // 符文矩阵
     ThaumcraftRunicMatrix(Mods.Thaumcraft.ID, "blockStoneDevice", 2),
+    // Crucible
+    ThaumcraftCrucible(Mods.Thaumcraft.ID, "blockMetalDevice", 0),
     // 奥术工作台
     ThaumcraftArcaneWorkbench(Mods.Thaumcraft.ID, "blockTable", 15),
 

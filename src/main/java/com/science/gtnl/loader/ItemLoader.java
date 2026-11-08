@@ -87,7 +87,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class ItemLoader {
 
-    // Must stay the first field: the item fields below register through it while the class initializes.
     public static final Registrar ITEMS = new Registrar(
         "gtnl.",
         ScienceNotLeisure.RESOURCE_ROOT_ID,

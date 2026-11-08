@@ -256,7 +256,12 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
     }
 
     public void setPatternMultiply(int patternMultiply) {
+        if (getPatternMultiply() == Math.max(1, patternMultiply)) return;
         patternState.setPatternMultiply(patternMultiply);
+        if (getBaseMetaTileEntity() != null && getBaseMetaTileEntity().isServerSide()) {
+            upPatterns();
+            getBaseMetaTileEntity().markDirty();
+        }
     }
 
     public int getPatternMultiply() {
@@ -400,7 +405,7 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
         mCountSingularityCrafterCasing = aNBT.getInteger("mCountSingularityCrafterCasing");
         mCountCrafterCasing = aNBT.getInteger("mCountCrafterCasing");
         mCountPatternCasing = aNBT.getInteger("mCountPatternCasing");
-        setPatternMultiply(aNBT.getInteger("patternMultiply"));
+        patternState.setPatternMultiply(aNBT.getInteger("patternMultiply"));
         mMaxParallelLong = aNBT.getLong("mMaxParallelLong");
         wirelessMode = aNBT.getBoolean("wirelessMode");
         if (aNBT.hasKey("showPattern")) showPattern = aNBT.getBoolean("showPattern");
@@ -477,9 +482,9 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
             var d = AssemblerMatrixPatternState.decodePattern(
                 newStack,
                 this.getBaseMetaTileEntity()
-                    .getWorld());
+                    .getWorld(),
+                getPatternMultiply());
             if (d == null) continue;
-            d.setMultiply(getPatternMultiply());
             patternState.addPattern(newStack, d);
         }
         try {
@@ -641,12 +646,12 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
                     var d = AssemblerMatrixPatternState.decodePattern(
                         input,
                         this.getBaseMetaTileEntity()
-                            .getWorld());
+                            .getWorld(),
+                        getPatternMultiply());
                     if (d == null) continue;
                     ItemStack pattern = input.copy();
                     pattern.stackSize = 1;
                     inventory.setInventorySlotContents(slot, pattern);
-                    d.setMultiply(getPatternMultiply());
                     patternState.addPattern(pattern, d);
                     input.stackSize--;
                     updated = true;

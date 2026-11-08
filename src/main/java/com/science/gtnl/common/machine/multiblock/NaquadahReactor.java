@@ -641,6 +641,8 @@ public abstract class NaquadahReactor<T extends NaquadahReactor<T>> extends Mult
         public boolean isRenderActive = false;
         public float rotation = 0;
 
+        private boolean structurePiecesValid;
+
         public AdvancedHyperNaquadahReactor(int aID, String aName, String aNameRegional) {
             super(aID, aName, aNameRegional);
         }
@@ -803,6 +805,7 @@ public abstract class NaquadahReactor<T extends NaquadahReactor<T>> extends Mult
         public void checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack,
             List<StructureError> errors) {
             wirelessMode = false;
+            structurePiecesValid = false;
             if (isRenderActive) {
                 if (!checkPiece(STRUCTURE_PIECE_MAIN, HORIZONTAL_OFF_SET, VERTICAL_OFF_SET, DEPTH_OFF_SET, errors)
                     || !checkPiece(
@@ -811,7 +814,6 @@ public abstract class NaquadahReactor<T extends NaquadahReactor<T>> extends Mult
                         VERTICAL_OFF_SET_SPHERE,
                         DEPTH_OFF_SET_SPHERE,
                         errors)) {
-                    buildSphere();
                     return;
                 }
             } else if (!checkPiece(STRUCTURE_PIECE_MAIN, HORIZONTAL_OFF_SET, VERTICAL_OFF_SET, DEPTH_OFF_SET, errors)
@@ -824,18 +826,25 @@ public abstract class NaquadahReactor<T extends NaquadahReactor<T>> extends Mult
                         return;
                     }
 
+            structurePiecesValid = true;
             checkCasingMin(errors, mCountCasing, 50);
             checkHatchMax(errors, HatchElement.Maintenance, 1);
 
-            if (!isRenderActive && enableRender && mTotalRunTime > 0) {
+            if (mDynamoHatches.isEmpty() && mExoticDynamoHatches.isEmpty()) wirelessMode = true;
+        }
+
+        @Override
+        protected void onStructureCheckFinished(IGregTechTileEntity base) {
+            super.onStructureCheckFinished(base);
+            if (!structurePiecesValid) {
+                if (isRenderActive) buildSphere();
+            } else if (!isRenderActive && enableRender && mTotalRunTime > 0) {
                 destroySphere();
             } else if (isRenderActive && !enableRender) {
                 buildSphere();
             }
 
-            getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
-
-            if (mDynamoHatches.isEmpty() && mExoticDynamoHatches.isEmpty()) wirelessMode = true;
+            base.sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
         }
 
         @Override

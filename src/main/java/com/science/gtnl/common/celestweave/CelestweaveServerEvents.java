@@ -295,10 +295,17 @@ public class CelestweaveServerEvents {
     @SubscribeEvent
     public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
         CelestweaveEnergy.flush(event.player);
+        Tracked tracked = TRACKED.remove(event.player);
+        if (tracked != null) {
+            for (int piece = 0; piece < CelestweaveArmor.PIECES; piece++) {
+                CelestweaveContext ctx = new CelestweaveContext(event.player, piece, tracked.stacks[piece], 0);
+                for (CelestweaveModule module : tracked.modules[piece]) CelestweaveBehaviors.of(module)
+                    .unequip(ctx);
+            }
+        }
         CelestweaveReach.forget(event.player);
         CelestweaveBehaviors.forget(event.player);
         CelestweaveFlight.forget(event.player);
-        TRACKED.remove(event.player);
         if (event.player instanceof EntityPlayerMP player) CelestweaveDash.forget(player);
     }
 

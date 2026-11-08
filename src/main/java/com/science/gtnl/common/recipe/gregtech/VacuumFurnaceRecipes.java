@@ -10,7 +10,6 @@ import com.science.gtnl.config.RecipeConfig;
 import com.science.gtnl.utils.recipes.RecipeBuilder;
 
 import bartworks.system.material.WerkstoffLoader;
-import goodgenerator.items.GGMaterial;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TierEU;
@@ -31,13 +30,12 @@ public class VacuumFurnaceRecipes implements IRecipePool {
             .circuit(1)
             .itemOutputs(
                 GTOreDictUnificator.get(OrePrefixes.dust, Materials.NaquadahEnriched, 64),
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.NaquadahEnriched, 64),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.NaquadahEnriched, 32),
                 GTOreDictUnificator.get(OrePrefixes.dust, Materials.Naquadah, 64),
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Naquadah, 32),
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Naquadria, 64),
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Indium, 64),
-                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Trinium, 32),
-                GGMaterial.extremelyUnstableNaquadah.get(OrePrefixes.dust, 2))
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Naquadria, 48),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Adamantium, 64),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Indium, 48),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Trinium, 32))
             .fluidInputs(new FluidStack(MilledOre.NaquadahEnrichedFlotationFroth, 4000))
             .fluidOutputs(new FluidStack(GTPPFluids.RedMud, 200), Materials.Water.getFluid(2000))
             .eut(TierEU.RECIPE_ZPM)

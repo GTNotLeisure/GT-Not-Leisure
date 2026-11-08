@@ -13,6 +13,7 @@ import net.minecraft.world.World;
 import com.github.bsideup.jabel.Desugar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.api.mixinHelper.LargeInventoryCrafting;
+import com.science.gtnl.common.item.items.DireCraftPattern;
 import com.science.gtnl.utils.DireCraftingPatternDetails;
 
 import appeng.api.implementations.ICraftingPatternItem;
@@ -48,10 +49,6 @@ public class AssemblerMatrixPatternState {
 
     public void setPatternMultiply(int patternMultiply) {
         this.patternMultiply = Math.max(1, patternMultiply);
-        for (DireCraftingPatternDetails pattern : patterns.values()) {
-            pattern.setMultiply(this.patternMultiply);
-        }
-        rebuildPossibleOutputs();
     }
 
     public void addPattern(ItemStack stack, DireCraftingPatternDetails details) {
@@ -75,27 +72,30 @@ public class AssemblerMatrixPatternState {
         DireCraftingPatternDetails details = decodePattern(
             newStack,
             machine.getBaseMetaTileEntity()
-                .getWorld());
+                .getWorld(),
+            patternMultiply);
         if (details != null) {
-            details.setMultiply(patternMultiply);
             addPattern(newStack, details);
             changed = true;
         }
         return changed;
     }
 
-    public static DireCraftingPatternDetails decodePattern(ItemStack stack, World world) {
+    public static DireCraftingPatternDetails decodePattern(ItemStack stack, World world, int multiply) {
         if (world == null || stack == null || !(stack.getItem() instanceof ICraftingPatternItem patternItem)) {
             return null;
         }
         NBTTagCompound tag = stack.getTagCompound();
         if (tag != null) tag.removeTag(INVALID_PATTERN_TAG);
 
-        ICraftingPatternDetails pattern = patternItem.getPatternForItem(stack, world);
-        if (pattern != null && pattern.isCraftable()) {
-            pattern = new DireCraftingPatternDetails(pattern);
+        if (patternItem instanceof DireCraftPattern direPatternItem) {
+            return direPatternItem.getPatternForItem(stack, world, multiply);
         }
-        return pattern instanceof DireCraftingPatternDetails details ? details : null;
+        ICraftingPatternDetails pattern = patternItem.getPatternForItem(stack, world);
+        if (pattern != null && (pattern.isCraftable() || pattern instanceof DireCraftingPatternDetails)) {
+            return new DireCraftingPatternDetails(pattern, multiply);
+        }
+        return null;
     }
 
     public AcceptedBatch prepareBatch(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
@@ -115,7 +115,7 @@ public class AssemblerMatrixPatternState {
 
         ObjectArrayList<IAEItemStack> batchInputs = new ObjectArrayList<>();
         ObjectArrayList<IAEItemStack> batchOutputs = new ObjectArrayList<>();
-        IAEItemStack[] patternInputs = direPattern.getInputs();
+        IAEItemStack[] patternInputs = direPattern.getAEInputs();
         try {
             for (int slot = 0; slot < table.getSizeInventory(); slot++) {
                 ItemStack stack = table.getStackInSlot(slot);
@@ -131,7 +131,7 @@ public class AssemblerMatrixPatternState {
                     }
                 }
             }
-            for (IAEItemStack output : patternDetails.getCondensedOutputs()) {
+            for (IAEItemStack output : direPattern.getCondensedAEOutputs()) {
                 if (output == null) continue;
                 batchOutputs.add(
                     output.copy()
@@ -155,7 +155,7 @@ public class AssemblerMatrixPatternState {
     }
 
     private void addPossibleOutputs(DireCraftingPatternDetails details) {
-        for (IAEItemStack output : details.getCondensedOutputs()) {
+        for (IAEItemStack output : details.getCondensedAEOutputs()) {
             if (output != null) {
                 possibleOutputs.add(output);
             }

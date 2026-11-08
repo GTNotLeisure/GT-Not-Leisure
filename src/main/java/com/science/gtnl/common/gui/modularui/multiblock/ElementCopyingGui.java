@@ -134,15 +134,16 @@ public class ElementCopyingGui extends GTNLMultiBlockBaseGui<ElementCopying> {
 
     private Widget<?> createEntryButton(ElementCopyingEntry entry, PanelSyncManager syncManager) {
         if (entry instanceof ItemCopyingEntry itemEntry) {
-            return createItemEntryButton(itemEntry, getItemSelectionSyncer(syncManager));
+            return createItemEntryButton(itemEntry, getItemSelectionSyncer(syncManager), syncManager);
         }
         if (entry instanceof FluidCopyingEntry fluidEntry) {
-            return createFluidEntryButton(fluidEntry, getFluidSelectionSyncer(syncManager));
+            return createFluidEntryButton(fluidEntry, getFluidSelectionSyncer(syncManager), syncManager);
         }
         return new ParentWidget<>().size(ENTRY_BUTTON_SIZE);
     }
 
-    private Widget<?> createItemEntryButton(ItemCopyingEntry entry, GenericListSyncHandler<ItemCopyingEntry> syncer) {
+    private Widget<?> createItemEntryButton(ItemCopyingEntry entry, GenericListSyncHandler<ItemCopyingEntry> syncer,
+        PanelSyncManager syncManager) {
         ItemStack stack = entry.itemId()
             .toStack(1);
         return createSelectionButton(
@@ -153,11 +154,12 @@ public class ElementCopyingGui extends GTNLMultiBlockBaseGui<ElementCopying> {
                 .size(ENTRY_BUTTON_SIZE),
             () -> syncer.getValue()
                 .contains(entry),
-            () -> toggleEntry(syncer, entry)).tooltipBuilder(tooltip -> tooltip.addLine(stack.getDisplayName()));
+            () -> toggleEntry(syncer, entry),
+            syncManager).tooltipBuilder(tooltip -> tooltip.addLine(stack.getDisplayName()));
     }
 
-    private Widget<?> createFluidEntryButton(FluidCopyingEntry entry,
-        GenericListSyncHandler<FluidCopyingEntry> syncer) {
+    private Widget<?> createFluidEntryButton(FluidCopyingEntry entry, GenericListSyncHandler<FluidCopyingEntry> syncer,
+        PanelSyncManager syncManager) {
         FluidStack stack = entry.fluidId()
             .getFluidStack();
         return createSelectionButton(
@@ -168,17 +170,22 @@ public class ElementCopyingGui extends GTNLMultiBlockBaseGui<ElementCopying> {
                 .size(ENTRY_BUTTON_SIZE),
             () -> syncer.getValue()
                 .contains(entry),
-            () -> toggleEntry(syncer, entry)).tooltipBuilder(tooltip -> tooltip.addLine(stack.getLocalizedName()));
+            () -> toggleEntry(syncer, entry),
+            syncManager).tooltipBuilder(tooltip -> tooltip.addLine(stack.getLocalizedName()));
     }
 
-    private ButtonWidget<?> createSelectionButton(IWidget icon, SelectedState selectedState, Runnable toggleSelection) {
+    private ButtonWidget<?> createSelectionButton(IWidget icon, SelectedState selectedState, Runnable toggleSelection,
+        PanelSyncManager syncManager) {
         return new ButtonWidget<>().size(ENTRY_BUTTON_SIZE)
             .background(
                 new DynamicDrawable(
                     () -> selectedState.isSelected() ? GTGuiTextures.BUTTON_STANDARD_PRESSED
                         : GTGuiTextures.BUTTON_STANDARD))
             .child(icon)
-            .syncHandler(new InteractionSyncHandler().setOnMousePressed(mouseData -> toggleSelection.run()))
+            .syncHandler(new InteractionSyncHandler().setOnMousePressed(mouseData -> {
+                if (syncManager.isClient()) return;
+                toggleSelection.run();
+            }))
             .tooltipShowUpTimer(TOOLTIP_DELAY);
     }
 

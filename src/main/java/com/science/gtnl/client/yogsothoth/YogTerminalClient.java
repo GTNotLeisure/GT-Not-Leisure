@@ -19,6 +19,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.play.client.C0BPacketEntityAction;
+import net.minecraft.world.World;
 import net.minecraftforge.client.event.GuiScreenEvent.InitGuiEvent;
 import net.minecraftforge.client.event.MouseEvent;
 import net.minecraftforge.common.util.Constants.NBT;
@@ -63,7 +64,9 @@ public class YogTerminalClient {
     private static final Map<UUID, View> VIEWS = new Object2ObjectOpenHashMap<>();
     private static final Map<UUID, Assembly> ASSEMBLIES = new Object2ObjectOpenHashMap<>();
     private static final int USE_RETRY_TICKS = 20;
+    private static final int SYNC_INTERVAL_TICKS = 20;
     private static NetHandlerPlayClient connection;
+    private static int syncTicks;
     private static YogTerminalPanel window;
     private static UUID selected;
     private static long nextWheel;
@@ -74,6 +77,8 @@ public class YogTerminalClient {
     private static volatile int sessionIndex = -1;
     private static long modifications;
     private static List<Token> tokensCache;
+    private static EntityPlayer cachePlayer;
+    private static World cacheWorld;
     private static List<Token> windowCache;
     private static List<Token> windowSource;
     private static long tokensTime;
@@ -188,6 +193,13 @@ public class YogTerminalClient {
             .removeIf(id -> !carried.contains(id) && !id.equals(sessionRecord))) modifications++;
     }
 
+    private static void requestMissingViews() {
+        Set<UUID> requested = new ObjectOpenHashSet<>();
+        for (Token token : tokens()) {
+            if (token.view() == null && requested.add(token.id())) requestSync(token);
+        }
+    }
+
     static View view(UUID id) {
         return id == null ? null : VIEWS.get(id);
     }
@@ -210,6 +222,7 @@ public class YogTerminalClient {
 
     private static List<YogBaublesView.Entry> carriedEntries(EntityPlayer player, InventoryBaubles baubles) {
         if (player != Minecraft.getMinecraft().thePlayer) return Collections.emptyList();
+        checkCacheContext(player);
         long time = player.worldObj.getTotalWorldTime();
         if (entriesCache != null && entriesTime == time
             && entriesModifications == modifications
@@ -265,6 +278,7 @@ public class YogTerminalClient {
     }
 
     private static void checkConnection() {
+        checkCacheContext(Minecraft.getMinecraft().thePlayer);
         NetHandlerPlayClient current = Minecraft.getMinecraft()
             .getNetHandler();
         if (connection == current) return;
@@ -272,8 +286,8 @@ public class YogTerminalClient {
         VIEWS.clear();
         ASSEMBLIES.clear();
         modifications++;
-        tokensCache = null;
-        entriesCache = null;
+        syncTicks = 0;
+        invalidateCaches();
         if (window != null) window.detach();
         window = null;
         selected = null;
@@ -285,6 +299,22 @@ public class YogTerminalClient {
         YogTerminalLocks.clearClient();
     }
 
+    private static void checkCacheContext(EntityPlayer player) {
+        World world = player == null ? null : player.worldObj;
+        if (cachePlayer == player && cacheWorld == world) return;
+        cachePlayer = player;
+        cacheWorld = world;
+        invalidateCaches();
+    }
+
+    private static void invalidateCaches() {
+        tokensCache = null;
+        windowCache = null;
+        windowSource = null;
+        entriesCache = null;
+        entriesBaubles = null;
+    }
+
     record Token(UUID id, int generation, int location, ItemStack stack, boolean disguised) {
 
         View view() {
@@ -294,6 +324,7 @@ public class YogTerminalClient {
 
     static List<Token> tokens() {
         Minecraft mc = Minecraft.getMinecraft();
+        checkCacheContext(mc.thePlayer);
         if (mc.thePlayer == null) return Collections.emptyList();
         long time = mc.thePlayer.worldObj.getTotalWorldTime();
         if (tokensCache == null || tokensTime != time || tokensModifications != modifications) {
@@ -466,7 +497,14 @@ public class YogTerminalClient {
         if (pendingUse != null) tryUse();
         trackSessionScreen(mc);
         trackWheelHold(mc);
-        if (mc.thePlayer != null && mc.thePlayer.ticksExisted % 200 == 0) pruneViews();
+        if (mc.thePlayer != null) {
+            if (++syncTicks >= SYNC_INTERVAL_TICKS) {
+                syncTicks = 0;
+                requestMissingViews();
+            }
+            // A newly spawned player's inventory can still be waiting for its first synchronization.
+            if (mc.thePlayer.ticksExisted > 0 && mc.thePlayer.ticksExisted % 200 == 0) pruneViews();
+        }
         boolean creative = mc.currentScreen instanceof GuiContainerCreative;
         if (creative != creativeScreen && mc.thePlayer != null) {
             creativeScreen = creative;

@@ -43,8 +43,7 @@ public class ResearchCenterGui extends MTEMultiBlockBaseGui<ResearchCenter> {
         for (int i = 0; i < 4; i++) {
             row.child(
                 new PhantomItemSlot().slot(new ModularSlot(multiblock.gtnl$getResearchMarkerInventoryHandler(), i))
-                    .background(GTGuiTextures.SLOT_ITEM_STANDARD)
-                    .backgroundOverlay(GTGuiTextures.OVERLAY_SLOT_FILTER)
+                    .background(GTGuiTextures.SLOT_ITEM_STANDARD, GTGuiTextures.OVERLAY_SLOT_FILTER)
                     .size(18, 18));
         }
         return row;

@@ -26,6 +26,15 @@ public class YogBaublesView extends InventoryBaubles {
 
     private static BiFunction<EntityPlayer, InventoryBaubles, List<? extends Entry>> clientEntries;
 
+    /*
+     * TODO: When updating Baubles, delegate all dynamic slot queries and mutations to this inventory.
+     * In MixinBaublesApiYogTerminal, unwrap getBaubleSlots results to delegate (use an optional
+     * require = 0 injection while supporting older Baubles). Inherited dynamic methods otherwise
+     * mutate this temporary view; virtual terminal entries must never become persistent slots.
+     * Also delegate IBaubleRenderInventory visibility for real slots and unwrap getBaubleRenders;
+     * virtual entries need their own visibility policy rather than inherited temporary render state.
+     * Delegate IBaubleCosmeticInventory storage and unwrap getBaubleCosmetics for the same reason.
+     */
     private final InventoryBaubles delegate;
 
     private YogBaublesView(EntityPlayer player, InventoryBaubles delegate) {

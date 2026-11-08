@@ -1,5 +1,7 @@
 package com.science.gtnl.common.recipe.gregtech;
 
+import static gregtech.api.util.GTRecipeBuilder.INGOTS;
+import static gregtech.api.util.GTRecipeBuilder.SECONDS;
 import static gregtech.api.util.GTRecipeConstants.PRECISE_ASSEMBLER_CASING_TIER;
 
 import com.science.gtnl.api.IRecipePool;
@@ -179,6 +181,42 @@ public class PreciseAssemblerRecipes implements IRecipePool {
             .duration(40)
             .eut(TierEU.RECIPE_UV)
             .metadata(PRECISE_ASSEMBLER_CASING_TIER, 2)
+            .addTo(PAR);
+        loadCelestweaveRecipes();
+    }
+
+    private void loadCelestweaveRecipes() {
+        RecipeBuilder.builder()
+            .itemInputs(
+                GTOreDictUnificator.get(OrePrefixes.plateDouble, Materials.Naquadria, 4),
+                ItemRefer.HiC_T2.get(12),
+                ItemList.Field_Generator_LuV.get(2),
+                ItemList.Electric_Motor_ZPM.get(2))
+            .fluidInputs(
+                Materials.SolderingAlloy.getMolten(8 * INGOTS),
+                Materials.Neutronium.getMolten(20 * INGOTS),
+                Materials.Tritanium.getMolten(10 * INGOTS))
+            .itemOutputs(GTNLItemList.CelestweaveModuleFlight.get(1))
+            .duration(60 * SECONDS)
+            .eut(TierEU.RECIPE_ZPM)
+            .metadata(PRECISE_ASSEMBLER_CASING_TIER, 2)
+            .addTo(PAR);
+
+        RecipeBuilder.builder()
+            .itemInputs(
+                GTOreDictUnificator.get(OrePrefixes.plateDouble, Materials.Naquadria, 4),
+                ItemRefer.HiC_T3.get(8),
+                ItemList.Emitter_ZPM.get(4),
+                ItemList.Field_Generator_ZPM.get(2))
+            .fluidInputs(
+                Materials.SolderingAlloy.getMolten(16 * INGOTS),
+                GGMaterial.artheriumSn.getMolten(20 * INGOTS),
+                Materials.Neutronium.getMolten(20 * INGOTS),
+                Materials.CosmicNeutronium.getMolten(20 * INGOTS))
+            .itemOutputs(GTNLItemList.CelestweaveModuleShield.get(1))
+            .duration(90 * SECONDS)
+            .eut(TierEU.RECIPE_ZPM)
+            .metadata(PRECISE_ASSEMBLER_CASING_TIER, 3)
             .addTo(PAR);
     }
 }

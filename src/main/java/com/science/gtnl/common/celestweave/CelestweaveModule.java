@@ -11,6 +11,7 @@ import com.science.gtnl.common.equipment.MetaLookup;
 import com.science.gtnl.common.item.items.armor.CelestweaveArmor;
 import com.science.gtnl.common.item.items.equipment.CelestweaveModuleItem;
 import com.science.gtnl.compat.holoinventory.HoloGlasses;
+import com.science.gtnl.compat.thaumcraft.CelestweaveThaumcraft;
 
 import thaumcraft.api.IGoggles;
 import thaumcraft.api.nodes.IRevealer;
@@ -34,7 +35,8 @@ public enum CelestweaveModule implements IEquipmentVariant {
     FLIGHT(13, Mask.LEGS, Trait.HIDEABLE, null, () -> new CelestweaveFlight()),
     WALK_ASSIST(14, Mask.BOOTS, () -> new CelestweaveBehaviors.WalkAssist()),
     DASH(15, Mask.BOOTS),
-    DIG_AFFINITY(16, Mask.BOOTS);
+    DIG_AFFINITY(16, Mask.BOOTS),
+    THAUMIC(17, Mask.CHEST, CelestweaveThaumcraft::new);
 
     public static class Mask {
 

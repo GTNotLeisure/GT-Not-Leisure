@@ -172,7 +172,12 @@ public class RocketAssembler extends GTMMultiMachineBase<RocketAssembler>
         setupParameters();
         checkHatch(errors);
         checkCasingMin(errors, mCountCasing, 1);
-        getBaseMetaTileEntity().sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
+    }
+
+    @Override
+    protected void onStructureCheckFinished(IGregTechTileEntity base) {
+        super.onStructureCheckFinished(base);
+        base.sendBlockEvent(GregTechTileClientEvents.CHANGE_CUSTOM_DATA, getUpdateData());
     }
 
     @Override

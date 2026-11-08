@@ -129,6 +129,13 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.WirelessCraftingTerminal)),
 
+    YOG_SOTHOTH_TERMINAL_BOGO(new MixinBuilder("Yog-Sothoth terminal network amount tooltips")
+        .addCommonMixins("inventoryBogoSorter.MixinAe2AmountServiceYogTerminal")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.InventoryBogoSorter)
+        .addRequiredMod(ModList.AppliedEnergistics)
+        .addRequiredMod(ModList.Baubles)),
+
     FLOATING_WINDOW_MODULAR_UI(new MixinBuilder("Floating window ModularUI hover blocking")
         .addClientMixins("modularUI.MixinFloatingWindowModularGui")
         .setPhase(Phase.LATE)),
@@ -257,6 +264,10 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.ThaumicEnergistics)),
 
+    THAUMCRAFT_CELESTWEAVE(new MixinBuilder("Celestweave wand capacity compatibility")
+        .addCommonMixins("thaumcraft.MixinItemWandCastingCelestweave")
+        .setPhase(Phase.LATE)),
+
     THAUMCRAFT_CLIENT(
         new MixinBuilder("Thaumcraft client compatibility mixins").addClientMixins("thaumcraft.MixinTileJarRenderer")
             .setPhase(Phase.LATE)
@@ -376,6 +387,10 @@ public enum Mixins implements IMixins {
         .addCommonMixins("stick.MixinTooltipHandlerWaila", "stick.MixinOreDictTooltipHandler")
         .setPhase(Phase.LATE)
         .setApplyIf(() -> ItemConfig.stick.enableStickItem)),
+
+    STRUCTURE_BOUNDS(
+        new MixinBuilder("Multiblock structure bounds").addCommonMixins("gregtech.MixinStructureCenterWalker")
+            .setPhase(Phase.LATE)),
 
     AUTO_STRUCTURE_TOOLTIP(new MixinBuilder("Automatic multiblock structure tooltips")
         .addCommonMixins(

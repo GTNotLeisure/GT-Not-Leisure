@@ -57,8 +57,7 @@ public class SuperVoidBusGui extends MTEHatchBaseGui<SuperVoidBus> {
                 SLOT_COLUMNS,
                 SLOT_ROWS,
                 ($x, $y, index) -> new PhantomItemSlot().slot(new ModularSlot(lockedInventoryHandler, index))
-                    .background(GTGuiTextures.SLOT_ITEM_STANDARD)
-                    .backgroundOverlay(GTGuiTextures.OVERLAY_SLOT_FILTER));
+                    .background(GTGuiTextures.SLOT_ITEM_STANDARD, GTGuiTextures.OVERLAY_SLOT_FILTER));
     }
 
     @Override
