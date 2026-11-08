@@ -32,6 +32,7 @@ import com.gtnewhorizon.cropsnh.farming.requirements.SubSoilRequirement;
 import com.gtnewhorizon.cropsnh.init.CropsNHBlockTextures;
 import com.gtnewhorizon.cropsnh.init.CropsNHBlocks;
 import com.gtnewhorizon.cropsnh.init.CropsNHFluids;
+import com.gtnewhorizon.cropsnh.reference.Constants;
 import com.gtnewhorizon.cropsnh.reference.Names;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -90,10 +91,12 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     private int activeParallel;
     private boolean washingMode;
     private int activeWashStat;
+    private int lastWashResult;
 
     private IStructureDefinition<LargeCropBreeder> definition;
     private int casingCount;
-    private int revision;
+    private int archiveRevision;
+    private int planRevision;
     private boolean planDirty = true;
     private boolean targetValid = true;
     private CropBreedingPlanner.Plan plan;
@@ -213,28 +216,36 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         if (!validConsumption(consume, catalysts)) {
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
         }
-        FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL);
-        if (!depleteInput(fertilizer, true)) {
-            return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
-        }
+        int limit = (int) Math.min(getMaxParallelRecipes(), getMaxInputEu() / BASE_EUT);
+        FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL * limit);
+        limit = Math.min(limit, depleteInputQuantity(fertilizer, true) / FERTILIZER_PER_PARALLEL);
+        if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
+        limit = Math.min(
+            limit,
+            new VoidProtectionHelper().setMachine(this)
+                .setItemOutputs(new ItemStack[] { output })
+                .setMaxParallel(limit)
+                .build()
+                .getMaxParallel());
+        if (limit < 1) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
 
         int parallels = 1;
-        ItemStack[] remaining = new ItemStack[catalysts.length];
-        for (int i = 0; i < catalysts.length; i++) {
-            remaining[i] = catalysts[i] == null ? null : catalysts[i].copy();
-            if (remaining[i] != null) remaining[i].stackSize -= consume[i];
-        }
-        while (parallels < getMaxParallelRecipes() && (long) BASE_EUT * (parallels + 1) <= getMaxInputEu()) {
-            fertilizer.amount = FERTILIZER_PER_PARALLEL * (parallels + 1);
-            output.stackSize = parallels + 1;
-            if (!depleteInput(fertilizer, true) || !hasOutputSpace(output)) break;
-            int[] additional = breedingConsumption(mutation, parents, remaining);
-            if (!validConsumption(additional, remaining)) break;
-            for (int i = 0; i < consume.length; i++) {
-                consume[i] += additional[i];
-                if (remaining[i] != null) remaining[i].stackSize -= additional[i];
+        if (!consumesPerParallel(mutation, consume)) parallels = limit;
+        else if (limit > 1) {
+            ItemStack[] remaining = new ItemStack[catalysts.length];
+            for (int i = 0; i < catalysts.length; i++) {
+                remaining[i] = catalysts[i] == null ? null : catalysts[i].copy();
+                if (remaining[i] != null) remaining[i].stackSize -= consume[i];
             }
-            parallels++;
+            while (parallels < limit) {
+                int[] additional = breedingConsumption(mutation, parents, remaining);
+                if (!validConsumption(additional, remaining)) break;
+                for (int i = 0; i < consume.length; i++) {
+                    consume[i] += additional[i];
+                    if (remaining[i] != null) remaining[i].stackSize -= additional[i];
+                }
+                parallels++;
+            }
         }
         fertilizer.amount = FERTILIZER_PER_PARALLEL * parallels;
         int duration = CropBreedingRecipeRules.baseDuration(mutation.getOutput());
@@ -261,8 +272,15 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         mEfficiency = 10000;
         mEfficiencyIncrease = 10000;
         lEUt = -eut * parallels;
-        markChanged(false);
+        markDirty();
         return CheckRecipeResultRegistry.SUCCESSFUL;
+    }
+
+    private static boolean consumesPerParallel(ICropMutation mutation, int[] consume) {
+        for (int amount : consume) if (amount > 0) return true;
+        for (var requirement : mutation.getRequirements())
+            if (requirement instanceof IMachineBreedingRequirement) return true;
+        return false;
     }
 
     private int[] breedingConsumption(ICropMutation mutation, ArrayList<ICropCard> parents, ItemStack[] catalysts) {
@@ -288,9 +306,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     private int chooseWashStat(SeedStats stats) {
         int[] available = new int[3];
         int count = 0;
-        if (stats.getGrowth() < 31) available[count++] = 1;
-        if (stats.getGain() < 31) available[count++] = 2;
-        if (stats.getResistance() < 31) available[count++] = 3;
+        if (stats.getGrowth() < Constants.MAX_SEED_STAT) available[count++] = 1;
+        if (stats.getGain() < Constants.MAX_SEED_STAT) available[count++] = 2;
+        if (stats.getResistance() < Constants.MAX_SEED_STAT) available[count++] = 3;
         return count == 0 ? 0 : available[getBaseMetaTileEntity().getRandomNumber(count)];
     }
 
@@ -310,12 +328,12 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         mEfficiency = 10000;
         mEfficiencyIncrease = 10000;
         lEUt = -BASE_EUT;
-        markChanged(false);
+        markDirty();
         return CheckRecipeResultRegistry.SUCCESSFUL;
     }
 
-    public ItemStack findSubstrate(CropBreedingSubstrate requirement) {
-        for (ItemStack stack : getStoredInputs()) {
+    public static ItemStack findSubstrate(CropBreedingSubstrate requirement, List<ItemStack> inputs) {
+        for (ItemStack stack : inputs) {
             if (!requirement.matches(stack)) continue;
             ItemStack present = stack.copy();
             present.stackSize = 1;
@@ -360,7 +378,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     }
 
     private boolean hasOutputSpace(ItemStack output) {
-        return !new VoidProtectionHelper().setMachine(this, true, false)
+        return !new VoidProtectionHelper().setMachine(this)
             .setItemOutputs(seedOutputs(output))
             .setMaxParallel(1)
             .build()
@@ -369,37 +387,47 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     @Override
     protected void outputAfterRecipe() {
-        boolean newSpecies = false;
         if (activeWashStat != 0) {
             SeedStats previous = archive.get(activeCrop);
-            if (previous != null) archive.put(
-                activeCrop,
-                archivedStats(
-                    previous.getGrowth() + (activeWashStat == 1 ? 1 : 0),
-                    previous.getGain() + (activeWashStat == 2 ? 1 : 0),
-                    previous.getResistance() + (activeWashStat == 3 ? 1 : 0)));
+            if (previous != null) {
+                int delta = CropBreedingChance.rollWashDelta(getBaseMetaTileEntity().getRandomNumber(100));
+                lastWashResult = activeWashStat * 3 + delta + 1;
+                if (delta != 0) {
+                    archive.put(
+                        activeCrop,
+                        archivedStats(
+                            previous.getGrowth() + (activeWashStat == 1 ? delta : 0),
+                            previous.getGain() + (activeWashStat == 2 ? delta : 0),
+                            previous.getResistance() + (activeWashStat == 3 ? delta : 0)));
+                    markArchiveChanged(false);
+                }
+            }
         } else if (activeSeed != null) {
             ICropCard crop = CropRegistry.instance.get(activeSeed, false);
             if (crop != null && !archive.containsKey(crop.getId())) {
                 archive.put(crop.getId(), readArchivedStats(activeSeed.getTagCompound()));
-                newSpecies = true;
+                markArchiveChanged(true);
             }
         }
         super.outputAfterRecipe();
         activeWashStat = 0;
         activeSeed = null;
         activeCrop = "";
-        markChanged(newSpecies);
+        markDirty();
     }
 
     private static SeedStats archivedStats(int growth, int gain, int resistance) {
         NBTTagCompound tag = new NBTTagCompound();
-        tag.setByte(Names.NBT.growth, (byte) growth);
-        tag.setByte(Names.NBT.gain, (byte) gain);
-        tag.setByte(Names.NBT.resistance, (byte) resistance);
+        tag.setByte(Names.NBT.growth, clampStat(growth));
+        tag.setByte(Names.NBT.gain, clampStat(gain));
+        tag.setByte(Names.NBT.resistance, clampStat(resistance));
         tag.setBoolean(Names.NBT.analyzed, true);
         tag.setBoolean(ARCHIVE_SEED_MARKER, true);
         return SeedStats.readFromNBT(tag);
+    }
+
+    private static byte clampStat(int value) {
+        return (byte) Math.max(Constants.MIN_SEED_STAT, Math.min(Constants.MAX_SEED_STAT, value));
     }
 
     private static SeedStats readArchivedStats(NBTTagCompound tag) {
@@ -423,7 +451,8 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         }
         if (changed) {
             updateSlots();
-            markChanged(true);
+            markArchiveChanged(true);
+            markDirty();
         }
     }
 
@@ -459,6 +488,12 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             FERTILIZER_PER_PARALLEL,
             "washSeconds",
             WASH_TICKS / 20,
+            "washUp",
+            CropBreedingChance.washIncreaseChance(),
+            "washSame",
+            CropBreedingChance.washUnchangedChance(),
+            "washDown",
+            CropBreedingChance.washDecreaseChance(),
             "firstSeconds",
             CropBreedingRecipeRules.baseDuration(1) / 20);
     }
@@ -473,7 +508,8 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         targetValid = id.isEmpty() || CropRegistry.instance.get(id) != null;
         if (!targetValid || targetCrop.equals(id)) return;
         targetCrop = id;
-        markChanged(true);
+        markPlanChanged();
+        markDirty();
     }
 
     public String getTargetCrop() {
@@ -488,8 +524,16 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         return targetValid;
     }
 
-    public int getRevision() {
-        return revision;
+    public int getArchiveRevision() {
+        return archiveRevision;
+    }
+
+    public int getPlanRevision() {
+        return planRevision;
+    }
+
+    public int getLastWashResult() {
+        return lastWashResult;
     }
 
     public List<String> getArchivedCrops() {
@@ -542,8 +586,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             : CropBreedingChance.percent(CropRegistry.instance.get(activeCrop));
         activeSeed = tag.hasKey("cropActiveSeed") ? ItemStack.loadItemStackFromNBT(tag.getCompoundTag("cropActiveSeed"))
             : null;
-        planDirty = true;
-        revision++;
+        markArchiveChanged(true);
     }
 
     @Override
@@ -622,13 +665,16 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     public void toggleWashingMode() {
         washingMode = !washingMode;
-        markChanged(false);
+        markDirty();
     }
 
-    private void markChanged(boolean replan) {
-        planDirty |= replan;
-        revision++;
-        IGregTechTileEntity tile = getBaseMetaTileEntity();
-        if (tile != null) tile.markDirty();
+    private void markArchiveChanged(boolean speciesChanged) {
+        archiveRevision++;
+        if (speciesChanged) markPlanChanged();
+    }
+
+    private void markPlanChanged() {
+        planDirty = true;
+        planRevision++;
     }
 }

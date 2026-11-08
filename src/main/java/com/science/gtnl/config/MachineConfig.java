@@ -96,6 +96,20 @@ public class MachineConfig {
         @Config.DefaultStringList({})
         @Config.LangKey("gtnl.gui.config.machine.crop_breeder.crop_overrides")
         public String[] cropOverrides = {};
+
+        @Comment({ "Seed improvement: chance (%) that the selected stat rises by 1 each run.",
+            "Should exceed washDecreaseChance so stats trend upward." })
+        @Config.DefaultInt(55)
+        @Config.RangeInt(min = 0, max = 100)
+        @Config.LangKey("gtnl.gui.config.machine.crop_breeder.wash_increase_chance")
+        public int washIncreaseChance = 55;
+
+        @Comment({ "Seed improvement: chance (%) that the selected stat drops by 1 each run.",
+            "The remaining chance leaves it unchanged. Maxed stats never drop." })
+        @Config.DefaultInt(15)
+        @Config.RangeInt(min = 0, max = 100)
+        @Config.LangKey("gtnl.gui.config.machine.crop_breeder.wash_decrease_chance")
+        public int washDecreaseChance = 15;
     }
 
     public static final QuantumComputer quantum_computer = new QuantumComputer();

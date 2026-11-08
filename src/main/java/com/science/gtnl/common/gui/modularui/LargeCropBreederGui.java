@@ -4,13 +4,13 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
@@ -76,6 +76,7 @@ import com.gtnewhorizon.cropsnh.farming.registries.CropRegistry;
 import com.gtnewhorizon.cropsnh.farming.requirements.SubSoilRequirement;
 import com.science.gtnl.common.machine.multiblock.LargeCropBreeder;
 import com.science.gtnl.utils.machine.crop.CropBreedingChance;
+import com.science.gtnl.utils.machine.crop.CropBreedingPlanner;
 import com.science.gtnl.utils.machine.crop.CropBreedingRecipeRules;
 import com.science.gtnl.utils.machine.crop.CropBreedingSubstrate;
 
@@ -89,6 +90,9 @@ import gregtech.api.enums.VoltageIndex;
 import gregtech.api.modularui2.GTGuiTextures;
 import gregtech.api.util.GTUtility;
 import gregtech.common.modularui2.widget.SlotLikeButtonWidget;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
 public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder> {
 
@@ -96,6 +100,8 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private static final int ROUTE_WIDTH = WIDTH - 4, ROUTE_HEIGHT = BODY_HEIGHT - 18;
     private static final float MIN_ROUTE_ZOOM = 0.25F, MAX_ROUTE_ZOOM = 2F;
     private static final int JUNCTION_RISE = 24;
+    private static final String[] WASH_STAT_KEYS = { "gtnl.crop_breeder.stat_growth", "gtnl.crop_breeder.stat_gain",
+        "gtnl.crop_breeder.stat_resistance" };
     private static final UITexture ROUTE_ARROW_EMPTY = new RouteArrowTexture(false, 0);
     private static final UITexture ROUTE_ARROW_FULL = new RouteArrowTexture(true, 0);
     private static final UITexture ROUTE_ARROW_COMPLETE = new RouteArrowTexture(true, 0xFF55DD55);
@@ -104,9 +110,6 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private static final UITexture ROUTE_LINE_COMPLETE = new RouteArrowTexture(true, 0xFF55DD55, false);
     private final PagedWidget.Controller pages = new PagedWidget.Controller();
     private final Map<String, ItemStack> icons = new HashMap<>();
-    private final Map<String, Integer> cropChances = new HashMap<>();
-    private final Map<String, Integer> cropVoltageTiers = new HashMap<>();
-    private final Map<String, Integer> cropBreedingGrades = new HashMap<>();
     private final Map<NBTTagCompound, CatalystDisplay> catalystDisplays = new IdentityHashMap<>();
     private final Map<String, CropBreedingSubstrate> soilRequirements = new LinkedHashMap<>();
     private final Map<String, ItemStack> presentSubstrates = new HashMap<>();
@@ -115,6 +118,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private long substrateTick = Long.MIN_VALUE;
     private String substrateTarget = "";
     private List<String> archive = Collections.emptyList(), reachable = Collections.emptyList();
+    private Set<String> archiveSet = Collections.emptySet();
     private List<NBTTagCompound> route = Collections.emptyList();
     private final SpeciesView archiveView = new SpeciesView(() -> archive);
     private final SpeciesView reachableView = new SpeciesView(() -> reachable);
@@ -124,8 +128,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private BooleanSyncValue washingMode;
     private BooleanSyncValue washingOperation;
     private IntSyncValue progress, duration, chance;
-    private IntSyncValue parallel;
-    private List<NBTTagCompound> chanceSnapshot;
+    private IntSyncValue parallel, lastWash;
     private BreedingRouteWidget routeWidget;
     private int snapshotRevision = Integer.MIN_VALUE;
     private List<NBTTagCompound> snapshot = Collections.emptyList();
@@ -158,26 +161,14 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 mouse -> { if (!mouse.isClient() && mouse.mouseButton == 0) multiblock.toggleWashingMode(); }));
         chance = new IntSyncValue(multiblock::getSuccessChance);
         parallel = new IntSyncValue(multiblock::getCurrentParallel);
+        lastWash = new IntSyncValue(multiblock::getLastWashResult);
         sync.syncValue("cropParallel", parallel);
+        sync.syncValue("cropLastWash", lastWash);
         sync.syncValue("cropDraft", draft);
         sync.syncValue("cropTarget", target);
         sync.syncValue("cropActive", active);
         sync.syncValue("cropValid", valid);
         sync.syncValue("cropChance", chance);
-        sync.syncValue("cropChances", new GenericListSyncHandler<>(this::chanceSnapshot, value -> {
-            cropChances.clear();
-            cropVoltageTiers.clear();
-            cropBreedingGrades.clear();
-            for (NBTTagCompound tag : value) {
-                cropChances.put(tag.getString("id"), tag.getInteger("chance"));
-                cropVoltageTiers.put(tag.getString("id"), tag.getInteger("voltageTier"));
-                cropBreedingGrades.put(tag.getString("id"), tag.getInteger("breedingGrade"));
-            }
-        },
-            ByteBufUtils::readTag,
-            ByteBufUtils::writeTag,
-            NBTTagCompound::equals,
-            value -> (NBTTagCompound) value.copy()));
         sync.syncValue("cropApply", new InteractionSyncHandler().setOnMousePressed(mouse -> {
             if (mouse.mouseButton != 0) return;
             if (mouse.isClient()) {
@@ -194,7 +185,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 multiblock.setTargetCrop(draftText);
             }
         }));
-        sync.syncValue("cropArchive", new GenericListSyncHandler<>(this::archiveSnapshot, value -> {
+        sync.syncValue("cropArchive", tagListSync(this::archiveSnapshot, value -> {
             List<String> crops = new ArrayList<>();
             icons.clear();
             for (NBTTagCompound tag : value) {
@@ -205,42 +196,53 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 icons.put(crop.getId(), stack);
             }
             archive = crops;
-        },
-            ByteBufUtils::readTag,
-            ByteBufUtils::writeTag,
-            NBTTagCompound::equals,
-            value -> (NBTTagCompound) value.copy()));
+            archiveSet = new ObjectOpenHashSet<>(crops);
+        }));
         sync.syncValue(
             "cropReachable",
             new GenericListSyncHandler<>(
-                () -> multiblock.getPlan().reachable,
+                this::reachableSnapshot,
                 value -> reachable = value,
                 ByteBufUtils::readUTF8String,
                 ByteBufUtils::writeUTF8String,
                 String::equals,
                 value -> value));
-        sync.syncValue("cropRoute", new GenericListSyncHandler<>(this::routeSnapshot, value -> {
+        sync.syncValue("cropRoute", tagListSync(this::routeSnapshot, value -> {
             route = value;
             catalystDisplays.clear();
-        },
-            ByteBufUtils::readTag,
-            ByteBufUtils::writeTag,
-            NBTTagCompound::equals,
-            value -> (NBTTagCompound) value.copy()));
-        sync.syncValue("cropSubstrates", new GenericListSyncHandler<>(this::substrateSnapshot, value -> {
+        }));
+        sync.syncValue("cropSubstrates", tagListSync(this::substrateSnapshot, value -> {
             presentSubstrates.clear();
             for (NBTTagCompound tag : value) {
                 ItemStack stack = ItemStack.loadItemStackFromNBT(tag.getCompoundTag("present"));
                 if (stack != null) presentSubstrates.put(tag.getString("key"), stack);
             }
-        },
+        }));
+    }
+
+    // Snapshots are rebuilt only on change and never mutated, so identity comparison is enough to detect updates.
+    private static GenericListSyncHandler<NBTTagCompound> tagListSync(Supplier<List<NBTTagCompound>> getter,
+        Consumer<List<NBTTagCompound>> setter) {
+        return new GenericListSyncHandler<>(
+            getter,
+            setter,
             ByteBufUtils::readTag,
             ByteBufUtils::writeTag,
-            NBTTagCompound::equals,
-            value -> (NBTTagCompound) value.copy()));
+            (a, b) -> a == b,
+            value -> value);
+    }
+
+    private boolean isServer() {
+        return multiblock.getBaseMetaTileEntity()
+            .isServerSide();
+    }
+
+    private List<String> reachableSnapshot() {
+        return isServer() ? multiblock.getPlan().reachable : Collections.emptyList();
     }
 
     private List<NBTTagCompound> substrateSnapshot() {
+        if (!isServer()) return substrateSnapshot;
         routeSnapshot();
         long tick = multiblock.getBaseMetaTileEntity()
             .getWorld()
@@ -248,35 +250,24 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         if (substrateRevision == snapshotRevision && substrateTick == tick) return substrateSnapshot;
         substrateRevision = snapshotRevision;
         substrateTick = tick;
+        if (soilRequirements.isEmpty()) return substrateSnapshot = Collections.emptyList();
+        List<ItemStack> inputs = multiblock.getStoredInputs();
         List<NBTTagCompound> result = new ArrayList<>();
         soilRequirements.forEach((key, requirement) -> {
-            ItemStack present = multiblock.findSubstrate(requirement);
+            ItemStack present = LargeCropBreeder.findSubstrate(requirement, inputs);
             if (present == null) return;
             NBTTagCompound tag = new NBTTagCompound();
             tag.setString("key", key);
             tag.setTag("present", present.writeToNBT(new NBTTagCompound()));
             result.add(tag);
         });
-        return substrateSnapshot = result;
-    }
-
-    private List<NBTTagCompound> chanceSnapshot() {
-        if (chanceSnapshot != null) return chanceSnapshot;
-        chanceSnapshot = new ArrayList<>();
-        for (ICropCard crop : CropRegistry.instance.getAllInRegistrationOrder()) {
-            NBTTagCompound tag = new NBTTagCompound();
-            tag.setString("id", crop.getId());
-            tag.setInteger("chance", CropBreedingChance.percent(crop));
-            tag.setInteger("voltageTier", CropBreedingRecipeRules.requiredVoltageTier(crop));
-            tag.setInteger("breedingGrade", CropBreedingRecipeRules.breedingGrade(crop));
-            chanceSnapshot.add(tag);
-        }
-        return chanceSnapshot;
+        if (!result.equals(substrateSnapshot)) substrateSnapshot = result;
+        return substrateSnapshot;
     }
 
     private List<NBTTagCompound> archiveSnapshot() {
-        if (archiveRevision == multiblock.getRevision()) return archiveSnapshot;
-        archiveRevision = multiblock.getRevision();
+        if (!isServer() || archiveRevision == multiblock.getArchiveRevision()) return archiveSnapshot;
+        archiveRevision = multiblock.getArchiveRevision();
         List<NBTTagCompound> result = new ArrayList<>();
         for (String id : multiblock.getArchivedCrops()) {
             ItemStack seed = multiblock.getArchivedSeed(id);
@@ -286,15 +277,16 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     }
 
     private List<NBTTagCompound> routeSnapshot() {
-        if (snapshotRevision == multiblock.getRevision()) return snapshot;
-        snapshotRevision = multiblock.getRevision();
+        if (!isServer() || snapshotRevision == multiblock.getPlanRevision()) return snapshot;
+        snapshotRevision = multiblock.getPlanRevision();
         if (!substrateTarget.equals(multiblock.getTargetCrop())) {
             substrateTarget = multiblock.getTargetCrop();
             soilRequirements.clear();
         }
+        CropBreedingPlanner.Plan plan = multiblock.getPlan();
         List<NBTTagCompound> result = new ArrayList<>();
         Map<String, NBTTagList> parentSubstrates = new HashMap<>();
-        for (ICropMutation mutation : multiblock.getPlan().steps) {
+        for (ICropMutation mutation : plan.steps) {
             NBTTagCompound tag = new NBTTagCompound();
             tag.setString(
                 "result",
@@ -329,7 +321,8 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
             tag.setTag("requirements", requirements);
             result.add(tag);
         }
-        return snapshot = result;
+        if (!result.equals(snapshot)) snapshot = result;
+        return snapshot;
     }
 
     private void addRequirement(NBTTagList requirements, String crop, String scope, List<ItemStack> alternatives,
@@ -467,7 +460,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         washing.child(cropSlot(washingCrop, 0, 0));
         washing.child(label(() -> {
             ItemStack seed = icons.get(washingCrop.get());
-            if (seed == null || !archive.contains(washingCrop.get())) {
+            if (seed == null || !archiveSet.contains(washingCrop.get())) {
                 return tr("gtnl.crop_breeder.wash_select");
             }
             SeedStats stats = SeedStats.getStatsFromStack(seed);
@@ -480,6 +473,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 0,
                 60,
                 WIDTH).setEnabledIf(widget -> !washingOperation.getBoolValue()));
+        page.child(label(this::washStatus, 0, 60, WIDTH).setEnabledIf(widget -> washingOperation.getBoolValue()));
         page.child(label(() -> tr("gtnl.crop_breeder.parallel", parallel.getIntValue()), 0, 69, WIDTH));
         page.child(createTerminalRow(panel, sync).pos(0, 78));
         return page;
@@ -590,10 +584,25 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         return page;
     }
 
+    private String washStatus() {
+        String chances = tr(
+            "gtnl.crop_breeder.wash_chances",
+            CropBreedingChance.washIncreaseChance(),
+            CropBreedingChance.washUnchangedChance(),
+            CropBreedingChance.washDecreaseChance());
+        int result = lastWash.getIntValue();
+        int stat = result / 3, delta = result % 3 - 1;
+        if (stat < 1 || stat > 3) return chances;
+        String statName = tr(WASH_STAT_KEYS[stat - 1]);
+        String outcome = delta > 0 ? EnumChatFormatting.DARK_GREEN + "+1"
+            : delta < 0 ? EnumChatFormatting.DARK_RED + "-1" : tr("gtnl.crop_breeder.wash_unchanged");
+        return chances + " | " + tr("gtnl.crop_breeder.wash_last", statName, outcome + EnumChatFormatting.RESET);
+    }
+
     private double routeProgress(String id) {
         if (duration.getIntValue() > 0 && id.equals(activeBreedingCrop()))
             return Math.min(1D, progress.getIntValue() / (double) duration.getIntValue());
-        return archive.contains(id) ? 1D : 0D;
+        return archiveSet.contains(id) ? 1D : 0D;
     }
 
     private BranchProgressWidget routeConnection(RouteNode node) {
@@ -604,7 +613,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
             .textures(ROUTE_LINE_EMPTY, ROUTE_LINE_FULL, ROUTE_ARROW_EMPTY, ROUTE_ARROW_FULL)
             .completedTextures(ROUTE_LINE_COMPLETE, ROUTE_ARROW_COMPLETE)
             .value(() -> routeProgress(node.uid))
-            .completed(() -> archive.contains(node.uid) && !node.uid.equals(activeBreedingCrop()))
+            .completed(() -> archiveSet.contains(node.uid) && !node.uid.equals(activeBreedingCrop()))
             .tooltipAutoUpdate(true)
             .tooltipBuilder(
                 tooltip -> tooltip.addLine(name(node.uid))
@@ -654,7 +663,12 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     }
 
     private SlotLikeButtonWidget cropSlot(Supplier<String> id, int x, int y) {
-        return cropSlot(id, x, y, () -> cropVoltageTiers.getOrDefault(id.get(), VoltageIndex.LV));
+        return cropSlot(id, x, y, () -> voltageTierOf(id.get()));
+    }
+
+    private static int voltageTierOf(String id) {
+        ICropCard crop = CropRegistry.instance.get(id);
+        return crop == null ? VoltageIndex.LV : CropBreedingRecipeRules.requiredVoltageTier(crop);
     }
 
     private SlotLikeButtonWidget cropSlot(Supplier<String> id, int x, int y, IntSupplier requiredTier) {
@@ -665,13 +679,17 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 ItemStack stack = icon(id.get());
                 if (stack == null) return;
                 t.addFromItem(stack);
-                t.addLine(tr("gtnl.crop_breeder.breeding_grade", cropBreedingGrades.getOrDefault(id.get(), 1)));
+                ICropCard crop = CropRegistry.instance.get(id.get());
+                t.addLine(
+                    tr(
+                        "gtnl.crop_breeder.breeding_grade",
+                        crop == null ? 1 : CropBreedingRecipeRules.breedingGrade(crop)));
                 t.addLine(
                     tr(
                         "gtnl.crop_breeder.required_voltage",
                         GTValues.VN[Math
                             .max(VoltageIndex.HV, Math.min(GTValues.VN.length - 1, requiredTier.getAsInt()))]));
-                if (!cropChances.containsKey(id.get())) return;
+                if (crop == null) return;
                 t.addLine(tr("gtnl.crop_breeder.crop_chance", effectiveChance(id.get())));
             });
     }
@@ -682,7 +700,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
 
     private int effectiveChance(String id) {
         if (duration.getIntValue() > 0 && id.equals(activeBreedingCrop())) return chance.getIntValue();
-        return cropChances.getOrDefault(id, 0);
+        return CropBreedingChance.percent(CropRegistry.instance.get(id));
     }
 
     private static String requirementLabel(NBTTagCompound requirement) {
@@ -698,7 +716,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
 
     private boolean hasSubstrateCheckmark(NBTTagCompound requirement) {
         return requirement.getBoolean("soil")
-            && (requirement.getBoolean("automatic") || archive.contains(requirement.getString("crop"))
+            && (requirement.getBoolean("automatic") || archiveSet.contains(requirement.getString("crop"))
                 || presentSubstrates.containsKey(requirement.getString("key")));
     }
 
@@ -736,7 +754,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 if (stack != null) t.addFromItem(stack);
                 t.addLine(requirementLabel(requirement));
                 if (requirement.getBoolean("soil")) {
-                    if (archive.contains(requirement.getString("crop")))
+                    if (archiveSet.contains(requirement.getString("crop")))
                         t.addLine(EnumChatFormatting.GREEN + tr("gtnl.crop_breeder.substrate_archived"));
                     if (!requirement.getBoolean("automatic")) t.addLine(
                         tr(
@@ -895,8 +913,8 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                         () -> node.uid,
                         node.x,
                         node.y,
-                        () -> node.step == null ? cropVoltageTiers.getOrDefault(node.uid, VoltageIndex.LV)
-                            : GTUtility.getTier(node.step.getLong("eu"))).tooltipBuilder(t -> {
+                        () -> node.step == null ? voltageTierOf(node.uid) : GTUtility.getTier(node.step.getLong("eu")))
+                            .tooltipBuilder(t -> {
                                 NBTTagList requirements = node.requirements;
                                 for (int i = 0; i < requirements.tagCount(); i++) {
                                     t.addLine(requirementTooltipLine(requirements.getCompoundTagAt(i)));
@@ -1077,7 +1095,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 nodes.put(target, root);
                 pending.add(root);
             }
-            Set<String> expanded = new HashSet<>();
+            Set<String> expanded = new ObjectOpenHashSet<>();
             while (!pending.isEmpty()) {
                 RouteNode result = pending.remove();
                 result.step = byResult.get(result.uid);
@@ -1108,13 +1126,13 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                     node.parents.get(i).x = node.x + (2 * i - node.parents.size() + 1) * node.parentSpacing / 2;
                 }
             }
-            Map<Integer, Integer> rowHeights = new HashMap<>();
-            Set<Integer> branchingRows = new HashSet<>();
+            Int2IntOpenHashMap rowHeights = new Int2IntOpenHashMap();
+            IntOpenHashSet branchingRows = new IntOpenHashSet();
             for (RouteNode node : ordered) {
-                rowHeights.merge(node.depth, node.height(), Math::max);
+                rowHeights.put(node.depth, Math.max(rowHeights.get(node.depth), node.height()));
                 if (node.parents.size() >= 2) branchingRows.add(node.depth);
             }
-            Map<Integer, Integer> rowPositions = new HashMap<>();
+            Int2IntOpenHashMap rowPositions = new Int2IntOpenHashMap();
             int rowY = 10;
             for (int depth = 0; depth < rowHeights.size(); depth++) {
                 rowPositions.put(depth, rowY);

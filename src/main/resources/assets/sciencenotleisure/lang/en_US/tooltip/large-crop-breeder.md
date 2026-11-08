@@ -2,7 +2,7 @@ Insert an analyzed seed into an input bus to archive its species and stats. The 
 Select a target in the controller to breed it from archived parents, including intermediate generations
 Newly bred species start at 1/1/1. Subsequent production uses their archived stats
 Seed improvement uses {white:{var:baseEu} EU/t}
-Every {white:{var:washSeconds} seconds}, it attempts to raise one stat below 31 by one point
+Every {white:{var:washSeconds} seconds}, it picks one stat below 31: {green:{var:washUp}%} +1, {gray:{var:washSame}%} unchanged, {red:{var:washDown}%} -1
 Place required substrates in an {white:input bus}; they are {green:not consumed}. Vanilla substrates need no item
 
 Breeding grades 1–5 require {yellow:HV} / {dark_gray:EV} / {blue:IV} / {light_purple:LuV} / {aqua:ZPM}; check the GUI for each crop

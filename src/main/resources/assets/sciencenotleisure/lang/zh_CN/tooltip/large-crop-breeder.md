@@ -12,4 +12,4 @@
 
 在运行页右下角切换洗种模式，选中要提升属性的已入档品种
 洗种功耗 {white:{var:baseEu} EU/t}
-每运行 {white:{var:washSeconds} 秒}，随机将一项未满 31 的属性提高 1 点并存入档案。三项全满后停止洗种
+每运行 {white:{var:washSeconds} 秒}，随机选中一项未满 31 的属性：{green:{var:washUp}%} 概率 +1，{gray:{var:washSame}%} 概率不变，{red:{var:washDown}%} 概率 -1

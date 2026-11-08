@@ -1,7 +1,9 @@
 package com.science.gtnl.utils.machine.crop;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import net.minecraft.block.Block;
@@ -14,10 +16,17 @@ import com.gtnewhorizon.cropsnh.api.ISoilList;
 import com.gtnewhorizon.cropsnh.farming.requirements.SubSoilRequirement;
 import com.gtnewhorizon.cropsnh.utility.CropsNHUtils;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 public final class CropBreedingSubstrate {
+
+    private static final Map<ICropCard, List<CropBreedingSubstrate>> CROP_CACHE = new ConcurrentHashMap<>();
+    private static final Map<ICropMutation, List<CropBreedingSubstrate>> MUTATION_CACHE = new ConcurrentHashMap<>();
 
     private final SubSoilRequirement extraSoil;
     private final ISoilList plantingSoil;
+    private volatile List<ItemStack> alternatives;
+    private volatile Boolean automatic;
 
     private CropBreedingSubstrate(SubSoilRequirement extraSoil, ISoilList plantingSoil) {
         this.extraSoil = extraSoil;
@@ -25,11 +34,11 @@ public final class CropBreedingSubstrate {
     }
 
     public static List<CropBreedingSubstrate> forCrop(ICropCard crop) {
-        return from(crop, crop.getGrowthRequirements());
+        return CROP_CACHE.computeIfAbsent(crop, c -> from(c, c.getGrowthRequirements()));
     }
 
     public static List<CropBreedingSubstrate> forMutation(ICropMutation mutation) {
-        return from(mutation.getOutput(), mutation.getRequirements());
+        return MUTATION_CACHE.computeIfAbsent(mutation, m -> from(m.getOutput(), m.getRequirements()));
     }
 
     public boolean matches(ItemStack stack) {
@@ -39,12 +48,24 @@ public final class CropBreedingSubstrate {
     }
 
     public List<ItemStack> alternatives() {
-        return extraSoil != null ? extraSoil.getItemsForNEI()
-            : plantingSoil.getNEIItemList()
-                .collect(Collectors.toList());
+        List<ItemStack> result = alternatives;
+        if (result == null) {
+            result = Collections.unmodifiableList(
+                extraSoil != null ? extraSoil.getItemsForNEI()
+                    : plantingSoil.getNEIItemList()
+                        .collect(Collectors.toList()));
+            alternatives = result;
+        }
+        return result;
     }
 
     public boolean isAutomaticallySatisfied() {
+        Boolean result = automatic;
+        if (result == null) automatic = result = computeAutomatic();
+        return result;
+    }
+
+    private boolean computeAutomatic() {
         for (ItemStack stack : alternatives()) {
             if (!matches(stack)) continue;
             Block block = CropsNHUtils.getBlockFromItem(stack);
@@ -56,11 +77,11 @@ public final class CropBreedingSubstrate {
     }
 
     private static List<CropBreedingSubstrate> from(ICropCard crop, Iterable<?> requirements) {
-        List<CropBreedingSubstrate> result = new ArrayList<>();
+        List<CropBreedingSubstrate> result = new ObjectArrayList<>();
         for (Object requirement : requirements) {
             if (requirement instanceof SubSoilRequirement soil) result.add(new CropBreedingSubstrate(soil, null));
         }
         if (result.isEmpty()) result.add(new CropBreedingSubstrate(null, crop.getSoilTypes()));
-        return result;
+        return Collections.unmodifiableList(result);
     }
 }

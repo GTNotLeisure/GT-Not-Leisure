@@ -17,13 +17,24 @@ import com.gtnewhorizon.cropsnh.farming.requirements.breeding.WorldOnlyBreedingR
 
 public final class CropBreedingPlanner {
 
+    private static volatile List<ICropMutation> registryMutations;
+
     private CropBreedingPlanner() {}
 
     public static Plan plan(String target, Set<String> archive) {
-        return plan(target, archive, MutationRegistry.instance.getDeterministicMutations());
+        List<ICropMutation> mutations = registryMutations;
+        if (mutations == null) {
+            mutations = machineMutations(MutationRegistry.instance.getDeterministicMutations());
+            if (!mutations.isEmpty()) registryMutations = mutations;
+        }
+        return search(target, archive, mutations);
     }
 
     public static Plan plan(String target, Set<String> archive, Collection<ICropMutation> recipes) {
+        return search(target, archive, machineMutations(recipes));
+    }
+
+    private static List<ICropMutation> machineMutations(Collection<ICropMutation> recipes) {
         List<ICropMutation> mutations = new ArrayList<>(recipes);
         mutations.removeIf(
             m -> m.getParents()
@@ -32,6 +43,10 @@ public final class CropBreedingPlanner {
                     .stream()
                     .anyMatch(WorldOnlyBreedingRequirement.class::isInstance));
         mutations.sort(Comparator.comparing(CropBreedingPlanner::signature));
+        return Collections.unmodifiableList(mutations);
+    }
+
+    private static Plan search(String target, Set<String> archive, List<ICropMutation> mutations) {
         Map<String, Candidate> candidates = new HashMap<>();
         for (String id : archive) candidates.put(id, new Candidate());
         boolean changed;
