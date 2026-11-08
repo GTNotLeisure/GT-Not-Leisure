@@ -53,8 +53,15 @@ public class UniversalBusHelper {
         BaseActionSource source) {
         if (target == null) return null;
         if (type == FLUID_STACK_TYPE) {
-            return target instanceof IFluidHandler
-                ? AEFluidTankHandler.INSTANCE.getInventory(target, targetSide, type, source)
+            final IExternalStorageHandler handler = AEApi.instance()
+                .registries()
+                .externalStorage()
+                .getHandler(target, targetSide, type, source);
+            if (handler != null && !(handler instanceof AEFluidTankHandler)) {
+                final IMEInventory inventory = handler.getInventory(target, targetSide, type, source);
+                if (inventory != null) return inventory;
+            }
+            return target instanceof IFluidHandler fluidHandler ? new FluidHandlerInventory(fluidHandler, targetSide)
                 : null;
         }
         if (isNetworkHost(target, targetSide)) return null;
