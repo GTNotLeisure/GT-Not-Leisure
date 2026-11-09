@@ -56,6 +56,8 @@ public class WirelessCardClientView {
     private NBTTagCompound source = new NBTTagCompound();
     private List<Row> roots = List.of();
     private List<Row> listing = List.of();
+    private List<Shown> shown = List.of();
+    private NBTTagCompound listingData = new NBTTagCompound();
     private final Set<String> expanded = new ObjectOpenHashSet<>();
     private final Long2IntOpenHashMap displayModes = new Long2IntOpenHashMap();
     private final Long2ObjectOpenHashMap<PendingMode> pendingModes = new Long2ObjectOpenHashMap<>();
@@ -119,6 +121,7 @@ public class WirelessCardClientView {
         scroll = saved.scroll();
         detailScroll = saved.detailScroll();
         restoredTarget = saved.detailTarget();
+        rebuild();
     }
 
     public void acceptChunk(long revision, int total, int offset, byte[] chunk) {
@@ -260,7 +263,7 @@ public class WirelessCardClientView {
     public void resize(int rows) {
         if (!WirelessCardLayout.validRows(rows) || rows == visibleRows) return;
         visibleRows = rows;
-        rebuild();
+        updateViewport(null);
     }
 
     public void scrollTo(int offset) {
@@ -268,7 +271,7 @@ public class WirelessCardClientView {
         if (next == container.display.getInteger("scroll")) return;
         if (source.getBoolean("detail")) detailScroll = next;
         else scroll = next;
-        rebuild();
+        updateViewport(null);
     }
 
     public int displayMode(NBTTagCompound row) {
@@ -291,7 +294,7 @@ public class WirelessCardClientView {
         long sequence = container.sync.requestDisplay(ids.toLongArray(), mode);
         if (sequence == 0) return true;
         for (long id : ids) pendingModes.put(id, new PendingMode(sequence, mode));
-        rebuild();
+        updateViewport(null);
         return true;
     }
 
@@ -358,15 +361,21 @@ public class WirelessCardClientView {
 
     private void rebuild(String revealGroup) {
         if (!source.hasKey("session")) return;
+        buildListing();
+        updateViewport(revealGroup);
+    }
+
+    private void updateViewport(String revealGroup) {
+        if (!source.hasKey("session")) return;
         boolean detail = source.getBoolean("detail");
-        container.display = buildListing(detail ? detailScroll : scroll, revealGroup);
+        container.display = buildViewport(detail ? detailScroll : scroll, revealGroup);
         // The first snapshot can be empty while GT rebuilds machine ownership.
         if (source.getBoolean("initializing")) return;
         if (detail) detailScroll = container.display.getInteger("scroll");
         else scroll = container.display.getInteger("scroll");
     }
 
-    private NBTTagCompound buildListing(int requestedScroll, String revealGroup) {
+    private void buildListing() {
         boolean detail = source.getBoolean("detail");
         NBTTagCompound data = copy(source);
         List<Shown> shown = new ObjectArrayList<>();
@@ -403,6 +412,16 @@ public class WirelessCardClientView {
             flatten(rows, 0, 0, data.getBoolean("collapseTypes"), shown);
         }
         data.setInteger("rowCount", shown.size());
+        data.setInteger("filterState", state);
+        data.setBoolean("filtered", !query.isEmpty() || dimension != null || state != 0);
+        // The full tree changes on snapshots, filters and expansion, not on scrollbar movement.
+        data.removeTag("rows");
+        listingData = data;
+        this.shown = List.copyOf(shown);
+    }
+
+    private NBTTagCompound buildViewport(int requestedScroll, String revealGroup) {
+        NBTTagCompound data = copy(listingData);
         int maxScroll = Math.max(0, shown.size() - visibleRows);
         int offset = Math.max(0, Math.min(requestedScroll, maxScroll));
         if (revealGroup != null) {
@@ -424,8 +443,6 @@ public class WirelessCardClientView {
         data.setInteger("scroll", offset);
         data.setInteger("visibleRows", visibleRows);
         data.setInteger("maxScroll", maxScroll);
-        data.setInteger("filterState", state);
-        data.setBoolean("filtered", !query.isEmpty() || dimension != null || state != 0);
         NBTTagList entries = new NBTTagList();
         for (Shown entry : shown.subList(offset, Math.min(shown.size(), offset + visibleRows))) {
             NBTTagCompound row = copy(

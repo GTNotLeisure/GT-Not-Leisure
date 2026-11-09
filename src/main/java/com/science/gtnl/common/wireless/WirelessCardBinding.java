@@ -1,15 +1,21 @@
 package com.science.gtnl.common.wireless;
 
+import java.io.IOException;
 import java.util.UUID;
+import java.util.function.BiPredicate;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import com.gtnewhorizon.gtnhlib.item.ItemStackNBT;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 import it.unimi.dsi.fastutil.longs.Long2IntLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 
 public record WirelessCardBinding(WirelessFrequency frequency, Address location, UUID creator, UUID owner,
     String ownerName) {
@@ -23,6 +29,10 @@ public record WirelessCardBinding(WirelessFrequency frequency, Address location,
     private static final String DISPLAY_KEY = "GTNLWirelessDisplayModes";
     public static final int DISPLAY_MODES = 3;
     public static final int MAX_DISPLAY_ENTRIES = 1024;
+    // Vanilla item packets size compressed NBT with a signed short; leave room for the binding and a custom name.
+    public static final int MAX_DISPLAY_NBT_BYTES = 30 * 1024;
+
+    private record DisplaySetting(int mode, Address address) {}
 
     static UUID identity(NBTTagCompound itemTag) {
         if (itemTag == null || !itemTag.hasKey(ID_KEY, 8)) return null;
@@ -63,44 +73,102 @@ public record WirelessCardBinding(WirelessFrequency frequency, Address location,
 
     static Long2IntLinkedOpenHashMap displayModes(NBTTagCompound itemTag) {
         Long2IntLinkedOpenHashMap modes = new Long2IntLinkedOpenHashMap();
-        if (itemTag == null || !itemTag.hasKey(DISPLAY_KEY, 10)) return modes;
-        NBTTagCompound data = itemTag.getCompoundTag(DISPLAY_KEY);
-        int[] ids = data.getIntArray("ids");
-        byte[] values = data.getByteArray("modes");
-        for (int i = 0; i < values.length && i * 2 + 1 < ids.length; i++) {
-            if (values[i] > 0 && values[i] < DISPLAY_MODES)
-                modes.put((long) ids[i * 2] << 32 | ids[i * 2 + 1] & 0xFFFFFFFFL, values[i]);
-        }
+        for (var entry : readDisplaySettings(itemTag).long2ObjectEntrySet()) modes.put(
+            entry.getLongKey(),
+            entry.getValue()
+                .mode());
         return modes;
     }
 
-    static boolean setDisplayModes(ItemStack card, long[] ids, int mode) {
-        var modes = displayModes(card.getTagCompound());
+    private static Long2ObjectLinkedOpenHashMap<DisplaySetting> readDisplaySettings(NBTTagCompound itemTag) {
+        var settings = new Long2ObjectLinkedOpenHashMap<DisplaySetting>();
+        if (itemTag == null || !itemTag.hasKey(DISPLAY_KEY, 10)) return settings;
+        NBTTagCompound data = itemTag.getCompoundTag(DISPLAY_KEY);
+        int[] ids = data.getIntArray("ids"), positions = data.getIntArray("positions");
+        byte[] modes = data.getByteArray("modes");
+        for (int i = 0; i < modes.length && i * 2 + 1 < ids.length && i * 5 + 4 < positions.length; i++) {
+            int side = positions[i * 5 + 4];
+            if (modes[i] <= 0 || modes[i] >= DISPLAY_MODES || side < 0 || side > 6) continue;
+            settings.put(
+                (long) ids[i * 2] << 32 | ids[i * 2 + 1] & 0xFFFFFFFFL,
+                new DisplaySetting(
+                    modes[i],
+                    new Address(
+                        positions[i * 5],
+                        positions[i * 5 + 1],
+                        positions[i * 5 + 2],
+                        positions[i * 5 + 3],
+                        ForgeDirection.getOrientation(side))));
+        }
+        return settings;
+    }
+
+    static boolean setDisplayModes(ItemStack card, long[] ids, int mode, Long2ObjectMap<Address> known) {
+        if (mode < 0 || mode >= DISPLAY_MODES) return false;
+        var settings = readDisplaySettings(card.getTagCompound());
+        int before = settings.size();
         for (long id : ids) {
-            modes.remove(id);
-            if (mode > 0) modes.put(id, mode);
+            Address address = known.get(id);
+            if (mode == 0) settings.remove(id);
+            else if (address == null) return false;
+            else settings.put(id, new DisplaySetting(mode, address));
         }
-        // Reject the whole change before touching the card, preserving every previous setting.
-        if (mode > 0 && modes.size() > MAX_DISPLAY_ENTRIES) return false;
-        if (modes.isEmpty()) {
-            if (card.getTagCompound() != null) card.getTagCompound()
-                .removeTag(DISPLAY_KEY);
-            return true;
+        boolean grew = settings.size() > before;
+        if (grew && settings.size() > MAX_DISPLAY_ENTRIES) return false;
+        return writeDisplaySettings(card, settings, grew);
+    }
+
+    static boolean refreshDisplayModes(ItemStack card, BiPredicate<Long, Address> stillExists) {
+        var settings = readDisplaySettings(card.getTagCompound());
+        boolean removed = settings.long2ObjectEntrySet()
+            .removeIf(
+                entry -> !stillExists.test(
+                    entry.getLongKey(),
+                    entry.getValue()
+                        .address()));
+        return removed && writeDisplaySettings(card, settings, false);
+    }
+
+    private static boolean writeDisplaySettings(ItemStack card, Long2ObjectMap<DisplaySetting> settings,
+        boolean checkSize) {
+        NBTTagCompound current = card.getTagCompound();
+        if (settings.isEmpty() && (current == null || !current.hasKey(DISPLAY_KEY))) return true;
+        NBTTagCompound tag = current == null ? new NBTTagCompound() : (NBTTagCompound) current.copy();
+        if (settings.isEmpty()) tag.removeTag(DISPLAY_KEY);
+        else {
+            int[] ids = new int[settings.size() * 2], positions = new int[settings.size() * 5];
+            byte[] modes = new byte[settings.size()];
+            int index = 0;
+            for (var entry : settings.long2ObjectEntrySet()) {
+                DisplaySetting setting = entry.getValue();
+                Address address = setting.address();
+                ids[index * 2] = (int) (entry.getLongKey() >>> 32);
+                ids[index * 2 + 1] = (int) entry.getLongKey();
+                modes[index] = (byte) setting.mode();
+                positions[index * 5] = address.dimension();
+                positions[index * 5 + 1] = address.x();
+                positions[index * 5 + 2] = address.y();
+                positions[index * 5 + 3] = address.z();
+                positions[index++ * 5 + 4] = address.side()
+                    .ordinal();
+            }
+            NBTTagCompound data = new NBTTagCompound();
+            data.setIntArray("ids", ids);
+            data.setByteArray("modes", modes);
+            data.setIntArray("positions", positions);
+            tag.setTag(DISPLAY_KEY, data);
+            if (checkSize && compressedSize(tag) > MAX_DISPLAY_NBT_BYTES) return false;
         }
-        int[] packed = new int[modes.size() * 2];
-        byte[] values = new byte[modes.size()];
-        int index = 0;
-        for (var entry : modes.long2IntEntrySet()) {
-            packed[index * 2] = (int) (entry.getLongKey() >>> 32);
-            packed[index * 2 + 1] = (int) entry.getLongKey();
-            values[index++] = (byte) entry.getIntValue();
-        }
-        NBTTagCompound data = new NBTTagCompound();
-        data.setIntArray("ids", packed);
-        data.setByteArray("modes", values);
-        ItemStackNBT.get(card)
-            .setTag(DISPLAY_KEY, data);
+        card.setTagCompound(tag);
         return true;
+    }
+
+    private static int compressedSize(NBTTagCompound tag) {
+        try {
+            return CompressedStreamTools.compress(tag).length;
+        } catch (IOException failure) {
+            return Integer.MAX_VALUE;
+        }
     }
 
     public static WirelessCardBinding read(NBTTagCompound itemTag) {
@@ -124,6 +192,9 @@ public record WirelessCardBinding(WirelessFrequency frequency, Address location,
     }
 
     public void write(NBTTagCompound itemTag) {
+        WirelessCardBinding previous = read(itemTag);
+        if (previous != null && !WirelessFrequencies.same(previous.frequency(), frequency))
+            itemTag.removeTag(DISPLAY_KEY);
         NBTTagCompound data = WirelessLinkData
             .writePosition(new NBTTagCompound(), frequency.isLegacy() ? frequency.legacy() : location);
         data.setInteger("version", frequency.isLegacy() ? LEGACY_VERSION : VERSION);
@@ -138,7 +209,10 @@ public record WirelessCardBinding(WirelessFrequency frequency, Address location,
     }
 
     public static void clear(NBTTagCompound itemTag) {
-        if (itemTag != null) itemTag.removeTag(KEY);
+        if (itemTag != null) {
+            itemTag.removeTag(KEY);
+            itemTag.removeTag(DISPLAY_KEY);
+        }
     }
 
     public boolean belongsTo(UUID player) {

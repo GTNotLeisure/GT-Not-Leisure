@@ -265,18 +265,10 @@ public class WirelessCardGui extends ModularPanel {
         return search.isFocused();
     }
 
-    private int depth() {
-        return view().getBoolean("detail") ? 1 : 0;
-    }
-
-    private void jump(int target) {
-        if (target >= depth() || !layoutReady()) return;
+    private void back() {
+        if (!view().getBoolean("detail") || !layoutReady()) return;
         closingDetail = true;
         container.sync.request(CLOSE_DETAILS, 0, "", 0);
-    }
-
-    private void back() {
-        jump(depth() - 1);
     }
 
     private void filter(Integer dimension, int state) {
@@ -523,7 +515,7 @@ public class WirelessCardGui extends ModularPanel {
             return true;
         }
         boolean leave = key == Keyboard.KEY_ESCAPE || key == Keyboard.KEY_BACK && !editingText();
-        if (leave && depth() > 0) {
+        if (leave && view().getBoolean("detail")) {
             if (editingText()) getContext().removeFocus();
             back();
             return true;
@@ -683,7 +675,6 @@ public class WirelessCardGui extends ModularPanel {
             searchText = returning.search();
             clientView().restore(returning);
             clientView().resize(visibleRows);
-            clientView().rebuild();
         }
         super.onUpdate();
         if (closingDetail && !container.display.getBoolean("detail")) closingDetail = false;
@@ -974,7 +965,8 @@ public class WirelessCardGui extends ModularPanel {
 
     private static String title(NBTTagCompound data) {
         if (!data.getBoolean("detail")) return tr("title");
-        String page = tr(data.getBoolean("devices") ? "devices_title" : "detail_title"), name = data.getString("name");
+        String page = tr(data.getBoolean("devicePage") ? "devices_title" : "detail_title"),
+            name = data.getString("name");
         return name.isEmpty() ? page : tr("page_title", page, name);
     }
 
@@ -1210,7 +1202,7 @@ public class WirelessCardGui extends ModularPanel {
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
             NBTTagCompound data = view();
             String info = data.getBoolean("detail")
-                ? tr(data.getBoolean("devices") ? "device_count" : "entrance_count", data.getInteger("rowCount"))
+                ? tr(data.getBoolean("devicePage") ? "device_count" : "entrance_count", data.getInteger("rowCount"))
                 : tr(data.getBoolean("filtered") ? "matched" : "loaded", data.getInteger("total"));
             drawText(trim(info, getArea().width), 0, FOOTER_TEXT_Y, textColor(), false);
         }
@@ -1258,10 +1250,8 @@ public class WirelessCardGui extends ModularPanel {
             int x = getContext().getAbsMouseX() - area.x, y = getContext().getAbsMouseY() - area.y;
             if (!area.mouseClicked(x, y)) return Result.STOP;
             int length = scroll.getScrollBarLength(area), start = scroll.getScrollBarStart(area, length, false);
-            if (y < start || y > start + length) {
-                scrollTo(Math.round(scroll.getProgress(area, y, x) * view().getInteger("maxScroll")));
-            }
-            // Anchor to the exact row offset; the rendered thumb's integer position loses precision on long lists.
+            if (y < start || y > start + length) scrollTo(rows(y - length / 2));
+            // Row math anchored to the press: the thumb's integer position loses rows on long lists.
             dragMouseY = getContext().getAbsMouseY();
             dragOffset = view().getInteger("scroll");
             return Result.SUCCESS;
@@ -1271,11 +1261,12 @@ public class WirelessCardGui extends ModularPanel {
         public void onMouseDrag(int button, long timeSinceClick) {
             if (button != 0 || !layoutReady() || !scroll.isDragging()) return;
             sync();
-            if (!scroll.isScrollBarActive(area)) return;
+            if (scroll.isScrollBarActive(area)) scrollTo(dragOffset + rows(getContext().getAbsMouseY() - dragMouseY));
+        }
+
+        private int rows(int pixels) {
             int travel = scroll.getFullVisibleSize(area) - scroll.getScrollBarLength(area);
-            if (travel <= 0) return;
-            int delta = getContext().getAbsMouseY() - dragMouseY;
-            scrollTo(dragOffset + Math.round((float) delta * view().getInteger("maxScroll") / travel));
+            return travel <= 0 ? 0 : Math.round((float) pixels * view().getInteger("maxScroll") / travel);
         }
 
         @Override

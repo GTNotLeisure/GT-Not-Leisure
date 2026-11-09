@@ -43,11 +43,13 @@ public class WirelessCardContainer extends ModularContainer {
     private final long session = SESSIONS.incrementAndGet();
     private final long returnSession;
     public long revision;
+    private long snapshotSequence;
     public final WirelessCardViewBuilder view = new WirelessCardViewBuilder();
     private final WirelessCardActionHandler actions = new WirelessCardActionHandler(this);
     private int ticks;
     private boolean displayChanged;
     private long displayAck;
+    private long displayCleanupTick = Long.MIN_VALUE;
     public WirelessCardSnapshot snapshot;
     public NBTTagList pendingHighlight;
     public volatile NBTTagCompound display = new NBTTagCompound();
@@ -124,9 +126,10 @@ public class WirelessCardContainer extends ModularContainer {
     void update(boolean force) {
         if (!(player instanceof EntityPlayerMP)) return;
         var next = view.build(player, binding, card);
+        boolean cleaned = cleanDisplayModes(false);
         boolean changed = force || !next.sameView(snapshot);
+        if (!next.sameActions(snapshot)) revision++;
         snapshot = next;
-        if (changed) revision++;
         if (changed || pendingHighlight != null) {
             NBTTagCompound data = next.packet(session, revision, pendingHighlight);
             data.setLong("displayAck", displayAck);
@@ -134,12 +137,22 @@ public class WirelessCardContainer extends ModularContainer {
             pendingHighlight = null;
             sendSnapshot(data);
         }
+        if (cleaned) WirelessCardInventory.sync(player, card);
+    }
+
+    private boolean cleanDisplayModes(boolean force) {
+        long tick = player.worldObj.getTotalWorldTime();
+        if (!force && displayCleanupTick != Long.MIN_VALUE
+            && tick >= displayCleanupTick
+            && tick - displayCleanupTick < WirelessCardViewBuilder.PRESENTATION_REFRESH_TICKS) return false;
+        displayCleanupTick = tick;
+        return WirelessCardBinding.refreshDisplayModes(card, WirelessDeviceDisplay::stillExists);
     }
 
     private void sendSnapshot(NBTTagCompound data) {
         try {
             byte[] compressed = CompressedStreamTools.compress(data);
-            long sequence = revision;
+            long sequence = ++snapshotSequence;
             for (int offset = 0; offset < compressed.length; offset += WirelessCardSnapshot.CHUNK_BYTES) {
                 int start = offset;
                 byte[] chunk = Arrays.copyOfRange(
@@ -244,14 +257,23 @@ public class WirelessCardContainer extends ModularContainer {
                     || !canInteractWith(player)
                     || session != request.session()
                     || request.sequence() <= displayAck) return;
-                if (WirelessCardBinding.setDisplayModes(card, request.ids(), request.mode()))
-                    WirelessCardInventory.sync(player, card);
-                else player.addChatMessage(
+                if (snapshot == null) return;
+                boolean cleaned = cleanDisplayModes(true);
+                boolean current = request.mode() == 0 || Arrays.stream(request.ids())
+                    .allMatch(id -> {
+                        var address = snapshot.displayAddresses.get(id);
+                        return address != null && WirelessDeviceDisplay.stillExists(id, address);
+                    });
+                boolean applied = current && WirelessCardBinding
+                    .setDisplayModes(card, request.ids(), request.mode(), snapshot.displayAddresses);
+                if (!current) player.addChatMessage(new ChatComponentTranslation("gtnl.wireless.gui.stale"));
+                else if (!applied) player.addChatMessage(
                     new ChatComponentTranslation(
                         "gtnl.wireless.gui.display.limit",
                         WirelessCardBinding.MAX_DISPLAY_ENTRIES));
                 displayAck = request.sequence();
                 displayChanged = true;
+                if (cleaned || applied) WirelessCardInventory.sync(player, card);
             });
         }
 

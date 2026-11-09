@@ -160,6 +160,8 @@ public class WirelessCardActionHandler {
                 message("stale");
             }
         } else if (action != REFRESH) return;
+        if (action == REFRESH || action == RENAME || action == OPEN_DETAILS || action == OPEN_ENTRANCES)
+            session.view.invalidatePresentation();
         session.update(true);
     }
 
@@ -171,8 +173,7 @@ public class WirelessCardActionHandler {
             message("stale");
             return false;
         }
-        var node = device != null ? device.node()
-            : WirelessCardViewBuilder.remoteTarget(player, binding.frequency(), row);
+        var node = device != null ? device.node() : session.snapshot.remoteTarget(targetId);
         // The session follows the card by identity while it moves through the device screen's inventory.
         if (WirelessCardBinding.identify(card)) WirelessCardInventory.sync(serverPlayer, card);
         var state = RemoteDeviceSessions.open(

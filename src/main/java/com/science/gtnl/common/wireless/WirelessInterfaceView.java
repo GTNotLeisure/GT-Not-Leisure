@@ -40,6 +40,7 @@ import gregtech.api.util.GTUtility;
 import gregtech.crossmod.ae2.ChatComponentGhostCircuitSuffix;
 import gregtech.crossmod.ae2.ChatComponentNonConsumedItemsSuffix;
 import it.unimi.dsi.fastutil.objects.Object2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
@@ -47,7 +48,7 @@ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 public class WirelessInterfaceView {
 
     private final Map<Object, List<MTEHatch>> targets = new Reference2ObjectOpenHashMap<>();
-    private final Map<IWirelessLinkView, List<Name>> names = new Reference2ObjectOpenHashMap<>();
+    private final Map<Set<IGridNode>, List<Name>> names = new Object2ObjectOpenHashMap<>();
     private final Map<Object, Name> deviceNames = new Reference2ObjectOpenHashMap<>();
 
     record Name(String rawName, String suffix, ItemStack icon, ItemStack configurationIcon, boolean connected,
@@ -111,7 +112,7 @@ public class WirelessInterfaceView {
     }
 
     List<Name> names(IWirelessLinkView link) {
-        return names.computeIfAbsent(link, this::readNames);
+        return names.computeIfAbsent(link.members(), this::readNames);
     }
 
     Name name(IGridNode node) {
@@ -120,10 +121,10 @@ public class WirelessInterfaceView {
         return deviceNames.get(machine);
     }
 
-    private List<Name> readNames(IWirelessLinkView link) {
+    private List<Name> readNames(Set<IGridNode> members) {
         Set<Object> seen = new ReferenceOpenHashSet<>();
         Map<String, Name> names = new Object2ObjectAVLTreeMap<>();
-        for (var node : link.members()) {
+        for (var node : members) {
             Object machine = machine(node);
             if (!seen.add(machine)) continue;
             Name name = name(node);

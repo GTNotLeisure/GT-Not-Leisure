@@ -6,7 +6,6 @@ import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeInterf
 import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeStatistics;
 import static com.science.gtnl.common.wireless.WirelessMachineGroups.coordinates;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -14,15 +13,11 @@ import java.util.Objects;
 import java.util.Set;
 
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 
-import org.jetbrains.annotations.Nullable;
-
-import com.google.common.hash.Hashing;
 import com.science.gtnl.common.me.InterfaceNameLocalization;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
@@ -35,13 +30,16 @@ import appeng.api.networking.IGridNode;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
 public class WirelessCardViewBuilder {
 
     private static final List<String> DEVICE_STATES = List.of("missing", "offline", "online");
+    public static final long PRESENTATION_REFRESH_TICKS = 100;
 
     public IGridNode detailNode;
     public boolean detailDevices;
@@ -50,13 +48,37 @@ public class WirelessCardViewBuilder {
     private Object2LongOpenHashMap<IGridNode> deviceIds = new Object2LongOpenHashMap<>();
     private long nextTargetId, nameRevision;
     private RenameState renameState;
+    private final Long2ObjectMap<Address> displayAddresses = new Long2ObjectOpenHashMap<>();
+    private long presentationTick = Long.MIN_VALUE;
+    private WirelessInterfaceView interfaces = new WirelessInterfaceView();
+    private final Map<IGridNode, RemoteDeviceSessions.Availability> availability = new Reference2ObjectOpenHashMap<>();
+    private final Map<IGridNode, Presentation> presentations = new Reference2ObjectOpenHashMap<>();
+
+    void invalidatePresentation() {
+        presentationTick = Long.MIN_VALUE;
+    }
+
+    void refreshPresentation(long tick) {
+        if (presentationTick != Long.MIN_VALUE && tick >= presentationTick
+            && tick - presentationTick < PRESENTATION_REFRESH_TICKS) return;
+        presentationTick = tick;
+        interfaces = new WirelessInterfaceView();
+        availability.clear();
+        presentations.clear();
+    }
+
+    private RemoteDeviceSessions.Availability probe(EntityPlayer player, WirelessFrequency frequency, IGridNode node) {
+        // Display hints only; opening and using a remote screen still checks live permissions.
+        return availability.computeIfAbsent(node, key -> RemoteDeviceSessions.probe(player, frequency, key));
+    }
 
     long nameRevision() {
         return nameRevision;
     }
 
     WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card) {
-        var interfaces = new WirelessInterfaceView();
+        displayAddresses.clear();
+        refreshPresentation(player.worldObj.getTotalWorldTime());
         List<IWirelessLinkView> all = binding == null ? List.of()
             : new ObjectArrayList<>(WirelessClusterManager.links(binding.frequency()));
         boolean initializing = startup.waiting(all);
@@ -82,7 +104,7 @@ public class WirelessCardViewBuilder {
         NBTTagCompound dimensions = new NBTTagCompound();
         Long2IntMap modes = WirelessCardBinding.displayModes(card.getTagCompound());
         data.setBoolean("detail", focus != null);
-        data.setBoolean("devices", devices);
+        data.setBoolean("devicePage", devices);
         data.setBoolean("initializing", initializing);
         data.setBoolean("collapseTypes", WirelessCardBinding.collapseTypes(card.getTagCompound()));
         data.setString("name", focus == null ? "" : focus.name());
@@ -119,8 +141,8 @@ public class WirelessCardViewBuilder {
             }
         }
         Object2LongOpenHashMap<Target> nextIds = new Object2LongOpenHashMap<>();
-        Long2ObjectLinkedOpenHashMap<IWirelessLinkView> targets = new Long2ObjectLinkedOpenHashMap<>();
-        if (focus != null) data.setLong("detailId", identify(focus, nextIds, targets));
+        Long2ObjectLinkedOpenHashMap<Device> targets = new Long2ObjectLinkedOpenHashMap<>();
+        if (focus != null) data.setLong("detailId", identify(focus, focus.node(), nextIds, targets));
         NBTTagList entries = new NBTTagList();
         for (Row row : rows) entries.appendTag(
             writeRow(
@@ -141,24 +163,24 @@ public class WirelessCardViewBuilder {
         deviceIds = nextDeviceIds;
         data.setTag("rows", entries);
         data.setTag("dimensions", dimensions);
-        return new WirelessCardSnapshot(data, targets, deviceTargets);
+        return new WirelessCardSnapshot(data, targets, deviceTargets, displayAddresses);
     }
 
-    private long identify(IWirelessLinkView link, Object2LongMap<Target> nextIds,
-        Long2ObjectMap<IWirelessLinkView> targets) {
+    private long identify(IWirelessLinkView link, IGridNode remote, Object2LongMap<Target> nextIds,
+        Long2ObjectMap<Device> targets) {
         Target key = new Target(link.node(), link.members(), link instanceof IWirelessLinkView.EntranceView);
         long id = nextIds.computeIfAbsent(
             key,
             (Target ignored) -> targetIds.containsKey(key) ? targetIds.getLong(key) : ++nextTargetId);
-        targets.put(id, link);
+        targets.put(id, new Device(link, remote));
         return id;
     }
 
-    private static List<Listed> devices(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
+    private List<Listed> devices(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
         boolean channels = WirelessChannelManager.channelsEnabled();
         List<Listed> devices = new ObjectArrayList<>();
         for (IGridNode node : link.members()) {
-            var remote = RemoteDeviceSessions.probe(player, frequency, node);
+            var remote = probe(player, frequency, node);
             if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !remote.hasScreen()) continue;
             Address address = WirelessClusterManager.deviceAddress(node);
             if (address == null) continue;
@@ -171,31 +193,6 @@ public class WirelessCardViewBuilder {
             Comparator.comparingInt((Listed device) -> DEVICE_STATES.indexOf(device.state()))
                 .thenComparing(Listed::address, Address.POSITION_ORDER));
         return devices;
-    }
-
-    static @Nullable IGridNode onlyDevice(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
-        if (!(link instanceof IWirelessLinkView.ClusterView)) return null;
-        IGridNode only = null;
-        for (IGridNode node : link.members()) {
-            if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL) || WirelessClusterManager.deviceAddress(node) == null)
-                continue;
-            if (only != null) return null;
-            only = node;
-        }
-        for (IGridNode node : link.members()) {
-            if (node.hasFlag(GridFlags.REQUIRE_CHANNEL) || WirelessClusterManager.deviceAddress(node) == null
-                || !RemoteDeviceSessions.probe(player, frequency, node)
-                    .hasScreen())
-                continue;
-            if (only != null) return null;
-            only = node;
-        }
-        return only;
-    }
-
-    static IGridNode remoteTarget(EntityPlayer player, WirelessFrequency frequency, IWirelessLinkView link) {
-        IGridNode only = onlyDevice(player, frequency, link);
-        return only == null ? link.node() : only;
     }
 
     private NBTTagCompound writeDevice(IWirelessLinkView link, Listed device, WirelessInterfaceView interfaces,
@@ -217,11 +214,26 @@ public class WirelessCardViewBuilder {
         return entry;
     }
 
-    private static NBTTagCompound writePresentation(IWirelessLinkView link, Listed device,
-        WirelessInterfaceView interfaces, NBTTagCompound dimensions, Long2IntMap modes) {
+    private NBTTagCompound writePresentation(IWirelessLinkView link, Listed device, WirelessInterfaceView interfaces,
+        NBTTagCompound dimensions, Long2IntMap modes) {
         IGridNode node = device.node();
         Address address = device.address();
-        NBTTagCompound entry = new NBTTagCompound();
+        Presentation cached = presentations.get(node);
+        if (cached == null || !cached.address()
+            .equals(address)) {
+            NBTTagCompound data = new NBTTagCompound();
+            ItemStack icon = node.getGridBlock()
+                .getMachineRepresentation();
+            writeIcon(data, "icon", icon);
+            data.setLong("displayId", WirelessDeviceDisplay.id(address, node));
+            data.setString("serverIconName", icon == null ? "" : icon.getDisplayName());
+            var name = interfaces.name(node);
+            if (name != null) writeInterfaceNames(data, List.of(name));
+            cached = new Presentation(address, data);
+            presentations.put(node, cached);
+        }
+        NBTTagCompound entry = (NBTTagCompound) cached.data()
+            .copy();
         writeDimensionName(dimensions, address.dimension());
         entry.setInteger("dimension", address.dimension());
         entry.setString("position", coordinates(address));
@@ -230,39 +242,15 @@ public class WirelessCardViewBuilder {
             link.deviceNames()
                 .getOrDefault(node, ""));
         entry.setString("deviceState", device.state());
-        ItemStack icon = node.getGridBlock()
-            .getMachineRepresentation();
-        writeIcon(entry, "icon", icon);
-        String identity = icon == null || icon.getItem() == null ? node.getMachine()
-            .getClass()
-            .getName() : Item.itemRegistry.getNameForObject(icon.getItem()) + ":" + icon.getItemDamage();
-        long displayId = displayId(address, identity);
-        entry.setLong("displayId", displayId);
+        long displayId = entry.getLong("displayId");
+        displayAddresses.put(displayId, address);
         entry.setInteger("displayMode", modes.get(displayId));
-        entry.setString("serverIconName", icon == null ? "" : icon.getDisplayName());
-        var name = interfaces.name(node);
-        if (name != null) writeInterfaceNames(entry, List.of(name));
         return entry;
-    }
-
-    private static long displayId(Address address, String identity) {
-        return Hashing.murmur3_128()
-            .newHasher()
-            .putInt(address.dimension())
-            .putInt(address.x())
-            .putInt(address.y())
-            .putInt(address.z())
-            .putInt(
-                address.side()
-                    .ordinal())
-            .putString(identity, StandardCharsets.UTF_8)
-            .hash()
-            .asLong();
     }
 
     private NBTTagCompound writeRow(EntityPlayer player, WirelessFrequency frequency, Row row,
         WirelessInterfaceView interfaces, NBTTagCompound dimensions, Long2IntMap modes, Object2LongMap<Target> nextIds,
-        Long2ObjectMap<IWirelessLinkView> targets, boolean detail) {
+        Long2ObjectMap<Device> targets, boolean detail) {
         var target = row.target();
         NBTTagCompound entry = new NBTTagCompound();
         writeDimensionName(dimensions, target.dimension());
@@ -329,12 +317,12 @@ public class WirelessCardViewBuilder {
             entry.setTag("children", children);
         } else {
             var link = row.link();
-            entry.setLong("targetId", identify(link, nextIds, targets));
+            IGridNode remote = only == null ? link.node() : only;
+            entry.setLong("targetId", identify(link, remote, nextIds, targets));
             entry.setBoolean("singleDevice", only != null);
             entry.setString(
                 "remote",
-                RemoteDeviceSessions.probe(player, frequency, only == null ? link.node() : only)
-                    .state()
+                probe(player, frequency, remote).state()
                     .key());
             if (!detail) {
                 NBTTagList presentations = new NBTTagList();
@@ -375,6 +363,8 @@ public class WirelessCardViewBuilder {
     private record Target(IGridNode node, Set<IGridNode> members, boolean entrance) {}
 
     private record Listed(IGridNode node, Address address, String state, RemoteDeviceState remote) {}
+
+    private record Presentation(Address address, NBTTagCompound data) {}
 
     private record RenameState(Set<IGridNode> members, Map<IGridNode, String> names) {}
 }

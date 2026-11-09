@@ -147,26 +147,14 @@ public class GTNLGuiHandler {
             case SuperInterfaceGUI -> {
                 if (t instanceof TileEntitySuperInterface si) {
                     var container = new ContainerSuperInterface(player.inventory, si);
-                    ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(si, t, side));
                     yield container;
 
                 } else if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartSuperInterface si) {
                         var container = new ContainerSuperInterface(player.inventory, si);
-                        ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(t.getWorldObj());
-                        ctx.setX(t.xCoord);
-                        ctx.setY(t.yCoord);
-                        ctx.setZ(t.zCoord);
-                        ctx.setSide(side);
-                        container.setOpenContext(ctx);
+                        container.setOpenContext(openContext(si, t, side));
                         yield container;
                     }
                 }
@@ -175,26 +163,14 @@ public class GTNLGuiHandler {
             case SuperDualInterfaceGUI -> {
                 if (t instanceof TileEntitySuperDualInterface si) {
                     var container = new ContainerSuperInterface(player.inventory, si);
-                    ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(si, t, side));
                     yield container;
 
                 } else if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartSuperDualInterface si) {
                         var container = new ContainerSuperInterface(player.inventory, si);
-                        ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(t.getWorldObj());
-                        ctx.setX(t.xCoord);
-                        ctx.setY(t.yCoord);
-                        ctx.setZ(t.zCoord);
-                        ctx.setSide(side);
-                        container.setOpenContext(ctx);
+                        container.setOpenContext(openContext(si, t, side));
                         yield container;
                     }
                 }
@@ -203,25 +179,13 @@ public class GTNLGuiHandler {
             case SuperDualInterfaceFluidGUI -> {
                 if (t instanceof TileEntitySuperDualInterface si) {
                     var container = new ContainerSuperDualInterfaceFluid(player.inventory, si);
-                    ContainerOpenContext ctx = new ContainerOpenContext(si);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(si, t, side));
                     yield container;
                 } else if (t instanceof IPartHost host) {
                     IPart part = host.getPart(side);
                     if (part instanceof PartSuperDualInterface si) {
                         var container = new ContainerSuperDualInterfaceFluid(player.inventory, si);
-                        ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(t.getWorldObj());
-                        ctx.setX(t.xCoord);
-                        ctx.setY(t.yCoord);
-                        ctx.setZ(t.zCoord);
-                        ctx.setSide(side);
-                        container.setOpenContext(ctx);
+                        container.setOpenContext(openContext(si, t, side));
                         yield container;
                     }
                 }
@@ -232,13 +196,7 @@ public class GTNLGuiHandler {
                     IPart part = host.getPart(side);
                     if (part instanceof PartActiveFormationPlane si) {
                         var container = new ContainerActiveFormationPlane(player.inventory, si);
-                        ContainerOpenContext ctx = new ContainerOpenContext(si);
-                        ctx.setWorld(t.getWorldObj());
-                        ctx.setX(t.xCoord);
-                        ctx.setY(t.yCoord);
-                        ctx.setZ(t.zCoord);
-                        ctx.setSide(side);
-                        container.setOpenContext(ctx);
+                        container.setOpenContext(openContext(si, t, side));
                         yield container;
                     }
                 }
@@ -247,13 +205,7 @@ public class GTNLGuiHandler {
             case UniversalStorageBusGUI -> {
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartUniversalStorageBus bus) {
                     var container = new ContainerUniversalStorageBus(player.inventory, bus);
-                    ContainerOpenContext ctx = new ContainerOpenContext(bus);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(bus, t, side));
                     yield container;
                 }
                 yield null;
@@ -262,13 +214,7 @@ public class GTNLGuiHandler {
                 if (t instanceof IPartHost host && host.getPart(side) instanceof PartSharedItemBus<?>bus
                     && (bus instanceof PartUniversalImportBus || bus instanceof PartUniversalExportBus)) {
                     var container = new ContainerUniversalBusIO(player.inventory, bus);
-                    ContainerOpenContext ctx = new ContainerOpenContext(bus);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(bus, t, side));
                     yield container;
                 }
                 yield null;
@@ -292,13 +238,7 @@ public class GTNLGuiHandler {
                         yield null;
                     }
                     var container = new ContainerOreFilter(player.inventory, filterable);
-                    ContainerOpenContext ctx = new ContainerOpenContext(part);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(part, t, side));
                     container.setPrimaryGui(new UniversalBusPrimaryGui(returnGui, icon, t, side));
                     yield container;
                 }
@@ -309,13 +249,7 @@ public class GTNLGuiHandler {
                     IPart part = host.getPart(side);
                     if (part instanceof PartMECellDock dock) {
                         var container = new ContainerMECellDock(player.inventory, dock);
-                        ContainerOpenContext ctx = new ContainerOpenContext(dock);
-                        ctx.setWorld(t.getWorldObj());
-                        ctx.setX(t.xCoord);
-                        ctx.setY(t.yCoord);
-                        ctx.setZ(t.zCoord);
-                        ctx.setSide(side);
-                        container.setOpenContext(ctx);
+                        container.setOpenContext(openContext(dock, t, side));
                         yield container;
                     }
                 }
@@ -343,19 +277,23 @@ public class GTNLGuiHandler {
                 }
                 if (priorityHost != null) {
                     var container = new ContainerCustomPriority(player.inventory, priorityHost);
-                    ContainerOpenContext ctx = new ContainerOpenContext(priorityHost);
-                    ctx.setWorld(t.getWorldObj());
-                    ctx.setX(t.xCoord);
-                    ctx.setY(t.yCoord);
-                    ctx.setZ(t.zCoord);
-                    ctx.setSide(side);
-                    container.setOpenContext(ctx);
+                    container.setOpenContext(openContext(priorityHost, t, side));
                     yield container;
                 }
                 yield null;
             }
             default -> null;
         };
+    }
+
+    private static ContainerOpenContext openContext(Object host, TileEntity tile, ForgeDirection side) {
+        ContainerOpenContext context = new ContainerOpenContext(host);
+        context.setWorld(tile.getWorldObj());
+        context.setX(tile.xCoord);
+        context.setY(tile.yCoord);
+        context.setZ(tile.zCoord);
+        context.setSide(side);
+        return context;
     }
 
     public static void openGui(EntityPlayer player, GuiType type, ForgeDirection side, TileEntity tile) {
