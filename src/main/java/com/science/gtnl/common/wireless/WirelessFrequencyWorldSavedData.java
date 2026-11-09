@@ -1,7 +1,10 @@
 package com.science.gtnl.common.wireless;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -21,8 +24,11 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
 
     private final Map<UUID, Frequency> frequencies = new Object2ObjectOpenHashMap<>();
     private final Map<Address, UUID> legacy = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, Map<Address, GroupName>> groupNames = new Object2ObjectOpenHashMap<>();
 
     public record Frequency(UUID creator, long epoch) {}
+
+    public record GroupName(String name, int meta) {}
 
     public WirelessFrequencyWorldSavedData() {
         super(DATA_NAME);
@@ -95,10 +101,70 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
         markDirty();
     }
 
+    GroupName groupName(UUID frequency, Address machine) {
+        var names = groupNames.get(frequency);
+        return names == null ? null : names.get(machine);
+    }
+
+    void setGroupName(UUID frequency, Address machine, int meta, String name) {
+        var names = groupNames.computeIfAbsent(frequency, ignored -> new Object2ObjectOpenHashMap<>());
+        GroupName next = name.isEmpty() ? null : new GroupName(name, meta);
+        GroupName previous = next == null ? names.remove(machine) : names.put(machine, next);
+        if (names.isEmpty()) groupNames.remove(frequency);
+        if (!Objects.equals(previous, next)) markDirty();
+    }
+
+    void moveGroupNames(BiFunction<Address, Integer, Address> destination) {
+        boolean changed = false;
+        for (var names : groupNames.values()) {
+            Map<Address, GroupName> moved = new Object2ObjectOpenHashMap<>();
+            var entries = names.entrySet()
+                .iterator();
+            while (entries.hasNext()) {
+                var entry = entries.next();
+                Address target = destination.apply(
+                    entry.getKey(),
+                    entry.getValue()
+                        .meta());
+                if (target == null) continue;
+                moved.put(target, entry.getValue());
+                entries.remove();
+            }
+            // Re-key together so a chain of machines shifted onto each other's old positions keeps every name.
+            names.putAll(moved);
+            changed |= !moved.isEmpty();
+        }
+        if (changed) markDirty();
+    }
+
+    void forgetGroupNames(UUID frequency, BiPredicate<Address, Integer> removed) {
+        var names = groupNames.get(frequency);
+        if (names == null || !names.entrySet()
+            .removeIf(
+                entry -> removed.test(
+                    entry.getKey(),
+                    entry.getValue()
+                        .meta())))
+            return;
+        if (names.isEmpty()) groupNames.remove(frequency);
+        markDirty();
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         frequencies.clear();
         legacy.clear();
+        groupNames.clear();
+        NBTTagList named = tag.getTagList("groupNames", 10);
+        for (int i = 0; i < named.tagCount(); i++) {
+            NBTTagCompound entry = named.getCompoundTagAt(i);
+            UUID id = WirelessFrequencies.uuid(entry, "frequency");
+            Address position = WirelessLinkData.readPosition(entry);
+            String name = WirelessLinkPersistence.cleanName(entry.getString("name"));
+            if (id != null && position != null && !name.isEmpty())
+                groupNames.computeIfAbsent(id, ignored -> new Object2ObjectOpenHashMap<>())
+                    .put(position, new GroupName(name, entry.getInteger("meta")));
+        }
         NBTTagList list = tag.getTagList("frequencies", 10);
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound entry = list.getCompoundTagAt(i);
@@ -136,5 +202,14 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
             positions.appendTag(entry);
         });
         tag.setTag("legacy", positions);
+        NBTTagList named = new NBTTagList();
+        groupNames.forEach((id, names) -> names.forEach((position, name) -> {
+            NBTTagCompound entry = WirelessLinkData.writePosition(new NBTTagCompound(), position);
+            entry.setString("frequency", id.toString());
+            entry.setInteger("meta", name.meta());
+            entry.setString("name", name.name());
+            named.appendTag(entry);
+        }));
+        tag.setTag("groupNames", named);
     }
 }

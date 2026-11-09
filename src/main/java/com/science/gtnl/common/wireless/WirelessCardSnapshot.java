@@ -1,5 +1,6 @@
 package com.science.gtnl.common.wireless;
 
+import java.util.List;
 import java.util.Objects;
 
 import net.minecraft.nbt.NBTTagCompound;
@@ -8,6 +9,7 @@ import net.minecraft.nbt.NBTTagList;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 import appeng.api.networking.IGridNode;
+import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMaps;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -19,14 +21,20 @@ public class WirelessCardSnapshot {
     private final NBTTagCompound payload;
     private final Long2ObjectMap<Device> targets;
     private final Long2ObjectMap<Device> devices;
+    private final Long2ObjectMap<Machine> machines;
     final Long2ObjectMap<Address> displayAddresses;
 
     WirelessCardSnapshot(NBTTagCompound payload, Long2ObjectMap<Device> targets, Long2ObjectMap<Device> devices,
-        Long2ObjectMap<Address> displayAddresses) {
+        Long2ObjectMap<Machine> machines, Long2ObjectMap<Address> displayAddresses) {
         this.payload = (NBTTagCompound) payload.copy();
         this.targets = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(targets));
         this.devices = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(devices));
+        this.machines = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(machines));
         this.displayAddresses = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(displayAddresses));
+    }
+
+    Machine machine(long id) {
+        return machines.get(id);
     }
 
     IWirelessLinkView target(long id) {
@@ -88,4 +96,6 @@ public class WirelessCardSnapshot {
     }
 
     public record Device(IWirelessLinkView link, IGridNode node) {}
+
+    public record Machine(MTEMultiBlockBase machine, List<IWirelessLinkView> links) {}
 }

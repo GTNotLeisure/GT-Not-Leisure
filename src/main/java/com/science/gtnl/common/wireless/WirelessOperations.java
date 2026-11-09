@@ -157,6 +157,13 @@ public class WirelessOperations {
         return WirelessClusterManager.rename(source, view, name, node -> canBuild(node, player));
     }
 
+    static boolean renameGroup(EntityPlayer player, WirelessFrequency source, WirelessCardSnapshot.Machine group,
+        String name) {
+        if (!canBuild(WirelessFrequencies.controllerNode(source), player)) throw new Denied();
+        for (IWirelessLinkView link : group.links()) if (!canBuild(link.node(), player)) throw new Denied();
+        return WirelessMachineGroups.setGroupName(source, group.machine(), name);
+    }
+
     static void setPaused(EntityPlayer player, WirelessFrequency source, IWirelessLinkView view) {
         IGridNode controller = WirelessFrequencies.controllerNode(source);
         if (view.target()

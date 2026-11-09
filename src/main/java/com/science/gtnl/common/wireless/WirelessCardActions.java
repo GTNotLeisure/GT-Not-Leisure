@@ -15,6 +15,7 @@ public class WirelessCardActions {
     public static final int CLOSE_DETAILS = 60;
     public static final int TOGGLE_GROUPING = 61;
     public static final int SET_VISUALISATION = 62;
+    public static final int RENAME_GROUP = 63;
     public static final int OPEN_ENTRANCES = 70;
     public static final int OPEN_DEVICE = 80;
     public static final int CYCLE_DISPLAY = 90;

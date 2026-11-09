@@ -196,7 +196,9 @@ public class WirelessCardClientView {
         for (int i = 0; i < customNames.tagCount(); i++) names.append(' ')
             .append(customNames.getStringTagAt(i));
         names.append(' ')
-            .append(iconName(data));
+            .append(iconName(data))
+            .append(' ')
+            .append(data.getString("name"));
         NBTTagList labels = data.getTagList("searchLabels", 10);
         for (int i = 0; i < labels.tagCount(); i++) {
             NBTTagCompound label = labels.getCompoundTagAt(i);
@@ -300,6 +302,11 @@ public class WirelessCardClientView {
 
     public void cycleDisplayMode(NBTTagCompound device) {
         setDisplayMode(List.of(device), (displayMode(device) + 1) % WirelessCardBinding.DISPLAY_MODES);
+    }
+
+    public NBTTagCompound groupHeader(String key) {
+        Row group = findRow(listing, key);
+        return group == null ? null : group.data();
     }
 
     public GroupDetails groupDetails(String key) {
@@ -563,6 +570,7 @@ public class WirelessCardClientView {
                 category.setString("position", "D" + category.getInteger("dimension"));
                 category.setInteger("items", children.size());
                 category.removeTag("targetId");
+                category.removeTag("machineId");
                 category.removeTag("energyHatches");
                 result.add(new Row(category, List.copyOf(children), "", ""));
             }

@@ -20,6 +20,7 @@ import net.minecraft.nbt.NBTTagString;
 
 import com.science.gtnl.common.me.InterfaceNameLocalization;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
+import com.science.gtnl.common.wireless.WirelessCardSnapshot.Machine;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 import com.science.gtnl.common.wireless.WirelessMachineGroups.Row;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
@@ -27,6 +28,7 @@ import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
+import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -34,6 +36,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
 public class WirelessCardViewBuilder {
@@ -49,6 +52,9 @@ public class WirelessCardViewBuilder {
     private long nextTargetId, nameRevision;
     private RenameState renameState;
     private final Long2ObjectMap<Address> displayAddresses = new Long2ObjectOpenHashMap<>();
+    private final Long2ObjectMap<Machine> machines = new Long2ObjectOpenHashMap<>();
+    private Reference2LongOpenHashMap<MTEMultiBlockBase> machineIds = new Reference2LongOpenHashMap<>(),
+        nextMachineIds = new Reference2LongOpenHashMap<>();
     private long presentationTick = Long.MIN_VALUE;
     private WirelessInterfaceView interfaces = new WirelessInterfaceView();
     private final Map<IGridNode, RemoteDeviceSessions.Availability> availability = new Reference2ObjectOpenHashMap<>();
@@ -58,13 +64,14 @@ public class WirelessCardViewBuilder {
         presentationTick = Long.MIN_VALUE;
     }
 
-    void refreshPresentation(long tick) {
+    boolean refreshPresentation(long tick) {
         if (presentationTick != Long.MIN_VALUE && tick >= presentationTick
-            && tick - presentationTick < PRESENTATION_REFRESH_TICKS) return;
+            && tick - presentationTick < PRESENTATION_REFRESH_TICKS) return false;
         presentationTick = tick;
         interfaces = new WirelessInterfaceView();
         availability.clear();
         presentations.clear();
+        return true;
     }
 
     private RemoteDeviceSessions.Availability probe(EntityPlayer player, WirelessFrequency frequency, IGridNode node) {
@@ -78,7 +85,10 @@ public class WirelessCardViewBuilder {
 
     WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card) {
         displayAddresses.clear();
-        refreshPresentation(player.worldObj.getTotalWorldTime());
+        machines.clear();
+        nextMachineIds = new Reference2LongOpenHashMap<>();
+        if (refreshPresentation(player.worldObj.getTotalWorldTime()) && binding != null)
+            WirelessMachineGroups.forgetRemovedGroupNames(binding.frequency());
         List<IWirelessLinkView> all = binding == null ? List.of()
             : new ObjectArrayList<>(WirelessClusterManager.links(binding.frequency()));
         boolean initializing = startup.waiting(all);
@@ -161,9 +171,20 @@ public class WirelessCardViewBuilder {
             entries.appendTag(writeDevice(focus, device, interfaces, dimensions, modes, nextDeviceIds, deviceTargets));
         targetIds = nextIds;
         deviceIds = nextDeviceIds;
+        machineIds = nextMachineIds;
         data.setTag("rows", entries);
         data.setTag("dimensions", dimensions);
-        return new WirelessCardSnapshot(data, targets, deviceTargets, displayAddresses);
+        return new WirelessCardSnapshot(data, targets, deviceTargets, machines, displayAddresses);
+    }
+
+    private long identify(Row group) {
+        MTEMultiBlockBase machine = group.machine();
+        long id = nextMachineIds.computeIfAbsent(
+            machine,
+            (MTEMultiBlockBase ignored) -> machineIds.containsKey(machine) ? machineIds.getLong(machine)
+                : ++nextTargetId);
+        machines.put(id, new Machine(machine, group.links()));
+        return id;
     }
 
     private long identify(IWirelessLinkView link, IGridNode remote, Object2LongMap<Target> nextIds,
@@ -264,8 +285,10 @@ public class WirelessCardViewBuilder {
                 : row.type()
                     .sortKey());
         entry.setBoolean("group", row.group());
-        if (row.machine() != null)
+        if (row.machine() != null) {
             entry.setIntArray("energyHatches", WirelessMachineGroups.energyHatches(row.machine()));
+            if (WirelessMachineGroups.canName(frequency)) entry.setLong("machineId", identify(row));
+        }
         entry.setBoolean(
             "shared",
             row.type() != null && row.type()
@@ -276,7 +299,7 @@ public class WirelessCardViewBuilder {
                 .size());
         entry.setString(
             "name",
-            row.group() ? ""
+            row.group() ? WirelessMachineGroups.groupName(frequency, row.machine())
                 : row.link()
                     .name());
         entry.setString(

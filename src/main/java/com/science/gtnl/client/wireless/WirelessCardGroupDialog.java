@@ -2,6 +2,7 @@ package com.science.gtnl.client.wireless;
 
 import static codechicken.nei.NEIClientUtils.cropText;
 import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
+import static net.minecraft.client.gui.Gui.drawRect;
 
 import java.util.List;
 import java.util.function.BooleanSupplier;
@@ -12,6 +13,7 @@ import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.StatCollector;
 
 import org.lwjgl.input.Keyboard;
+import org.lwjgl.opengl.GL11;
 
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
@@ -19,6 +21,7 @@ import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.utils.Alignment;
+import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
@@ -39,8 +42,9 @@ import cpw.mods.fml.relauncher.SideOnly;
 public class WirelessCardGroupDialog extends Dialog<Void> {
 
     private static final int MAX_WIDTH = 440, MAX_HEIGHT = 300, EDGE = 10, TOP = 8, BOTTOM = 6, GAP = 3,
-        CLOSE_ROOM = 20, TITLE_HEIGHT = 14, SCOPE_HEIGHT = 12, NOTICE_HEIGHT = 18, DONE_WIDTH = 80, ROW_HEIGHT = 32,
-        WELL_GAP = 5, CHILDREN = 7;
+        CLOSE_ROOM = 20, TITLE_HEIGHT = 14, SCOPE_HEIGHT = 12, NOTICE_HEIGHT = 18, DONE_WIDTH = 80, RENAME_WIDTH = 64,
+        ROW_HEIGHT = WirelessCardGui.ROW_HEIGHT, WELL_GAP = 5, CHILDREN = 7, ICON_X = 3, TEXT_X = 24, MODE_SIZE = 16,
+        MODE_GAP = 4;
     private static final int CHROME = TOP + TITLE_HEIGHT * 2
         + SCOPE_HEIGHT
         + AE2Theme.BUTTON_HEIGHT * 2
@@ -48,23 +52,36 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
         + GAP * (CHILDREN - 1)
         + BOTTOM;
     private final WirelessCardGui owner;
+    private final String key;
+    private final NBTTagCompound header;
+    private final ItemStack icon;
     private final List<NBTTagCompound> devices;
     private final FadingNotice notice = new FadingNotice().duration(5000);
 
     WirelessCardGroupDialog(WirelessCardGui owner, WirelessCardClientView.GroupDetails group) {
         super("wireless_card_group");
         this.owner = owner;
+        header = group.header();
+        key = header.getString("key");
+        icon = ItemStack.loadItemStackFromNBT(header.getCompoundTag("icon"));
         devices = group.devices();
         int width = Math.min(MAX_WIDTH, owner.xSize - 20);
         int maxRows = Math.max(1, (Math.min(MAX_HEIGHT, owner.ySize - 8) - CHROME - 2) / ROW_HEIGHT);
         int wellHeight = Math.max(1, Math.min(devices.size(), maxRows)) * ROW_HEIGHT + 2;
         size(width, CHROME + wellHeight);
         child(ButtonWidget.panelCloseButton());
-        String name = WirelessCardGui.rowName(
-            group.header(),
-            ItemStack.loadItemStackFromNBT(
-                group.header()
-                    .getCompoundTag("icon")));
+        boolean renameable = header.hasKey("machineId");
+        int nameWidth = width - EDGE * 2 - (renameable ? RENAME_WIDTH + GAP : 0);
+        Flow nameRow = Flow.row()
+            .widthRel(1f)
+            .height(TITLE_HEIGHT)
+            .childPadding(GAP)
+            .child(
+                IKey.dynamic(() -> cropText(owner.fontRendererObj, groupName(), nameWidth))
+                    .asWidget()
+                    .expanded()
+                    .height(TITLE_HEIGHT));
+        if (renameable) nameRow.child(renameButton());
         Flow modes = Flow.row()
             .widthRel(1f)
             .height(AE2Theme.BUTTON_HEIGHT)
@@ -88,7 +105,8 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
             .bottom(1)
             .right(0);
         int rowWidth = width - EDGE * 2 - scroll.getThickness() - WELL_GAP - 2;
-        for (NBTTagCompound device : devices) list.child(new DeviceRow(device, rowWidth));
+        for (int i = 0; i < devices.size(); i++)
+            list.child(new DeviceRow(devices.get(i), rowWidth, i == devices.size() - 1));
         box.child(list);
         ButtonWidget<?> done = new ButtonWidget<>();
         done.size(DONE_WIDTH, AE2Theme.BUTTON_HEIGHT)
@@ -112,11 +130,7 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
                         .widthRel(1f)
                         .marginRight(CLOSE_ROOM)
                         .height(TITLE_HEIGHT))
-                .child(
-                    IKey.str(cropText(owner.fontRendererObj, name, width - EDGE * 2))
-                        .asWidget()
-                        .widthRel(1f)
-                        .height(TITLE_HEIGHT))
+                .child(nameRow)
                 .child(
                     IKey.str(tr("display.scope", devices.size()))
                         .asWidget()
@@ -133,6 +147,28 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
                         .height(AE2Theme.BUTTON_HEIGHT)
                         .mainAxisAlignment(Alignment.MainAxis.END)
                         .child(done)));
+    }
+
+    private String groupName() {
+        NBTTagCompound current = owner.clientView()
+            .groupHeader(key);
+        return WirelessCardGui.rowName(current == null ? header : current, icon);
+    }
+
+    private ButtonWidget<?> renameButton() {
+        ButtonWidget<?> button = new ButtonWidget<>();
+        IDrawable background = AE2Theme.button(button, () -> true, () -> false);
+        return button.size(RENAME_WIDTH, TITLE_HEIGHT)
+            .background(background)
+            .hoverBackground(background)
+            .overlay(
+                AE2Theme
+                    .label(button, () -> StatCollector.translateToLocal("selectWorld.rename"), () -> true, () -> false))
+            .onMousePressed(pressed -> {
+                if (pressed != 0) return false;
+                owner.openRename(key);
+                return true;
+            });
     }
 
     private ButtonWidget<?> modeButton(int mode) {
@@ -178,12 +214,17 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
     private class DeviceRow extends ButtonWidget<DeviceRow> {
 
         private final NBTTagCompound device;
+        private final boolean last;
+        private final IDrawable modeButton, modeLabel;
 
-        private DeviceRow(NBTTagCompound device, int width) {
+        private DeviceRow(NBTTagCompound device, int width, boolean last) {
             this.device = device;
-            size(width, 32);
-            IDrawable row = AE2Theme.listRow(this::isHovering);
-            background(row).hoverBackground(row);
+            this.last = last;
+            size(width, ROW_HEIGHT);
+            background(IDrawable.EMPTY).hoverBackground(IDrawable.EMPTY);
+            modeButton = AE2Theme.button(this, () -> true, () -> false);
+            modeLabel = AE2Theme
+                .label(this, () -> tr("display.short." + device.getInteger("displayMode")), () -> true, () -> false);
             onMousePressed(button -> {
                 if (button != 0) return false;
                 owner.clientView()
@@ -207,29 +248,45 @@ public class WirelessCardGroupDialog extends Dialog<Void> {
 
         @Override
         public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            device.setInteger(
-                "displayMode",
-                owner.clientView()
-                    .displayMode(device));
-            ItemStack icon = WirelessCardGui.rowIcon(device);
-            if (icon != null) owner.drawDeviceIcon(icon, 3, 8);
-            String mode = tr("display.mode." + device.getInteger("displayMode"));
-            int modeWidth = owner.fontRendererObj.getStringWidth(mode), textWidth = getArea().width - modeWidth - 34;
-            String name = WirelessCardGui
-                .rowName(device, ItemStack.loadItemStackFromNBT(device.getCompoundTag("icon")));
-            Palette ink = isHovering() ? owner.highlightPalette : owner.palette;
-            boolean onRow = owner.variant != null && !isHovering();
-            int nameColor = onRow ? owner.variant.colors.buttonText() : ink.name,
-                positionColor = onRow ? owner.variant.colors.buttonText() : ink.suffix,
-                modeColor = onRow ? owner.variant.colors.buttonText() : ink.link;
-            owner.drawText(cropText(owner.fontRendererObj, name, textWidth), 24, 5, nameColor, false);
-            owner.drawText(
-                cropText(owner.fontRendererObj, device.getString("positionLabel"), textWidth),
-                24,
-                18,
-                positionColor,
-                false);
-            owner.drawText(mode, getArea().width - modeWidth - 4, 11, modeColor, false);
+            int mode = owner.clientView()
+                .displayMode(device), width = getArea().width;
+            device.setInteger("displayMode", mode);
+            boolean lit = isHovering();
+            Palette ink = lit ? owner.highlightPalette : owner.palette;
+            if (lit) owner.drawHighlight(0, width, 0, ROW_HEIGHT);
+            if (!last) drawRect(
+                0,
+                ROW_HEIGHT - 1,
+                width,
+                ROW_HEIGHT,
+                lit ? owner.palette.line : owner.tint(WirelessCardGui.SEPARATOR_ALPHA));
+            ItemStack shown = WirelessCardGui.rowIcon(device);
+            if (shown != null) owner.drawDeviceIcon(shown, ICON_X, 4);
+            String modeName = tr("display.mode." + mode), state = device.getString("deviceState");
+            int buttonX = width - MODE_GAP - MODE_SIZE,
+                modeX = buttonX - MODE_GAP - owner.fontRendererObj.getStringWidth(modeName),
+                textWidth = modeX - MODE_GAP * 2 - TEXT_X;
+            GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+            try {
+                Platform.setupDrawFont();
+                owner.drawRowTitle(
+                    device,
+                    ItemStack.loadItemStackFromNBT(device.getCompoundTag("icon")),
+                    TEXT_X,
+                    2,
+                    textWidth,
+                    ink);
+                owner.fontRendererObj.drawString(
+                    cropText(owner.fontRendererObj, tr("device_state." + state), textWidth),
+                    TEXT_X,
+                    13,
+                    ink.deviceState(state));
+                owner.fontRendererObj.drawString(modeName, modeX, 8, ink.link);
+            } finally {
+                GL11.glPopAttrib();
+            }
+            modeButton.draw(context, buttonX, 4, MODE_SIZE, MODE_SIZE, theme.getTheme());
+            modeLabel.draw(context, buttonX, 4, MODE_SIZE, MODE_SIZE, theme.getTheme());
         }
     }
 }

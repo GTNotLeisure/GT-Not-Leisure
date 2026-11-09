@@ -148,11 +148,12 @@ public class WirelessCardButton {
                 String targetName = row.getString("targetName");
                 tooltip.addLine(targetName.isEmpty() || targetName.equals(name) ? name : name + " - " + targetName);
                 tooltip.addLine(gray + row.getString("positionLabel"));
+                boolean device = row.getBoolean("device"), single = row.getBoolean("singleDevice");
                 tooltip.addLine(
                     EnumChatFormatting.YELLOW
                         + (row.getBoolean("group") ? tr("row_expand_hint", WirelessCardGui.groupContents(row))
-                            : tr(row.getBoolean("singleDevice") ? "row_open_device_hint" : "row_open_hint")));
-                if (!row.getBoolean("group") && row.getBoolean("singleDevice")) remoteState(tooltip, row);
+                            : tr(device ? "row_device_hint" : single ? "row_open_device_hint" : "row_open_hint")));
+                if (!row.getBoolean("group") && (device || single)) remoteState(tooltip, row);
             }
             case TELEPORT -> {
                 tooltip.addLine(tr("teleport_tip"));
@@ -231,7 +232,11 @@ public class WirelessCardButton {
                 visible = !detail && !row.getBoolean("group") && row.getInteger("entrances") > 1;
             if (actionType == OPEN_DEVICE) available &= row.getString("remote")
                 .equals("open");
-            if (actionType == OPEN_DETAILS) visible = !detail;
+            if (actionType == OPEN_DETAILS) {
+                visible = !detail || row.getBoolean("device");
+                if (row.getBoolean("device")) available &= row.getString("remote")
+                    .equals("open");
+            }
             if (actionType == CYCLE_DISPLAY) visible = row.getBoolean("device") && row.hasKey("displayId", 4);
         } else switch (id) {
             case TOGGLE_AUTO -> on = data.getBoolean("auto");

@@ -7,7 +7,9 @@ import java.util.concurrent.TimeUnit;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.science.gtnl.ScienceNotLeisure;
@@ -219,6 +221,90 @@ public class WirelessMachineGroups {
         }
         machines.forEach((machine, members) -> rows.add(new Row(machine, members)));
         return rows;
+    }
+
+    static boolean canName(WirelessFrequency frequency) {
+        return frequency != null && !WirelessFrequencies.upgrade(frequency)
+            .isLegacy() && WirelessFrequencyWorldSavedData.get() != null;
+    }
+
+    static String groupName(WirelessFrequency frequency, MTEMultiBlockBase machine) {
+        Address position = position(machine);
+        if (position == null || !canName(frequency)) return "";
+        var stored = WirelessFrequencyWorldSavedData.get()
+            .groupName(
+                WirelessFrequencies.upgrade(frequency)
+                    .id(),
+                position);
+        return stored != null && stored.meta() == machine.getBaseMetaTileEntity()
+            .getMetaTileID() ? stored.name() : "";
+    }
+
+    static boolean setGroupName(WirelessFrequency frequency, MTEMultiBlockBase machine, String name) {
+        IGregTechTileEntity base = machine.getBaseMetaTileEntity();
+        Address position = position(machine);
+        if (position == null || base.isDead() || base.getMetaTileEntity() != machine || !canName(frequency))
+            return false;
+        WirelessFrequencyWorldSavedData.get()
+            .setGroupName(
+                WirelessFrequencies.upgrade(frequency)
+                    .id(),
+                position,
+                base.getMetaTileID(),
+                WirelessLinkPersistence.cleanName(name));
+        return true;
+    }
+
+    static void forgetRemovedGroupNames(WirelessFrequency frequency) {
+        if (!canName(frequency)) return;
+        WirelessFrequencyWorldSavedData.get()
+            .forgetGroupNames(
+                WirelessFrequencies.upgrade(frequency)
+                    .id(),
+                (position, meta) -> !WirelessConstructionSites.contains(position)
+                    && presence(position, meta) == Presence.ABSENT);
+    }
+
+    public static void followMove(WirelessConstructionSites.Site source, int dx, int dy, int dz) {
+        var registry = WirelessFrequencyWorldSavedData.get();
+        if (registry == null) return;
+        registry.moveGroupNames((position, meta) -> {
+            if (!source.contains(position.dimension(), position.x(), position.y(), position.z())) return null;
+            Address target = new Address(
+                position.dimension(),
+                position.x() + dx,
+                position.y() + dy,
+                position.z() + dz,
+                ForgeDirection.UNKNOWN);
+            return presence(target, meta) == Presence.PRESENT ? target : null;
+        });
+    }
+
+    private enum Presence {
+        PRESENT,
+        ABSENT,
+        UNKNOWN
+    }
+
+    private static Presence presence(Address position, int meta) {
+        World world = DimensionManager.getWorld(position.dimension());
+        if (world == null || !world.blockExists(position.x(), position.y(), position.z())) return Presence.UNKNOWN;
+        TileEntity tile = world.getTileEntity(position.x(), position.y(), position.z());
+        // An invalid tile may be rebuilding; only a confirmed replacement or removal counts as absent.
+        if (tile != null && tile.isInvalid()) return Presence.UNKNOWN;
+        return tile instanceof IGregTechTileEntity base && base.getMetaTileID() == meta ? Presence.PRESENT
+            : Presence.ABSENT;
+    }
+
+    private static Address position(MTEMultiBlockBase machine) {
+        IGregTechTileEntity base = machine.getBaseMetaTileEntity();
+        if (base == null || base.getWorld() == null) return null;
+        return new Address(
+            base.getWorld().provider.dimensionId,
+            base.getXCoord(),
+            base.getYCoord(),
+            base.getZCoord(),
+            ForgeDirection.UNKNOWN);
     }
 
     static int[] energyHatches(MTEMultiBlockBase machine) {

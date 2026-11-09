@@ -8,6 +8,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
+import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_GROUP;
 import static com.science.gtnl.common.wireless.WirelessCardActions.SET_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TELEPORT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TOGGLE_AUTO;
@@ -99,6 +100,14 @@ public class WirelessCardActionHandler {
                 } catch (IllegalStateException stale) {
                     message("stale");
                 }
+            }
+        } else if (action == RENAME_GROUP) {
+            var group = session.snapshot == null ? null : session.snapshot.machine(targetId);
+            try {
+                if (binding == null || group == null
+                    || !WirelessOperations.renameGroup(player, binding.frequency(), group, text)) message("stale");
+            } catch (WirelessOperations.Denied denied) {
+                message("denied");
             }
         } else if (action == TELEPORT && player instanceof EntityPlayerMP serverPlayer) {
             try {

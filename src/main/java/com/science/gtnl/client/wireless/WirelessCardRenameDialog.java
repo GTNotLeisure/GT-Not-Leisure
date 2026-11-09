@@ -1,6 +1,8 @@
 package com.science.gtnl.client.wireless;
 
+import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
+import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_GROUP;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.NBTTagCompound;
@@ -11,6 +13,7 @@ import org.lwjgl.input.Keyboard;
 
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.screen.ModularScreen;
+import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
@@ -28,8 +31,9 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
     private final WirelessCardGui owner;
     private final WirelessCardContainer container;
     private final Minecraft mc = Minecraft.getMinecraft();
-    private String target;
-    private long nameRevision;
+    private final Widget<?> groupHint;
+    private String target, group;
+    private long nameRevision, machineId;
     private boolean finished;
 
     WirelessCardRenameDialog(WirelessCardGui owner) {
@@ -47,6 +51,12 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
         child(
             name.pos(10, 34)
                 .size(240, 16));
+        groupHint = IKey.str(tr("group_rename_hint"))
+            .color(owner.palette.hint)
+            .asWidget()
+            .pos(10, 52)
+            .size(240, 10);
+        child(groupHint);
         child(dialogButton("gui.cancel", this::closeIfOpen).pos(10, 64));
         child(dialogButton("gui.done", this::submit).pos(134, 64));
     }
@@ -65,10 +75,20 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
     @Override
     public void onOpen(ModularScreen screen) {
         NBTTagCompound data = container.display;
-        target = data.getString("detailTarget");
-        nameRevision = data.getLong("nameRevision");
+        group = owner.renamingGroup();
         finished = false;
-        String text = data.getBoolean("multipleNames") ? "" : data.getString("name");
+        String text;
+        if (group == null) {
+            target = data.getString("detailTarget");
+            nameRevision = data.getLong("nameRevision");
+            text = data.getBoolean("multipleNames") ? "" : data.getString("name");
+        } else {
+            NBTTagCompound header = owner.clientView()
+                .groupHeader(group);
+            machineId = header == null ? 0 : header.getLong("machineId");
+            text = header == null ? "" : header.getString("name");
+        }
+        groupHint.setEnabled(group != null);
         name.getStringValue()
             .setStringValue(text);
         name.setText(text);
@@ -85,18 +105,30 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
     }
 
     private boolean validateTarget() {
-        NBTTagCompound data = container.display;
-        if (data.getBoolean("detail") && data.getBoolean("renameable")
-            && target.equals(data.getString("detailTarget"))
-            && nameRevision == data.getLong("nameRevision")) return true;
+        if (group == null ? validDetail() : validGroup()) return true;
         closeIfOpen();
         mc.thePlayer.addChatMessage(new ChatComponentTranslation("gtnl.wireless.gui.stale"));
         return false;
     }
 
+    private boolean validDetail() {
+        NBTTagCompound data = container.display;
+        return data.getBoolean("detail") && data.getBoolean("renameable")
+            && target.equals(data.getString("detailTarget"))
+            && nameRevision == data.getLong("nameRevision");
+    }
+
+    private boolean validGroup() {
+        NBTTagCompound header = owner.clientView()
+            .groupHeader(group);
+        return machineId != 0 && header != null && header.getLong("machineId") == machineId;
+    }
+
     private void submit() {
         if (finished || !owner.layoutReady() || !validateTarget()) return;
-        container.sync.request(RENAME, container.display.getLong("detailId"), name.getText(), nameRevision);
+        if (group == null)
+            container.sync.request(RENAME, container.display.getLong("detailId"), name.getText(), nameRevision);
+        else container.sync.request(RENAME_GROUP, machineId, name.getText(), 0);
         closeIfOpen();
     }
 
