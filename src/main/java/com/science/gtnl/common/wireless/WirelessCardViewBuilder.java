@@ -3,7 +3,6 @@ package com.science.gtnl.common.wireless;
 import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeDimensionName;
 import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeIcon;
 import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeInterfaceNames;
-import static com.science.gtnl.common.wireless.WirelessCardViewCodec.writeStatistics;
 import static com.science.gtnl.common.wireless.WirelessMachineGroups.coordinates;
 
 import java.util.Comparator;
@@ -86,8 +85,11 @@ public class WirelessCardViewBuilder {
         nextDeviceIds = new Object2LongOpenHashMap<>();
         if (refreshPresentation(player.worldObj.getTotalWorldTime()) && binding != null)
             WirelessMachineGroups.forgetRemovedGroupNames(binding.frequency());
-        List<IWirelessLinkView> all = binding == null ? List.of()
-            : new ObjectArrayList<>(WirelessClusterManager.links(binding.frequency()));
+        WirelessFrequency frequency = binding == null ? null : binding.frequency();
+        List<IWirelessLinkView> all = frequency == null ? List.of()
+            : new ObjectArrayList<>(WirelessClusterManager.links(frequency));
+        Map<IWirelessLinkView, List<Listed>> members = new Reference2ObjectOpenHashMap<>();
+        for (IWirelessLinkView link : all) members.put(link, devices(player, frequency, link));
         boolean initializing = startup.waiting(all);
         List<Row> rows = initializing ? List.of() : WirelessMachineGroups.group(all, interfaces);
         NBTTagCompound data = new NBTTagCompound();
@@ -98,7 +100,7 @@ public class WirelessCardViewBuilder {
         data.setBoolean("auto", WirelessCardBinding.automatic(card.getTagCompound()));
         data.setInteger("visualMode", WirelessCardVisualisation.mode(card.getTagCompound()));
         data.setBoolean("bound", binding != null);
-        writeStatistics(data, WirelessMachineGroups.summarize(all));
+        writeStatistics(data, all, members);
         data.setInteger("total", all.size());
         data.setInteger("entrances", binding == null ? 0 : WirelessChannelManager.entranceCount(binding.frequency()));
         data.setInteger("entranceLimit", WirelessChannelManager.entranceLimit());
@@ -120,16 +122,8 @@ public class WirelessCardViewBuilder {
         Object2LongOpenHashMap<Target> nextIds = new Object2LongOpenHashMap<>();
         Long2ObjectLinkedOpenHashMap<Device> targets = new Long2ObjectLinkedOpenHashMap<>();
         NBTTagList entries = new NBTTagList();
-        for (Row row : rows) entries.appendTag(
-            writeRow(
-                player,
-                binding == null ? null : binding.frequency(),
-                row,
-                interfaces,
-                dimensions,
-                modes,
-                nextIds,
-                targets));
+        for (Row row : rows)
+            entries.appendTag(writeRow(player, frequency, row, members, dimensions, modes, nextIds, targets));
         targetIds = nextIds;
         deviceIds = nextDeviceIds;
         machineIds = nextMachineIds;
@@ -175,6 +169,28 @@ public class WirelessCardViewBuilder {
             Comparator.comparingInt((Listed device) -> DEVICE_STATES.indexOf(device.state()))
                 .thenComparing(Listed::address, Address.POSITION_ORDER));
         return devices;
+    }
+
+    private static void writeStatistics(NBTTagCompound data, List<IWirelessLinkView> links,
+        Map<IWirelessLinkView, List<Listed>> members) {
+        int total = 0, online = 0, missing = 0;
+        boolean stable = true;
+        for (IWirelessLinkView link : links) {
+            List<Listed> listed = members.get(link);
+            total += listed.size();
+            stable &= link.statistics()
+                .stable();
+            for (Listed device : listed) {
+                switch (device.state()) {
+                    case "online" -> online++;
+                    case "missing" -> missing++;
+                }
+            }
+        }
+        data.setInteger("devices", total);
+        data.setInteger("online", online);
+        data.setInteger("missing", missing);
+        data.setBoolean("stable", stable);
     }
 
     private long identifyDevice(IWirelessLinkView link, IGridNode node) {
@@ -232,8 +248,8 @@ public class WirelessCardViewBuilder {
     }
 
     private NBTTagCompound writeRow(EntityPlayer player, WirelessFrequency frequency, Row row,
-        WirelessInterfaceView interfaces, NBTTagCompound dimensions, Long2IntMap modes, Object2LongMap<Target> nextIds,
-        Long2ObjectMap<Device> targets) {
+        Map<IWirelessLinkView, List<Listed>> members, NBTTagCompound dimensions, Long2IntMap modes,
+        Object2LongMap<Target> nextIds, Long2ObjectMap<Device> targets) {
         var target = row.target();
         NBTTagCompound entry = new NBTTagCompound();
         writeDimensionName(dimensions, target.dimension());
@@ -272,8 +288,8 @@ public class WirelessCardViewBuilder {
         entry.setBoolean("paused", row.paused());
         entry.setBoolean("conflicted", row.conflicted());
         entry.setInteger("entrances", row.entrances());
-        writeStatistics(entry, row.statistics());
-        List<Listed> listed = row.group() ? List.of() : devices(player, frequency, row.link());
+        writeStatistics(entry, row.links(), members);
+        List<Listed> listed = row.group() ? List.of() : members.get(row.link());
         IGridNode only = !row.group() && listed.size() == 1 ? listed.get(0)
             .node() : null;
         ItemStack icon = only == null ? row.icon()
@@ -289,7 +305,7 @@ public class WirelessCardViewBuilder {
         if (row.group()) {
             NBTTagList children = new NBTTagList();
             for (var link : row.links()) children.appendTag(
-                writeRow(player, frequency, Row.cluster(link), interfaces, dimensions, modes, nextIds, targets));
+                writeRow(player, frequency, Row.cluster(link), members, dimensions, modes, nextIds, targets));
             entry.setTag("children", children);
         } else {
             var link = row.link();

@@ -182,6 +182,8 @@ public class WirelessCardClientView {
             if (data.hasKey(id, 4)) targets.add(data.getLong(id));
         String prefix = parentNames + " " + data.getString("name");
         StringBuilder names = new StringBuilder(prefix);
+        StringBuilder positions = new StringBuilder(position).append(' ')
+            .append(data.getString("position"));
         NBTTagList devices = data.getTagList("displayDevices", 10);
         for (int i = 0; i < devices.tagCount(); i++) {
             NBTTagCompound device = devices.getCompoundTagAt(i);
@@ -191,6 +193,8 @@ public class WirelessCardClientView {
             WirelessCardViewCodec.localizeInterfaceNames(device);
             names.append(' ')
                 .append(iconName(device));
+            positions.append(' ')
+                .append(device.getString("position"));
         }
         NBTTagList entrances = data.getTagList("entranceList", 10);
         for (int i = 0; i < entrances.tagCount(); i++) WirelessCardViewCodec
@@ -226,7 +230,13 @@ public class WirelessCardClientView {
             List.copyOf(children),
             names.toString()
                 .toLowerCase(Locale.ROOT),
-            (position + " " + data.getString("position")).toLowerCase(Locale.ROOT));
+            positions.toString()
+                .toLowerCase(Locale.ROOT));
+    }
+
+    static NBTTagCompound locationTarget(NBTTagCompound row) {
+        return !row.getBoolean("group") && row.getBoolean("singleDevice") ? row.getTagList("displayDevices", 10)
+            .getCompoundTagAt(0) : row;
     }
 
     private void readDisplayMode(NBTTagCompound data) {

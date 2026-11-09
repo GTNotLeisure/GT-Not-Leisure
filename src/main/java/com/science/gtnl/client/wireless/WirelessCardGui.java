@@ -1,6 +1,7 @@
 package com.science.gtnl.client.wireless;
 
 import static codechicken.nei.NEIClientUtils.cropText;
+import static com.science.gtnl.client.wireless.WirelessCardClientView.locationTarget;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
@@ -294,8 +295,11 @@ public class WirelessCardGui extends ModularPanel {
             openDevice(null, row.getLong("targetId"));
             return;
         }
-        if (type(id) == HIGHLIGHT) {
-            highlightTarget(row(rowIndex(id)));
+        int action = type(id);
+        if (action == HIGHLIGHT || action == TELEPORT) {
+            NBTTagCompound target = locationTarget(row(rowIndex(id)));
+            if (action == HIGHLIGHT) highlightTarget(target);
+            else sendTarget(TELEPORT, target);
             return;
         }
         if (type(id) == OPEN_RENAME) {
@@ -303,7 +307,6 @@ public class WirelessCardGui extends ModularPanel {
             if (target != null) openRename(target);
             return;
         }
-        int action = type(id);
         if (action == OPEN_DEVICE) RemoteDeviceClient.rememberCard(clientView().save(searchText, null));
         long target = isRowAction(id) ? row(rowIndex(id)).getLong("targetId") : 0;
         container.sync.request(action, target, "");
@@ -350,10 +353,13 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void copy(NBTTagCompound row) {
-        String side = row.getString("side");
-        GuiScreen.setClipboardString(
-            row.getString("position") + (row.getBoolean("group") || side.isEmpty() ? "" : " / " + side));
+        GuiScreen.setClipboardString(copyPosition(row));
         mc.thePlayer.addChatMessage(new ChatComponentTranslation(KEY_PREFIX + "copied"));
+    }
+
+    static String copyPosition(NBTTagCompound row) {
+        String side = row.getString("side");
+        return row.getString("position") + (row.getBoolean("group") || side.isEmpty() ? "" : " / " + side);
     }
 
     public final void addButton(int id) {
@@ -792,7 +798,7 @@ public class WirelessCardGui extends ModularPanel {
             y,
             end,
             onlineColor(data, ink));
-        x = textSegment("  " + tr("missing_compact", missingText(data)), x, y, end, missingColor(data, ink));
+        x = textSegment("  " + tr("missing_compact", data.getInteger("missing")), x, y, end, missingColor(data, ink));
         textSegment("  " + tr("entrances_compact", data.getInteger("entrances")), x, y, end, ink.text);
     }
 
@@ -804,10 +810,6 @@ public class WirelessCardGui extends ModularPanel {
 
     private static int missingColor(NBTTagCompound data, Palette ink) {
         return !data.getBoolean("stable") ? ink.link : data.getInteger("missing") > 0 ? ink.bad : ink.text;
-    }
-
-    private static Object missingText(NBTTagCompound data) {
-        return data.getBoolean("stable") ? data.getInteger("missing") : "?";
     }
 
     private static int usageColor(int used, int total, int normal, Palette ink) {
@@ -841,7 +843,7 @@ public class WirelessCardGui extends ModularPanel {
 
     void drawRowTitle(NBTTagCompound row, ItemStack icon, int x, int y, int width, Palette ink) {
         String name = rowName(row, icon);
-        String title = name.isEmpty() ? trim(row.getString("positionLabel"), width)
+        String title = name.isEmpty() ? trim(locationTarget(row).getString("positionLabel"), width)
             : cropText(fontRendererObj, name, width);
         fontRendererObj.drawString(title, x, y, ink.name);
     }
@@ -1069,9 +1071,9 @@ public class WirelessCardGui extends ModularPanel {
 
     private Reading readDevices(NBTTagCompound data) {
         int online = data.getInteger("online"), devices = data.getInteger("devices");
-        int missing = data.getBoolean("stable") ? data.getInteger("missing") : 0;
+        int missing = data.getInteger("missing");
         int offline = Math.max(0, devices - online - missing);
-        String missingLine = tr("missing_metric", missingText(data));
+        String missingLine = tr("missing_metric", missing);
         return new Reading(
             online + " / " + devices,
             onlineColor(data, palette),

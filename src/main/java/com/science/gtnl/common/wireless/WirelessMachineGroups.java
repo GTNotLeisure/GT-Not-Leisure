@@ -125,8 +125,7 @@ public class WirelessMachineGroups {
         }
     }
 
-    record Row(MTEMultiBlockBase machine, TypeKey type, List<IWirelessLinkView> links,
-        WirelessNetworkStatistics statistics) {
+    record Row(MTEMultiBlockBase machine, TypeKey type, List<IWirelessLinkView> links) {
 
         Row(MTEMultiBlockBase machine, List<IWirelessLinkView> links) {
             this(
@@ -138,8 +137,7 @@ public class WirelessMachineGroups {
                         links.get(0)
                             .target()
                             .dimension()),
-                List.copyOf(links),
-                summarize(links));
+                List.copyOf(links));
         }
 
         static Row cluster(IWirelessLinkView link) {
@@ -147,7 +145,7 @@ public class WirelessMachineGroups {
         }
 
         static Row cluster(IWirelessLinkView link, TypeKey type) {
-            return new Row(null, type, List.of(link), link.statistics());
+            return new Row(null, type, List.of(link));
         }
 
         boolean group() {
@@ -422,20 +420,6 @@ public class WirelessMachineGroups {
                 .blockExists(base.getXCoord(), base.getYCoord(), base.getZCoord())
             && base.getWorld()
                 .getTileEntity(base.getXCoord(), base.getYCoord(), base.getZCoord()) == base;
-    }
-
-    static WirelessNetworkStatistics summarize(List<IWirelessLinkView> links) {
-        int nodes = 0, devices = 0, online = 0, missing = 0;
-        boolean stable = true;
-        for (IWirelessLinkView link : links) {
-            var stats = link.statistics();
-            nodes += stats.nodes();
-            devices += stats.devices();
-            online += stats.online();
-            missing += stats.missing();
-            stable &= stats.stable();
-        }
-        return new WirelessNetworkStatistics(nodes, devices, online, missing, stable);
     }
 
     static String coordinates(Address address) {

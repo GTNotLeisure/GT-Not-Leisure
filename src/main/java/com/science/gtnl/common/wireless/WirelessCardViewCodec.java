@@ -17,13 +17,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class WirelessCardViewCodec {
 
-    static void writeStatistics(NBTTagCompound data, WirelessNetworkStatistics statistics) {
-        data.setInteger("devices", statistics.devices());
-        data.setInteger("online", statistics.online());
-        data.setInteger("missing", statistics.missing());
-        data.setBoolean("stable", statistics.stable());
-    }
-
     static void writeIcon(NBTTagCompound data, String key, ItemStack icon) {
         if (icon == null || icon.getItem() == null) return;
         // Display-only identity, never ship inventories or other machine NBT as an icon.

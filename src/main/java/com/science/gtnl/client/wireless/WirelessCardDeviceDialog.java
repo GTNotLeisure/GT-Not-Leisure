@@ -223,7 +223,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                 continue;
             }
             boolean open = expanded.contains(row.getString("key"));
-            next.add(new Line(row, true, 0, open, members.size(), online(members)));
+            next.add(new Line(row, true, 0, open, members.size(), row.getInteger("online")));
             if (open) for (NBTTagCompound device : members) next.add(new Line(device, false, 1, false, 0, 0));
         }
         next.addAll(flat);
@@ -231,21 +231,10 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         devices = List.copyOf(all);
         NBTTagCompound header = group.header();
         title = WirelessCardGui.rowName(header, ItemStack.loadItemStackFromNBT(header.getCompoundTag("icon")));
-        int missing = (int) devices.stream()
-            .filter(
-                device -> device.getString("deviceState")
-                    .equals("missing"))
-            .count();
-        scope = tree ? tr("devices.scope_clusters", devices.size(), clusters, online(devices), devices.size(), missing)
-            : tr("devices.scope", devices.size(), online(devices), devices.size(), missing);
-    }
-
-    private static int online(List<NBTTagCompound> members) {
-        return (int) members.stream()
-            .filter(
-                device -> device.getString("deviceState")
-                    .equals("online"))
-            .count();
+        int total = header.getInteger("devices"), online = header.getInteger("online"),
+            missing = header.getInteger("missing");
+        scope = tree ? tr("devices.scope_clusters", total, clusters, online, total, missing)
+            : tr("devices.scope", total, online, total, missing);
     }
 
     private String signature() {

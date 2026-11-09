@@ -102,13 +102,14 @@ public class WirelessCardButton {
         NBTTagCompound data = panel.view();
         NBTTagCompound row = isRowAction(id) ? data.getTagList("rows", 10)
             .getCompoundTagAt(rowIndex(id)) : new NBTTagCompound();
+        NBTTagCompound location = WirelessCardClientView.locationTarget(row);
         String gray = EnumChatFormatting.GRAY.toString();
         switch (type(id)) {
             case OPEN_DETAILS -> {
                 String name = WirelessCardGui.rowName(row, ItemStack.loadItemStackFromNBT(row.getCompoundTag("icon")));
                 String targetName = row.getString("targetName");
                 tooltip.addLine(targetName.isEmpty() || targetName.equals(name) ? name : name + " - " + targetName);
-                tooltip.addLine(gray + row.getString("positionLabel"));
+                tooltip.addLine(gray + location.getString("positionLabel"));
                 entrances(tooltip, row, data.getBoolean("channels"));
                 boolean single = row.getBoolean("singleDevice");
                 tooltip.addLine(
@@ -119,15 +120,12 @@ public class WirelessCardButton {
             }
             case TELEPORT -> {
                 tooltip.addLine(tr("teleport_tip"));
-                tooltip.addLine(gray + row.getString("positionLabel"));
+                tooltip.addLine(gray + location.getString("positionLabel"));
             }
             case HIGHLIGHT -> {
                 tooltip.addLine(tr("highlight_tip"));
-                tooltip.addLine(
-                    gray + row.getString("position")
-                        + (row.getString("side")
-                            .isEmpty() ? "" : " / " + row.getString("side")));
-                tooltip.addLine(highlightRange(row, panel));
+                tooltip.addLine(gray + WirelessCardGui.copyPosition(location));
+                tooltip.addLine(highlightRange(location, panel));
             }
             case TOGGLE_PAUSE -> tooltip.addLine(tr(row.getBoolean("paused") ? "resume_tip" : "pause_tip"));
             case OPEN_DEVICE -> {
