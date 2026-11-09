@@ -3,8 +3,6 @@ package com.science.gtnl.client.wireless;
 import static com.science.gtnl.client.wireless.WirelessCardGui.ROW_HEIGHT;
 import static net.minecraft.client.gui.Gui.drawRect;
 
-import com.gtnllib.gui.theme.AE2Theme;
-
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -13,7 +11,7 @@ public class WirelessCardTreeRows {
 
     public static final int TREE_X = 7, INDENT = 12, ARROW_X = 0, CHILD_ARROW_X = 12, ICON_X = 16, CHILD_ICON_X = 20,
         TEXT_GAP = 18, ARROW_SIZE = 16, ARROW_INSET = 1, ARROW_Y = 5, MAX_NEST_SHADE = 3, DARKEN_NEST_ALPHA = 0x33,
-        LIGHTEN_NEST_ALPHA = 0x1A, SEPARATOR_ALPHA = 0x5D;
+        LIGHTEN_NEST_ALPHA = 0x0F, SEPARATOR_ALPHA = 0x5D;
 
     private WirelessCardTreeRows() {}
 
@@ -51,8 +49,7 @@ public class WirelessCardTreeRows {
     static void drawTree(WirelessCardGui gui, int origin, int y, int depth, boolean group, int lines, boolean last,
         boolean lit) {
         if (depth == 0) return;
-        int color = 0xFF000000
-            | (lit && gui.ae2 ? AE2Theme.HIGHLIGHT_SHADOW : (lit ? gui.highlightPalette : gui.palette).tree);
+        int color = 0xFF000000 | (lit ? gui.highlightTree : gui.palette.tree);
         for (int level = 0; level < depth - 1; level++) if ((lines & 1 << level) != 0)
             drawRect(origin + lineX(level), y, origin + lineX(level) + 1, y + ROW_HEIGHT, color);
         int x = origin + lineX(depth - 1), middle = y + ROW_HEIGHT / 2;

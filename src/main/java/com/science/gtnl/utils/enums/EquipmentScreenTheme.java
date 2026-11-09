@@ -4,5 +4,6 @@ public enum EquipmentScreenTheme {
     EQUIPMENT,
     DEFAULT,
     AE2_LIGHT,
-    AE2_DARK
+    AE2_DARK,
+    AE2_DARK_PURPLE
 }

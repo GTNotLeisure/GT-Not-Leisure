@@ -96,7 +96,7 @@ public class WirelessCardGui extends ModularPanel {
     private static final int CHIP_GAP = 3, CHIP_PADDING = 4, DIMENSION_WIDTH = 100, MENU_HEIGHT = 120,
         NOTICE_MILLIS = 3500, ALL_DIMENSIONS = Integer.MIN_VALUE, OPTION_HEIGHT = 14, OPTION_PADDING = 4;
     private static final int SUCCESS_COLOR = 0x55FF55, FAILURE_COLOR = 0xFF5555, PLAIN_HIGHLIGHT = 0x60FFFFFF,
-        PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000, AE2_HIGHLIGHT_TOP = 0xFFDAFFFF;
+        PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000;
     private static final int TREE_ORIGIN = 8, ARROW_DOWN = 49, ARROW_RIGHT = 50;
     private static final int SCROLL_GAP = 7, SCROLL_OVERHANG = 2;
     private static final int EDGE = 10, CONTROL_GAP = 4, CONTROL_HEIGHT = 14, FOOTER_BOTTOM = 7, FOOTER_TEXT_Y = 7,
@@ -128,10 +128,13 @@ public class WirelessCardGui extends ModularPanel {
     public final @Nullable Variant variant = AE2Theme.variant(themeId);
     public final boolean ae2 = variant != null;
     public final Palette palette = variant != null ? Palette.ae2(variant) : Palette.standard();
-    public final Palette highlightPalette = variant != null ? Palette.ae2(Variant.LIGHT) : palette;
-    public final int highlight = variant != null ? AE2Theme.HIGHLIGHT : PLAIN_HIGHLIGHT,
-        highlightTop = variant != null ? AE2_HIGHLIGHT_TOP : PLAIN_HIGHLIGHT_TOP,
-        highlightShadow = variant != null ? AE2Theme.HIGHLIGHT_SHADOW : PLAIN_HIGHLIGHT_SHADOW;
+    // Rows on AE2's light-blue selection keep the light palette's dark text, also on the dark skin.
+    private final boolean blueHighlight = variant != null && variant.highlight == AE2Theme.HIGHLIGHT;
+    public final Palette highlightPalette = blueHighlight ? Palette.ae2(Variant.LIGHT) : palette;
+    public final int highlight = variant == null ? PLAIN_HIGHLIGHT : variant.highlight,
+        highlightTop = variant == null ? PLAIN_HIGHLIGHT_TOP : variant.highlightTop,
+        highlightShadow = variant == null ? PLAIN_HIGHLIGHT_SHADOW : variant.highlightShadow,
+        highlightTree = blueHighlight ? variant.highlightShadow : highlightPalette.tree;
     private final int scrollWidth = AE2Theme.scrollbarWidth(variant), scrollSpace = scrollWidth + SCROLL_GAP;
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
@@ -171,7 +174,7 @@ public class WirelessCardGui extends ModularPanel {
                 () -> clientView().dimension() == null ? ALL_DIMENSIONS : clientView().dimension(),
                 value -> filter(value == ALL_DIMENSIONS ? null : value, clientView().state())));
         visualisation = choice(VISUALISATION_MENU, this::visualisationLabel, this::visualisationOption).directionUp()
-            .maxVerticalMenuSize(MENU_HEIGHT);
+            .maxVerticalMenuSize(WirelessCardVisualisation.MODE_COUNT * OPTION_HEIGHT);
         visualisation.value(new IntValue.Dynamic(() -> view().getInteger("visualMode"), this::setVisualisation));
         List<Integer> modes = new ObjectArrayList<>();
         for (int mode = 0; mode < WirelessCardVisualisation.MODE_COUNT; mode++) modes.add(mode);
@@ -1241,7 +1244,7 @@ public class WirelessCardGui extends ModularPanel {
         public static Palette ae2(Variant variant) {
             Colors colors = variant.colors;
             // The dark theme's line color is near black, so nested rows lighten there instead of darkening.
-            boolean dark = variant == Variant.DARK;
+            boolean dark = variant != Variant.LIGHT;
             return new Palette(
                 colors.text(),
                 colors.text(),

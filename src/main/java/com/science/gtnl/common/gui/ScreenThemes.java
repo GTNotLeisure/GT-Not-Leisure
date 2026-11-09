@@ -41,6 +41,7 @@ public class ScreenThemes {
             case DEFAULT -> ScreenTheme.DEFAULT.themeId;
             case AE2_LIGHT -> ScreenTheme.AE2_LIGHT.themeId;
             case AE2_DARK -> ScreenTheme.AE2_DARK.themeId;
+            case AE2_DARK_PURPLE -> ScreenTheme.AE2_DARK_PURPLE.themeId;
         };
     }
 }
