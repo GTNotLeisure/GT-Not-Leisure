@@ -124,7 +124,7 @@ public class WirelessCardButton {
             }
             case HIGHLIGHT -> {
                 tooltip.addLine(tr("highlight_tip"));
-                tooltip.addLine(gray + WirelessCardGui.copyPosition(location));
+                tooltip.addLine(gray + WirelessCardClientView.positionWithSide(location));
                 tooltip.addLine(highlightRange(location, panel));
             }
             case TOGGLE_PAUSE -> tooltip.addLine(tr(row.getBoolean("paused") ? "resume_tip" : "pause_tip"));

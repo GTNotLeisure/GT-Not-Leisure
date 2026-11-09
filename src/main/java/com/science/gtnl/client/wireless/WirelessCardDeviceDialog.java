@@ -326,7 +326,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         }).pos(buttonsX + BUTTON_STEP, 4));
         row.child(iconButton(Icon.VISIBLE, () -> true, () -> owner.highlightTarget(lineData(index)), tooltip -> {
             tooltip.addLine(tr("highlight_tip"));
-            tooltip.addLine(EnumChatFormatting.GRAY + lineData(index).getString("position"));
+            tooltip.addLine(EnumChatFormatting.GRAY + WirelessCardClientView.positionWithSide(lineData(index)));
             tooltip.addLine(WirelessCardButton.highlightRange(lineData(index), owner));
         }).pos(buttonsX + BUTTON_STEP * 2, 4));
     }

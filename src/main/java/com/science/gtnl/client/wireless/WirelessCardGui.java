@@ -353,13 +353,8 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void copy(NBTTagCompound row) {
-        GuiScreen.setClipboardString(copyPosition(row));
+        GuiScreen.setClipboardString(WirelessCardClientView.positionWithSide(row));
         mc.thePlayer.addChatMessage(new ChatComponentTranslation(KEY_PREFIX + "copied"));
-    }
-
-    static String copyPosition(NBTTagCompound row) {
-        String side = row.getString("side");
-        return row.getString("position") + (row.getBoolean("group") || side.isEmpty() ? "" : " / " + side);
     }
 
     public final void addButton(int id) {

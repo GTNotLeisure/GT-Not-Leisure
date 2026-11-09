@@ -183,7 +183,7 @@ public class WirelessCardClientView {
         String prefix = parentNames + " " + data.getString("name");
         StringBuilder names = new StringBuilder(prefix);
         StringBuilder positions = new StringBuilder(position).append(' ')
-            .append(data.getString("position"));
+            .append(positionWithSide(data));
         NBTTagList devices = data.getTagList("displayDevices", 10);
         for (int i = 0; i < devices.tagCount(); i++) {
             NBTTagCompound device = devices.getCompoundTagAt(i);
@@ -194,7 +194,7 @@ public class WirelessCardClientView {
             names.append(' ')
                 .append(iconName(device));
             positions.append(' ')
-                .append(device.getString("position"));
+                .append(positionWithSide(device));
         }
         NBTTagList entrances = data.getTagList("entranceList", 10);
         for (int i = 0; i < entrances.tagCount(); i++) WirelessCardViewCodec
@@ -232,6 +232,11 @@ public class WirelessCardClientView {
                 .toLowerCase(Locale.ROOT),
             positions.toString()
                 .toLowerCase(Locale.ROOT));
+    }
+
+    static String positionWithSide(NBTTagCompound row) {
+        String side = row.getString("side");
+        return row.getString("position") + (row.getBoolean("group") || side.isEmpty() ? "" : " / " + side);
     }
 
     static NBTTagCompound locationTarget(NBTTagCompound row) {
@@ -537,7 +542,7 @@ public class WirelessCardClientView {
                 .equals("active");
             case 4 -> !paused && data.getString("state")
                 .equals("waiting");
-            case 5 -> !paused && data.getBoolean("stable") && data.getInteger("missing") > 0;
+            case 5 -> !paused && data.getInteger("missing") > 0;
             default -> true;
         };
     }
