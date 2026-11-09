@@ -117,8 +117,12 @@ public class EquipmentTheme {
     }
 
     public static WheelStyle.Builder wheel(@Nullable String themeId, WheelStyle.Builder style) {
+        return style.highlightColor(wheelHighlight(themeId));
+    }
+
+    public static int wheelHighlight(@Nullable String themeId) {
         Variant variant = AE2Theme.variant(themeId);
-        return variant != null ? variant.wheel(style) : style.highlightColor(colors(themeId).accent);
+        return variant != null ? variant.highlight : colors(themeId).accent;
     }
 
     private static void addColors(ThemeBuilder<?> theme, ThemePalette palette) {

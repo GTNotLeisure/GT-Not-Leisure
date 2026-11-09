@@ -18,8 +18,6 @@ import com.cleanroommc.modularui.drawable.ItemDrawable;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.gtnllib.gui.layout.Layout;
-import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
 import com.gtnllib.gui.wheel.WheelEntry;
 import com.gtnllib.gui.wheel.WheelMenuBuilder;
 import com.gtnllib.gui.wheel.WheelMenuModel;
@@ -143,13 +141,9 @@ public class PortalGunWheelScreen extends WheelScreen {
     private static DynamicDrawable icon(int slot, State state) {
         return new DynamicDrawable(() -> {
             PortalGunDestination favorite = favorite(slot);
-            Variant variant = AE2Theme.variant(ScreenThemes.portalGun());
-            int selected = variant != null ? variant.colors.hoverText()
-                : EquipmentTheme.colors(ScreenThemes.portalGun()).accent;
-            int filled = variant != null ? variant.colors.text() : FILLED_COLOR;
-            int empty = variant != null ? variant.colors.muted() : EMPTY_COLOR;
+            int selected = EquipmentTheme.wheelHighlight(ScreenThemes.portalGun());
             IKey number = IKey.str(String.valueOf(slot + 1))
-                .color(slot == state.selected ? selected : favorite != null ? filled : empty);
+                .color(slot == state.selected ? selected : favorite != null ? FILLED_COLOR : EMPTY_COLOR);
             IDrawable item = favorite == null || favorite.icon() == null ? IDrawable.EMPTY
                 : state.icon(favorite.icon());
             if (item == IDrawable.EMPTY) return number;
