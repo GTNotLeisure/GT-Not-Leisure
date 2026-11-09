@@ -19,7 +19,7 @@ public interface IRemoteDeviceGui {
      * Returns the screen the device's own right click opens, or {@link #NO_GUI} when this adapter does not handle the
      * device. The device is the part on its side, or the tile entity for whole-block devices.
      */
-    int mainScreen(Object device);
+    int mainScreen(Object device, EntityPlayer player);
 
     /**
      * Opens one screen of the session's device on the server thread and attaches the resulting container to the

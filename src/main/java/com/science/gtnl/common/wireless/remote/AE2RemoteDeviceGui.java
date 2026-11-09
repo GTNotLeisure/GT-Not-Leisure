@@ -25,6 +25,7 @@ import appeng.api.parts.IPatternTerminalEx;
 import appeng.api.parts.IStorageBus;
 import appeng.api.storage.ITerminalHost;
 import appeng.block.AEBaseBlock;
+import appeng.block.qnb.BlockQuantumLinkChamber;
 import appeng.container.AEBaseContainer;
 import appeng.container.ContainerOpenContext;
 import appeng.core.sync.GuiBridge;
@@ -32,11 +33,16 @@ import appeng.core.sync.GuiHostType;
 import appeng.helpers.IInterfaceHost;
 import appeng.parts.automation.PartBaseFormationPlane;
 import appeng.parts.automation.PartSharedItemBus;
+import appeng.parts.reporting.AbstractPartTerminal;
 import appeng.tile.crafting.TileCraftingTile;
 import appeng.tile.crafting.TileMolecularAssembler;
+import appeng.tile.misc.TileAdvancedInscriber;
+import appeng.tile.misc.TileCrystalGrowthChamber;
+import appeng.tile.misc.TileInscriber;
 import appeng.tile.misc.TileSecurity;
 import appeng.tile.misc.TileStorageReshuffle;
 import appeng.tile.misc.TileSuperMEReplenisher;
+import appeng.tile.misc.TileVibrationChamber;
 import appeng.tile.networking.TileWireless;
 import appeng.tile.qnb.TileQuantumBridge;
 import appeng.tile.spatial.TileSpatialIOPort;
@@ -57,12 +63,15 @@ public class AE2RemoteDeviceGui implements IRemoteDeviceGui {
         new Main(TileDrive.class, GuiBridge.GUI_DRIVE),
         new Main(TileIOPort.class, GuiBridge.GUI_IOPORT),
         new Main(TileMolecularAssembler.class, GuiBridge.GUI_MAC),
+        new Main(TileInscriber.class, GuiBridge.GUI_INSCRIBER),
+        new Main(TileAdvancedInscriber.class, GuiBridge.GUI_ADVANCED_INSCRIBER),
+        new Main(TileCrystalGrowthChamber.class, GuiBridge.GUI_CRYSTAL_GROWTH_CHAMBER),
+        new Main(TileVibrationChamber.class, GuiBridge.GUI_VIBRATION_CHAMBER),
         new Main(TileCraftingTile.class, GuiBridge.GUI_CRAFTING_CPU),
         new Main(TileSecurity.class, GuiBridge.GUI_SECURITY),
         new Main(TileWireless.class, GuiBridge.GUI_WIRELESS),
         new Main(TileSpatialIOPort.class, GuiBridge.GUI_SPATIAL_IO_PORT),
         new Main(TileSpatialLinkChamber.class, GuiBridge.GUI_SPATIAL_LINK_CHAMBER),
-        new Main(TileQuantumBridge.class, GuiBridge.GUI_QNB),
         new Main(TileStorageReshuffle.class, GuiBridge.GUI_STORAGE_RESHUFFLE),
         new Main(TileSuperMEReplenisher.class, GuiBridge.GUI_SUPER_ME_REPLENISHER),
         new Main(IInterfaceHost.class, GuiBridge.GUI_INTERFACE),
@@ -107,10 +116,14 @@ public class AE2RemoteDeviceGui implements IRemoteDeviceGui {
     }
 
     @Override
-    public int mainScreen(Object device) {
+    public int mainScreen(Object device, EntityPlayer player) {
         // AE2FC's block overrides onActivated, but still opens the native AE2 interface screen.
         if (device.getClass() == TileFluidInterface.class) return GuiBridge.GUI_INTERFACE.ordinal();
         if (!opensLikeAE2(device)) return NO_GUI;
+        if (device instanceof AbstractPartTerminal terminal) return terminal.getGui(player)
+            .ordinal();
+        if (device instanceof TileQuantumBridge bridge)
+            return bridge.getBlockType() instanceof BlockQuantumLinkChamber ? GuiBridge.GUI_QNB.ordinal() : NO_GUI;
         if (device instanceof TileCraftingTile unit && !(unit.isFormed() && unit.isActive())) return NO_GUI;
         for (Main main : MAIN) if (main.type()
             .isInstance(device))

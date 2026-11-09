@@ -27,6 +27,7 @@ import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
+import appeng.api.parts.IPart;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
@@ -195,6 +196,10 @@ public class WirelessCardViewBuilder {
             ItemStack icon = node.getGridBlock()
                 .getMachineRepresentation();
             writeIcon(data, "icon", icon);
+            String position = coordinates(address);
+            if (node.getMachine() instanceof IPart) position += " / " + address.side()
+                .name();
+            data.setString("position", position);
             data.setLong("displayId", WirelessDeviceDisplay.id(address, node));
             data.setString("serverIconName", icon == null ? "" : icon.getDisplayName());
             var name = interfaces.name(node);
@@ -206,7 +211,6 @@ public class WirelessCardViewBuilder {
             .copy();
         writeDimensionName(dimensions, address.dimension());
         entry.setInteger("dimension", address.dimension());
-        entry.setString("position", coordinates(address));
         entry.setString(
             "name",
             link.deviceNames()

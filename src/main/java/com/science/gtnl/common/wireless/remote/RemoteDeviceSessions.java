@@ -73,7 +73,7 @@ public class RemoteDeviceSessions {
         if (located.host() == null) return new Availability(false, located.state());
         Object device = located.host()
             .device();
-        if (RemoteDeviceGuis.find(device) == null)
+        if (RemoteDeviceGuis.find(device, player) == null)
             return new Availability(false, RemoteDeviceGuis.withoutScreen(device));
         return new Availability(true, checkAccess(player, frequency, node));
     }
@@ -87,7 +87,7 @@ public class RemoteDeviceSessions {
         if (access != RemoteDeviceState.OPEN) return access;
         Object device = located.host()
             .device();
-        var match = RemoteDeviceGuis.find(device);
+        var match = RemoteDeviceGuis.find(device, player);
         if (match == null) return RemoteDeviceGuis.withoutScreen(device);
         var session = new RemoteDeviceSession(++nextId, player, card, binding, node, located.address(), located.host());
         Container previous = player.openContainer;

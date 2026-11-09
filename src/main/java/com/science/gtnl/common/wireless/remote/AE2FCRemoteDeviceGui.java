@@ -47,7 +47,7 @@ public class AE2FCRemoteDeviceGui implements IRemoteDeviceGui {
     }
 
     @Override
-    public int mainScreen(Object device) {
+    public int mainScreen(Object device, EntityPlayer player) {
         Main main = main(device);
         return main == null ? NO_GUI
             : main.screen()

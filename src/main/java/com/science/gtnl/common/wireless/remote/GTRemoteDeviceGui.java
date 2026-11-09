@@ -34,7 +34,7 @@ public class GTRemoteDeviceGui implements IRemoteDeviceGui {
     }
 
     @Override
-    public int mainScreen(Object device) {
+    public int mainScreen(Object device, EntityPlayer player) {
         MetaTileEntity machine = machine(device);
         if (machine == null || !opensOwnScreen(machine)) return NO_GUI;
         return usesModularUI2(machine) ? MODULAR_UI_2 : MODULAR_UI_1;

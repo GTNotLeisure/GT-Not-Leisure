@@ -2,6 +2,8 @@ package com.science.gtnl.common.wireless.remote;
 
 import java.util.List;
 
+import net.minecraft.entity.player.EntityPlayer;
+
 import org.jetbrains.annotations.Nullable;
 
 public class RemoteDeviceGuis {
@@ -17,9 +19,9 @@ public class RemoteDeviceGuis {
 
     private RemoteDeviceGuis() {}
 
-    public static @Nullable Match find(Object device) {
+    public static @Nullable Match find(Object device, EntityPlayer player) {
         for (IRemoteDeviceGui gui : ADAPTERS) {
-            int screen = gui.mainScreen(device);
+            int screen = gui.mainScreen(device, player);
             if (screen != IRemoteDeviceGui.NO_GUI) return new Match(gui, screen);
         }
         return null;

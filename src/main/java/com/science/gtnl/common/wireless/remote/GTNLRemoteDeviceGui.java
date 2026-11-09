@@ -54,7 +54,7 @@ public class GTNLRemoteDeviceGui implements IRemoteDeviceGui {
     }
 
     @Override
-    public int mainScreen(Object device) {
+    public int mainScreen(Object device, EntityPlayer player) {
         for (Main main : MAIN) if (main.type()
             .isInstance(device))
             return main.screen()
