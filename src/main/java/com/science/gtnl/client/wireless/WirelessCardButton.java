@@ -1,14 +1,11 @@
 package com.science.gtnl.client.wireless;
 
 import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
-import static com.science.gtnl.common.wireless.WirelessCardActions.BACK;
-import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_DISPLAY;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
-import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
+import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_RENAME;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
-import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TELEPORT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TOGGLE_AUTO;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TOGGLE_GROUPING;
@@ -31,7 +28,6 @@ import com.cleanroommc.modularui.api.layout.IViewportStack;
 import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.value.BoolValue;
 import com.cleanroommc.modularui.widget.Widget;
-import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.AE2Theme.Icon;
@@ -43,11 +39,11 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class WirelessCardButton {
 
+    private static final int MAX_TOOLTIP_ENTRANCES = 8;
     public final int id;
     public final Widget<?> widget;
     private final WirelessCardGui panel;
     private boolean available, on;
-    private String label = "";
 
     WirelessCardButton(int id, WirelessCardGui panel) {
         this.id = id;
@@ -78,58 +74,23 @@ public class WirelessCardButton {
                 .overlay(false, look)
                 .overlay(true, look);
         } else {
-            widget = new ActionButton().onMousePressed(button -> {
-                if (button != 0) return false;
-                panel.action(id);
-                return true;
-            });
+            var button = new WirelessCardActionButton(() -> available).onClick(() -> panel.action(id));
+            widget = button;
             switch (actionType) {
-                case OPEN_DETAILS -> widget.background(IDrawable.EMPTY)
-                    .hoverBackground(IDrawable.EMPTY);
-                case TELEPORT -> styleIcon(Icon.MOVE_TO);
-                case HIGHLIGHT -> styleIcon(Icon.VISIBLE);
-                case OPEN_ENTRANCES -> styleIcon(Icon.MORE);
-                case OPEN_DEVICE -> styleIcon(Icon.GEAR);
-                default -> styleButton();
+                case OPEN_DETAILS -> button.plain();
+                case TELEPORT -> button.icon(() -> Icon.MOVE_TO);
+                case HIGHLIGHT -> button.icon(() -> Icon.VISIBLE);
+                case OPEN_DEVICE -> button.icon(() -> Icon.GEAR);
+                case OPEN_RENAME -> button.icon(() -> Icon.EDIT);
+                case REFRESH -> button.plain()
+                    .overlay(AE2Theme.tabButton(button, () -> Icon.REFRESH, () -> available));
+                case TOGGLE_GROUPING -> button.plain()
+                    .overlay(AE2Theme.toggleSwitch(button, () -> on, () -> tr("merge_types"), () -> available));
+                default -> {}
             }
         }
-        if (isRowAction(id) || id == TOGGLE_GROUPING || id == REFRESH || id == BACK)
-            widget.tooltipBuilder(this::tooltip)
-                .tooltipAutoUpdate(true);
-    }
-
-    private class ActionButton extends ButtonWidget<ActionButton> {
-
-        @Override
-        public boolean canBeSeen(IViewportStack stack) {
-            return isEnabled() && super.canBeSeen(stack);
-        }
-
-        @Override
-        public @NotNull Result onMousePressed(int button) {
-            // Icon buttons sit on top of the row's open area, so a refused click must not fall through to it.
-            return button == 0 && !available ? Result.STOP : super.onMousePressed(button);
-        }
-    }
-
-    private void styleButton() {
-        widget.background(IDrawable.EMPTY)
-            .hoverBackground(IDrawable.EMPTY);
-        if (id == REFRESH) widget.overlay(AE2Theme.tabButton(widget, () -> Icon.REFRESH, () -> available));
-        else if (id == TOGGLE_GROUPING)
-            widget.overlay(AE2Theme.toggleSwitch(widget, () -> on, () -> label, () -> available));
-        else {
-            IDrawable background = AE2Theme.button(widget, () -> available, () -> false);
-            widget.background(background)
-                .hoverBackground(background)
-                .overlay(AE2Theme.label(widget, () -> label, () -> available, () -> false));
-        }
-    }
-
-    private void styleIcon(Icon icon) {
-        widget.background(IDrawable.EMPTY)
-            .hoverBackground(IDrawable.EMPTY)
-            .overlay(AE2Theme.iconButton(widget, () -> icon, () -> available));
+        if (isRowAction(id) || id == TOGGLE_GROUPING || id == REFRESH) widget.tooltipBuilder(this::tooltip)
+            .tooltipAutoUpdate(true);
     }
 
     private static boolean sameDimension(NBTTagCompound row) {
@@ -148,12 +109,13 @@ public class WirelessCardButton {
                 String targetName = row.getString("targetName");
                 tooltip.addLine(targetName.isEmpty() || targetName.equals(name) ? name : name + " - " + targetName);
                 tooltip.addLine(gray + row.getString("positionLabel"));
-                boolean device = row.getBoolean("device"), single = row.getBoolean("singleDevice");
+                entrances(tooltip, row, data.getBoolean("channels"));
+                boolean single = row.getBoolean("singleDevice");
                 tooltip.addLine(
                     EnumChatFormatting.YELLOW
                         + (row.getBoolean("group") ? tr("row_expand_hint", WirelessCardGui.groupContents(row))
-                            : tr(device ? "row_device_hint" : single ? "row_open_device_hint" : "row_open_hint")));
-                if (!row.getBoolean("group") && (device || single)) remoteState(tooltip, row);
+                            : tr(single ? "row_open_device_hint" : "row_open_hint")));
+                if (!row.getBoolean("group") && single) remoteState(tooltip, row);
             }
             case TELEPORT -> {
                 tooltip.addLine(tr("teleport_tip"));
@@ -165,26 +127,14 @@ public class WirelessCardButton {
                     gray + row.getString("position")
                         + (row.getString("side")
                             .isEmpty() ? "" : " / " + row.getString("side")));
-                tooltip.addLine(
-                    sameDimension(row) ? gray + tr("highlight_range")
-                        : EnumChatFormatting.RED
-                            + tr("highlight_other_dimension", panel.dimensionName(row.getInteger("dimension"))));
+                tooltip.addLine(highlightRange(row, panel));
             }
             case TOGGLE_PAUSE -> tooltip.addLine(tr(row.getBoolean("paused") ? "resume_tip" : "pause_tip"));
-            case OPEN_ENTRANCES -> {
-                tooltip.addLine(tr("entrances_tip"));
-                tooltip.addLine(gray + row.getString("positionLabel"));
-            }
             case OPEN_DEVICE -> {
                 tooltip.addLine(tr("remote.open_tip"));
                 remoteState(tooltip, row);
             }
-            case CYCLE_DISPLAY -> {
-                tooltip.addLine(tr("display.mode", tr("display.mode." + row.getInteger("displayMode"))));
-                tooltip.addLine(gray + tr("display.cycle_hint"));
-                tooltip.addLine(gray + tr("display.auto_hint"));
-                tooltip.addLine(gray + tr("display.fallback_hint"));
-            }
+            case OPEN_RENAME -> tooltip.addLine(tr("devices.rename_device"));
             case TOGGLE_AUTO -> tooltip.addLine(tr(data.getBoolean("auto") ? "auto_on" : "auto_off"));
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(
@@ -197,12 +147,40 @@ public class WirelessCardButton {
                 tooltip.addLine(tr("refresh"));
                 tooltip.addLine(gray + tr("refresh_tip"));
             }
-            case BACK -> tooltip.addLine(tr("back_hint"));
             default -> {}
         }
     }
 
-    private static void remoteState(RichTooltip tooltip, NBTTagCompound row) {
+    private static void entrances(RichTooltip tooltip, NBTTagCompound row, boolean channels) {
+        if (row.getBoolean("group")) {
+            int total = row.getInteger("entrances");
+            if (total > 1) tooltip.addLine(tr("entrances_compact", total));
+            return;
+        }
+        NBTTagList entrances = row.getTagList("entranceList", 10);
+        if (entrances.tagCount() < 2) return;
+        tooltip.addLine(tr("row_entrances", entrances.tagCount()));
+        int shown = Math.min(entrances.tagCount(), MAX_TOOLTIP_ENTRANCES);
+        for (int i = 0; i < shown; i++) {
+            NBTTagCompound entrance = entrances.getCompoundTagAt(i);
+            int used = entrance.getInteger("usedChannels");
+            String usage = !channels ? "" : used < 0 ? tr("entrance_waiting") : tr("entrance_channels", used);
+            tooltip.addLine(
+                EnumChatFormatting.GRAY + "  "
+                    + entrance.getString("positionLabel")
+                    + (usage.isEmpty() ? "" : "  " + usage));
+        }
+        if (entrances.tagCount() > shown)
+            tooltip.addLine(EnumChatFormatting.GRAY + "  " + tr("entrances_more", entrances.tagCount() - shown));
+    }
+
+    static String highlightRange(NBTTagCompound target, WirelessCardGui panel) {
+        return sameDimension(target) ? EnumChatFormatting.GRAY + tr("highlight_range")
+            : EnumChatFormatting.RED
+                + tr("highlight_other_dimension", panel.dimensionName(target.getInteger("dimension")));
+    }
+
+    static void remoteState(RichTooltip tooltip, NBTTagCompound row) {
         String remote = row.getString("remote");
         if (!remote.equals("open")) tooltip.addLine(
             EnumChatFormatting.RED + tr(
@@ -214,7 +192,7 @@ public class WirelessCardButton {
         NBTTagList rows = data.getTagList("rows", 10);
         int rowCount = Math.min(visibleRows, rows.tagCount());
         int actionType = type(id);
-        boolean visible = true, detail = data.getBoolean("detail");
+        boolean visible = true;
         available = ready;
         if (isRowAction(id)) {
             int index = rowIndex(id);
@@ -227,39 +205,11 @@ public class WirelessCardButton {
             if (actionType == TOGGLE_PAUSE || actionType == HIGHLIGHT
                 || actionType == TELEPORT
                 || actionType == OPEN_DEVICE) visible = !row.getBoolean("group");
-            if (actionType == TOGGLE_PAUSE) visible &= !row.getBoolean("device");
-            if (actionType == OPEN_ENTRANCES)
-                visible = !detail && !row.getBoolean("group") && row.getInteger("entrances") > 1;
             if (actionType == OPEN_DEVICE) available &= row.getString("remote")
                 .equals("open");
-            if (actionType == OPEN_DETAILS) {
-                visible = !detail || row.getBoolean("device");
-                if (row.getBoolean("device")) available &= row.getString("remote")
-                    .equals("open");
-            }
-            if (actionType == CYCLE_DISPLAY) visible = row.getBoolean("device") && row.hasKey("displayId", 4);
-        } else switch (id) {
-            case TOGGLE_AUTO -> on = data.getBoolean("auto");
-            case BACK -> visible = detail;
-            case RENAME -> {
-                visible = detail;
-                available &= data.getBoolean("renameable");
-            }
-            case TOGGLE_GROUPING -> {
-                visible = !detail;
-                on = data.getBoolean("collapseTypes");
-            }
-            default -> {}
-        }
+            if (actionType == OPEN_RENAME) visible = WirelessCardRenameDialog.Target.listed(row) != null;
+        } else if (id == TOGGLE_AUTO) on = data.getBoolean("auto");
+        else if (id == TOGGLE_GROUPING) on = data.getBoolean("collapseTypes");
         widget.setEnabled(visible);
-        label = switch (id) {
-            case BACK -> tr("back_compact");
-            case RENAME -> StatCollector.translateToLocal("selectWorld.rename");
-            case TOGGLE_GROUPING -> tr("merge_types");
-            default -> "";
-        };
-        if (actionType == CYCLE_DISPLAY && rowIndex(id) < rowCount) label = tr(
-            "display.short." + rows.getCompoundTagAt(rowIndex(id))
-                .getInteger("displayMode"));
     }
 }

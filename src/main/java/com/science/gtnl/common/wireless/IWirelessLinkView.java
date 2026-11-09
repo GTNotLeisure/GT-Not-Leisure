@@ -1,7 +1,6 @@
 package com.science.gtnl.common.wireless;
 
 import java.util.Map;
-import java.util.OptionalInt;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -75,17 +74,6 @@ public interface IWirelessLinkView {
         @Override
         public ClusterView cluster() {
             return this;
-        }
-    }
-
-    record EntranceView(ClusterView cluster, Address target, IGridNode node, OptionalInt usedChannels)
-        implements IWirelessLinkView {
-
-        public EntranceView {
-            if (!cluster.members()
-                .contains(node)) throw new IllegalArgumentException("Entrance outside its physical cluster");
-            if (usedChannels.isPresent() && usedChannels.getAsInt() < 0)
-                throw new IllegalArgumentException("Channel usage cannot be negative");
         }
     }
 }

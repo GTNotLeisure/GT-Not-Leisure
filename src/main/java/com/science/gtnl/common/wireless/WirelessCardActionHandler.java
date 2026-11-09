@@ -1,13 +1,10 @@
 package com.science.gtnl.common.wireless;
 
-import static com.science.gtnl.common.wireless.WirelessCardActions.CLOSE_DETAILS;
 import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
-import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DETAILS;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
-import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_ENTRANCES;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
-import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME;
+import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_GROUP;
 import static com.science.gtnl.common.wireless.WirelessCardActions.SET_VISUALISATION;
 import static com.science.gtnl.common.wireless.WirelessCardActions.TELEPORT;
@@ -40,30 +37,33 @@ public class WirelessCardActionHandler {
         this.session = session;
     }
 
-    void execute(long revision, int action, long targetId, String text, long nameRevision) {
+    void execute(long revision, int action, long targetId, String text) {
         EntityPlayer player = session.player;
         ItemStack card = session.card;
         WirelessCardBinding binding = session.binding;
-        if (action == CLOSE_DETAILS) {
-            if (session.view.detailNode != null) {
-                session.view.detailNode = null;
-                session.update(true);
-            }
-            return;
-        }
-        if (isRowAction(action) && action != OPEN_DETAILS
-            && action != OPEN_ENTRANCES
-            && action != OPEN_DEVICE
+        if (isRowAction(action) && action != OPEN_DEVICE
             && action != TOGGLE_PAUSE
             && action != TELEPORT
             && action != HIGHLIGHT) return;
         if (!acceptRequest(player.worldObj.getTotalWorldTime())) return;
-        if (action == OPEN_DETAILS || action == OPEN_ENTRANCES) session.update(false);
         if (session.revision != revision) {
             session.update(true);
             return;
         }
-        var device = session.view.detailDevices && session.snapshot != null ? session.snapshot.device(targetId) : null;
+        var device = session.snapshot == null ? null : session.snapshot.device(targetId);
+        if (action == RENAME_DEVICE) {
+            try {
+                if (binding == null || device == null) message("stale");
+                else if (!WirelessOperations.renameDevice(player, binding.frequency(), device, text)) message("denied");
+            } catch (WirelessOperations.Denied denied) {
+                message("denied");
+            } catch (IllegalStateException stale) {
+                message("stale");
+            }
+            session.view.invalidatePresentation();
+            session.update(true);
+            return;
+        }
         if (action == OPEN_DEVICE) {
             if (!openDevice(player, card, binding, device, targetId)) session.update(true);
             return;
@@ -75,32 +75,16 @@ public class WirelessCardActionHandler {
             return;
         }
         var row = session.snapshot == null ? null : session.snapshot.target(targetId);
-        if (isRowAction(action) || action == RENAME) {
-            if (binding == null || row == null) {
-                message("stale");
-                session.update(true);
-                return;
-            }
+        if (isRowAction(action) && (binding == null || row == null)) {
+            message("stale");
+            session.update(true);
+            return;
         }
         if (action == CYCLE_VISUALISATION) {
             WirelessCardVisualisation.cycle(card, player);
         } else if (action == SET_VISUALISATION) {
             if (targetId >= 0 && targetId < WirelessCardVisualisation.MODE_COUNT)
                 WirelessCardVisualisation.set(card, player, (int) targetId);
-        } else if (action == RENAME) {
-            if (session.view.detailNode == null || !row.members()
-                .contains(session.view.detailNode)) return;
-            if (session.view.nameRevision() != nameRevision) {
-                message("stale");
-            } else {
-                try {
-                    if (!WirelessOperations.rename(player, binding.frequency(), row, text)) message("denied");
-                } catch (WirelessOperations.Denied denied) {
-                    message("denied");
-                } catch (IllegalStateException stale) {
-                    message("stale");
-                }
-            }
         } else if (action == RENAME_GROUP) {
             var group = session.snapshot == null ? null : session.snapshot.machine(targetId);
             try {
@@ -152,14 +136,9 @@ public class WirelessCardActionHandler {
             }
         } else if (action == TOGGLE_AUTO) {
             WirelessAutoConnect.toggleAutomatic(player, card);
-        } else if (action == TOGGLE_GROUPING && session.view.detailNode == null) {
+        } else if (action == TOGGLE_GROUPING) {
             WirelessCardBinding.toggleGrouping(card);
             WirelessCardInventory.sync(player, card);
-        } else if (action == OPEN_DETAILS || action == OPEN_ENTRANCES) {
-            if (session.view.detailNode == null && row instanceof IWirelessLinkView.ClusterView) {
-                session.view.detailNode = row.node();
-                session.view.detailDevices = action == OPEN_DETAILS;
-            }
         } else if (action == TOGGLE_PAUSE) {
             try {
                 WirelessOperations.setPaused(player, binding.frequency(), row);
@@ -169,15 +148,13 @@ public class WirelessCardActionHandler {
                 message("stale");
             }
         } else if (action != REFRESH) return;
-        if (action == REFRESH || action == RENAME || action == OPEN_DETAILS || action == OPEN_ENTRANCES)
-            session.view.invalidatePresentation();
+        if (action == REFRESH) session.view.invalidatePresentation();
         session.update(true);
     }
 
     private boolean openDevice(EntityPlayer player, ItemStack card, WirelessCardBinding binding, Device device,
         long targetId) {
-        boolean devicePage = session.view.detailNode != null && session.view.detailDevices;
-        var row = devicePage || session.snapshot == null ? null : session.snapshot.target(targetId);
+        var row = device != null || session.snapshot == null ? null : session.snapshot.target(targetId);
         if (binding == null || device == null && row == null || !(player instanceof EntityPlayerMP serverPlayer)) {
             message("stale");
             return false;
@@ -185,13 +162,8 @@ public class WirelessCardActionHandler {
         var node = device != null ? device.node() : session.snapshot.remoteTarget(targetId);
         // The session follows the card by identity while it moves through the device screen's inventory.
         if (WirelessCardBinding.identify(card)) WirelessCardInventory.sync(serverPlayer, card);
-        var state = RemoteDeviceSessions.open(
-            serverPlayer,
-            new WirelessCardInventory.TrackedCard(card, binding),
-            binding,
-            session.view.detailNode,
-            session.view.detailDevices,
-            node);
+        var state = RemoteDeviceSessions
+            .open(serverPlayer, new WirelessCardInventory.TrackedCard(card, binding), binding, node);
         if (state == RemoteDeviceState.OPEN) return true;
         message("remote." + state.key());
         return false;

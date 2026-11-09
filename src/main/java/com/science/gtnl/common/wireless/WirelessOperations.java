@@ -151,10 +151,12 @@ public class WirelessOperations {
         }
     }
 
-    static boolean rename(EntityPlayer player, WirelessFrequency source, IWirelessLinkView view, String name) {
-        if (!canBuild(view.node(), player) || !canBuild(WirelessFrequencies.controllerNode(source), player))
+    static boolean renameDevice(EntityPlayer player, WirelessFrequency source, WirelessCardSnapshot.Device device,
+        String name) {
+        if (!canBuild(device.node(), player) || !canBuild(WirelessFrequencies.controllerNode(source), player))
             throw new Denied();
-        return WirelessClusterManager.rename(source, view, name, node -> canBuild(node, player));
+        return WirelessClusterManager
+            .renameDevice(source, device.link(), device.node(), name, node -> canBuild(node, player));
     }
 
     static boolean renameGroup(EntityPlayer player, WirelessFrequency source, WirelessCardSnapshot.Machine group,

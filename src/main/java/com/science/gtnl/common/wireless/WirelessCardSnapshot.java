@@ -62,7 +62,7 @@ public class WirelessCardSnapshot {
                 .equals(previous.devices.keySet()))
             return false;
         // Icon, availability and channel-count changes do not change the target of a queued click.
-        for (String key : new String[] { "detailTarget", "nameRevision", "auto", "visualMode", "collapseTypes" }) {
+        for (String key : new String[] { "auto", "visualMode", "collapseTypes" }) {
             if (!Objects.equals(payload.getTag(key), previous.payload.getTag(key))) return false;
         }
         for (var entry : targets.long2ObjectEntrySet()) {

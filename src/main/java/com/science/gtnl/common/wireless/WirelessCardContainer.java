@@ -72,10 +72,6 @@ public class WirelessCardContainer extends ModularContainer {
         binding = card == null ? null : WirelessCardBinding.read(card.getTagCompound());
         var returning = RemoteDeviceSessions.takeReturn(player);
         returnSession = returning == null ? 0 : returning.id;
-        if (returning != null) {
-            view.detailNode = returning.returnNode;
-            view.detailDevices = returning.returnDevices;
-        }
         // NetHandlerPlayServer queries this slot after onItemRightClick returns, even for an item GUI.
         if (slot != null) addSlotToContainer(new Slot(cardInventory, cardSlot, -10000, -10000) {
 
@@ -186,15 +182,9 @@ public class WirelessCardContainer extends ModularContainer {
         }
 
         @SideOnly(Side.CLIENT)
-        public void request(int action, long target, String text, long nameRevision) {
+        public void request(int action, long target, String text) {
             if (!isValid() || !display.hasKey("session")) return;
-            var request = new Action(
-                display.getLong("session"),
-                display.getLong("revision"),
-                action,
-                target,
-                text,
-                nameRevision);
+            var request = new Action(display.getLong("session"), display.getLong("revision"), action, target, text);
             syncToServer(1, request::write);
         }
 
@@ -234,12 +224,7 @@ public class WirelessCardContainer extends ModularContainer {
                 if (isValid() && player.openContainer == WirelessCardContainer.this
                     && canInteractWith(player)
                     && session == request.session()) {
-                    actions.execute(
-                        request.revision(),
-                        request.action(),
-                        request.target(),
-                        request.text(),
-                        request.nameRevision());
+                    actions.execute(request.revision(), request.action(), request.target(), request.text());
                 }
             });
         }
@@ -301,7 +286,7 @@ public class WirelessCardContainer extends ModularContainer {
         }
     }
 
-    record Action(long session, long revision, int action, long target, String text, long nameRevision) {
+    record Action(long session, long revision, int action, long target, String text) {
 
         static Action read(PacketBuffer buf) throws IOException {
             return new Action(
@@ -309,8 +294,7 @@ public class WirelessCardContainer extends ModularContainer {
                 buf.readLong(),
                 buf.readInt(),
                 buf.readLong(),
-                buf.readStringFromBuffer(32),
-                buf.readLong());
+                buf.readStringFromBuffer(32));
         }
 
         void write(PacketBuffer buf) throws IOException {
@@ -319,7 +303,6 @@ public class WirelessCardContainer extends ModularContainer {
             buf.writeInt(action);
             buf.writeLong(target);
             buf.writeStringToBuffer(text);
-            buf.writeLong(nameRevision);
         }
     }
 

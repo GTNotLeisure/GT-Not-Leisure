@@ -79,7 +79,7 @@ public class RemoteDeviceSessions {
     }
 
     public static RemoteDeviceState open(EntityPlayerMP player, TrackedCard card, WirelessCardBinding binding,
-        @Nullable IGridNode returnNode, boolean returnDevices, IGridNode node) {
+        IGridNode node) {
         if (!card.carriedBy(player)) return RemoteDeviceState.CARD;
         var located = locate(node);
         if (located.host() == null) return located.state();
@@ -89,16 +89,7 @@ public class RemoteDeviceSessions {
             .device();
         var match = RemoteDeviceGuis.find(device);
         if (match == null) return RemoteDeviceGuis.withoutScreen(device);
-        var session = new RemoteDeviceSession(
-            ++nextId,
-            player,
-            card,
-            binding,
-            returnNode,
-            returnDevices,
-            node,
-            located.address(),
-            located.host());
+        var session = new RemoteDeviceSession(++nextId, player, card, binding, node, located.address(), located.host());
         Container previous = player.openContainer;
         try {
             return match.gui()

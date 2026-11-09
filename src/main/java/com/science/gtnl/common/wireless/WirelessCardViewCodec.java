@@ -40,6 +40,7 @@ public class WirelessCardViewCodec {
 
     public static void localizeDimensions(NBTTagCompound data) {
         NBTTagCompound dimensions = data.getCompoundTag("dimensions");
+        data.setTag("dimensionKeys", dimensions.copy());
         for (Object key : dimensions.func_150296_c()) {
             String id = (String) key;
             String name = dimensions.getString(id);

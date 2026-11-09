@@ -326,34 +326,22 @@ public class WirelessLinkPersistence {
             .strip();
     }
 
-    static boolean rename(Map<IGridNode, String> names, String name, PhysicalMeTopology topology,
-        Predicate<IGridNode> canRename) {
-        Map<ICustomNameObject, TileEntity> targets = new Reference2ObjectOpenHashMap<>();
-        // Validate every member before any setter runs; internal and external nodes may share the same owner.
-        for (IGridNode node : names.keySet()) {
-            if (!canRename.test(node)) return false;
-            Endpoint endpoint = endpoint(node, topology);
-            if (endpoint == null || !endpoint.loaded()
-                || endpoint.node() != node
-                || !(node.getMachine() instanceof ICustomNameObject named)
-                || !customName(named).equals(names.get(node)))
-                throw new IllegalStateException("The displayed device changed");
-            targets.put(named, endpoint.tile());
-        }
+    static void renameDevice(IGridNode node, String shown, String name, PhysicalMeTopology topology) {
+        Endpoint endpoint = endpoint(node, topology);
+        if (endpoint == null || !endpoint.loaded()
+            || endpoint.node() != node
+            || !(node.getMachine() instanceof ICustomNameObject named)
+            || !customName(named).equals(shown)) throw new IllegalStateException("The displayed device changed");
         name = cleanName(name);
-        for (var target : targets.entrySet()) {
-            if (customName(target.getKey()).equals(name)) continue;
-            target.getKey()
-                .setCustomName(name);
-            if (target.getValue() instanceof IPartHost host) {
-                host.markForSave();
-                host.markForUpdate();
-            } else {
-                target.getValue()
-                    .markDirty();
-            }
+        if (shown.equals(name)) return;
+        named.setCustomName(name);
+        if (endpoint.tile() instanceof IPartHost host) {
+            host.markForSave();
+            host.markForUpdate();
+        } else {
+            endpoint.tile()
+                .markDirty();
         }
-        return !targets.isEmpty();
     }
 
     static void setPaused(Collection<IGridNode> nodes, WirelessFrequency source, boolean paused,
