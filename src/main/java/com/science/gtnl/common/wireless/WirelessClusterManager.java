@@ -30,6 +30,8 @@ import appeng.api.networking.IGridNode;
 import appeng.api.networking.pathing.ControllerState;
 import appeng.api.networking.pathing.IPathingGrid;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
@@ -454,6 +456,28 @@ public class WirelessClusterManager {
         }
         result.sort(Comparator.comparing(EntranceUsage::target, Address.POSITION_ORDER));
         return result;
+    }
+
+    static Set<Address> titleKeys(WirelessFrequency source, ClusterView view) {
+        Set<Address> keys = new ObjectLinkedOpenHashSet<>();
+        keys.add(view.target());
+        var cluster = TRACKER.clusterOf(view.node());
+        if (cluster != null) for (Entrance entrance : entranceIndex.forCluster(cluster)) {
+            if (!same(entrance.frequency(), source) || !view.members()
+                .contains(entrance.targetNode())) continue;
+            Address address = TOPOLOGY.entranceAddress(entrance.targetNode());
+            if (address != null) keys.add(address);
+        }
+        return keys;
+    }
+
+    static Set<Address> memberAddresses(ClusterView view) {
+        Set<Address> addresses = new ObjectOpenHashSet<>();
+        for (IGridNode node : view.members()) {
+            Address address = TOPOLOGY.entranceAddress(node);
+            if (address != null) addresses.add(address);
+        }
+        return addresses;
     }
 
     public static boolean isLinked(WirelessFrequency source, IGridNode target) {

@@ -18,6 +18,7 @@ import com.science.gtnl.api.mixinHelper.IInterfaceNameHatch;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 import appeng.api.implementations.parts.IPartCable;
+import appeng.api.networking.IGridHost;
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
@@ -257,19 +258,58 @@ public class WirelessMachineGroups {
         return true;
     }
 
+    static String clusterTitle(WirelessFrequency frequency, IWirelessLinkView link) {
+        NameScope scope = nameScope(frequency);
+        if (scope == null || !scope.registry()
+            .hasClusterTitles(scope.network())) return "";
+        var keys = WirelessClusterManager.titleKeys(frequency, link.cluster());
+        String title = scope.registry()
+            .clusterTitle(scope.network(), keys);
+        // Re-key onto the current anchor and entrances so the title survives either one being replaced later.
+        if (!title.isEmpty()) scope.registry()
+            .keepClusterTitle(scope.network(), keys, title);
+        return title;
+    }
+
+    static boolean setClusterTitle(WirelessFrequency frequency, IWirelessLinkView link, String title) {
+        NameScope scope = nameScope(frequency);
+        if (scope == null) return false;
+        scope.registry()
+            .setClusterTitle(
+                scope.network(),
+                WirelessClusterManager.memberAddresses(link.cluster()),
+                WirelessClusterManager.titleKeys(frequency, link.cluster()),
+                WirelessLinkPersistence.cleanName(title));
+        return true;
+    }
+
     static void forgetRemovedGroupNames(WirelessFrequency frequency) {
         NameScope scope = nameScope(frequency);
-        if (scope != null) scope.registry()
+        if (scope == null) return;
+        scope.registry()
             .forgetGroupNames(
                 scope.network(),
                 (position, meta) -> !WirelessConstructionSites.contains(position) && controllerRemoved(position, meta));
+        scope.registry()
+            .forgetClusterTitles(
+                scope.network(),
+                position -> !WirelessConstructionSites.contains(position) && deviceRemoved(position));
     }
 
     public static void followMove(Address source, Address target) {
-        if (!(target.tile() instanceof IGregTechTileEntity base)
-            || !(base.getMetaTileEntity() instanceof MTEMultiBlockBase)) return;
         var registry = WirelessFrequencyWorldSavedData.get();
-        if (registry != null) registry.moveGroupNames(source, target, base.getMetaTileID());
+        if (registry == null) return;
+        registry.moveClusterTitles(source, target);
+        if (target.tile() instanceof IGregTechTileEntity base && base.getMetaTileEntity() instanceof MTEMultiBlockBase)
+            registry.moveGroupNames(source, target, base.getMetaTileID());
+    }
+
+    private static boolean deviceRemoved(Address position) {
+        World world = DimensionManager.getWorld(position.dimension());
+        if (world == null || !world.blockExists(position.x(), position.y(), position.z())) return false;
+        TileEntity tile = world.getTileEntity(position.x(), position.y(), position.z());
+        if (tile != null && tile.isInvalid()) return false;
+        return !(tile instanceof IGridHost);
     }
 
     private static boolean controllerRemoved(Address position, int meta) {

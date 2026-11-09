@@ -134,7 +134,8 @@ public class WirelessCardButton {
                 tooltip.addLine(tr("remote.open_tip"));
                 remoteState(tooltip, row);
             }
-            case OPEN_RENAME -> tooltip.addLine(tr("devices.rename_device"));
+            case OPEN_RENAME -> tooltip
+                .addLine(tr(row.getBoolean("singleDevice") ? "devices.rename_device" : "devices.rename_cluster"));
             case TOGGLE_AUTO -> tooltip.addLine(tr(data.getBoolean("auto") ? "auto_on" : "auto_off"));
             case TOGGLE_GROUPING -> {
                 tooltip.addLine(

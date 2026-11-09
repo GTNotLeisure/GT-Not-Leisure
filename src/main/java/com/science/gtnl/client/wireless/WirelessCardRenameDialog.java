@@ -1,6 +1,7 @@
 package com.science.gtnl.client.wireless;
 
 import static com.science.gtnl.client.wireless.WirelessCardGui.tr;
+import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_CLUSTER;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_GROUP;
 
@@ -49,8 +50,23 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
                 : null;
         }
 
+        public static Target cluster(NBTTagCompound row) {
+            return row.getBoolean("titleable")
+                ? new Target(
+                    RENAME_CLUSTER,
+                    row.getLong("targetId"),
+                    row.getString("clusterTitle"),
+                    tr("cluster_rename_hint"))
+                : null;
+        }
+
+        public static Target row(NBTTagCompound row) {
+            return row.getBoolean("group") ? machine(row) : cluster(row);
+        }
+
         public static Target listed(NBTTagCompound row) {
-            if (row.getBoolean("group") || !row.getBoolean("singleDevice")) return null;
+            if (row.getBoolean("group")) return null;
+            if (!row.getBoolean("singleDevice")) return cluster(row);
             NBTTagCompound device = row.getTagList("displayDevices", 10)
                 .getCompoundTagAt(0);
             return device.getBoolean("renameable") ? device(device) : null;

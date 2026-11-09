@@ -159,6 +159,12 @@ public class WirelessOperations {
             .renameDevice(source, device.link(), device.node(), name, node -> canBuild(node, player));
     }
 
+    static boolean renameCluster(EntityPlayer player, WirelessFrequency source, IWirelessLinkView view, String title) {
+        if (!canBuild(view.node(), player) || !canBuild(WirelessFrequencies.controllerNode(source), player))
+            throw new Denied();
+        return WirelessMachineGroups.setClusterTitle(source, view, title);
+    }
+
     static boolean renameGroup(EntityPlayer player, WirelessFrequency source, WirelessCardSnapshot.Machine group,
         String name) {
         if (!canBuild(WirelessFrequencies.controllerNode(source), player)) throw new Denied();

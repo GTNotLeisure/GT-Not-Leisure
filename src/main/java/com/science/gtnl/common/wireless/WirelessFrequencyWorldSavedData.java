@@ -1,9 +1,11 @@
 package com.science.gtnl.common.wireless;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -11,6 +13,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldSavedData;
 import net.minecraft.world.storage.MapStorage;
 import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.util.ForgeDirection;
 
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
@@ -24,6 +27,7 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
     private final Map<UUID, Frequency> frequencies = new Object2ObjectOpenHashMap<>();
     private final Map<Address, UUID> legacy = new Object2ObjectOpenHashMap<>();
     private final Map<UUID, Map<Address, GroupName>> groupNames = new Object2ObjectOpenHashMap<>();
+    private final Map<UUID, Map<Address, String>> clusterTitles = new Object2ObjectOpenHashMap<>();
 
     public record Frequency(UUID creator, long epoch) {}
 
@@ -140,11 +144,92 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
         markDirty();
     }
 
+    boolean hasClusterTitles(UUID network) {
+        return clusterTitles.containsKey(network);
+    }
+
+    String clusterTitle(UUID network, Collection<Address> keys) {
+        var titles = clusterTitles.get(network);
+        if (titles != null) for (Address key : keys) {
+            String title = titles.get(key);
+            if (title != null) return title;
+        }
+        return "";
+    }
+
+    void keepClusterTitle(UUID network, Collection<Address> keys, String title) {
+        var titles = clusterTitles.get(network);
+        if (titles == null) return;
+        boolean changed = false;
+        for (Address key : keys) changed |= !title.equals(titles.put(key, title));
+        if (changed) markDirty();
+    }
+
+    void setClusterTitle(UUID network, Collection<Address> members, Collection<Address> keys, String title) {
+        var titles = clusterTitles.computeIfAbsent(network, ignored -> new Object2ObjectOpenHashMap<>());
+        boolean changed = false;
+        for (Address member : members) changed |= titles.remove(member) != null;
+        if (!title.isEmpty()) for (Address key : keys) changed |= !title.equals(titles.put(key, title));
+        if (titles.isEmpty()) clusterTitles.remove(network);
+        if (changed) markDirty();
+    }
+
+    void moveClusterTitles(Address source, Address target) {
+        var networks = clusterTitles.values()
+            .iterator();
+        while (networks.hasNext()) {
+            var titles = networks.next();
+            Map<Address, String> moved = new Object2ObjectOpenHashMap<>();
+            titles.entrySet()
+                .removeIf(entry -> {
+                    Address key = entry.getKey();
+                    if (!sameBlock(key, source)) return false;
+                    moved.put(
+                        new Address(target.dimension(), target.x(), target.y(), target.z(), key.side()),
+                        entry.getValue());
+                    return true;
+                });
+            if (moved.isEmpty()) continue;
+            titles.putAll(moved);
+            markDirty();
+        }
+    }
+
+    void forgetClusterTitles(UUID network, Predicate<Address> removed) {
+        var titles = clusterTitles.get(network);
+        if (titles == null || !titles.keySet()
+            .removeIf(removed)) return;
+        if (titles.isEmpty()) clusterTitles.remove(network);
+        markDirty();
+    }
+
+    private static boolean sameBlock(Address a, Address b) {
+        return a.dimension() == b.dimension() && a.x() == b.x() && a.y() == b.y() && a.z() == b.z();
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound tag) {
         frequencies.clear();
         legacy.clear();
         groupNames.clear();
+        clusterTitles.clear();
+        NBTTagList titled = tag.getTagList("clusterTitles", 10);
+        for (int i = 0; i < titled.tagCount(); i++) {
+            NBTTagCompound entry = titled.getCompoundTagAt(i);
+            UUID id = WirelessFrequencies.uuid(entry, "frequency");
+            Address position = WirelessLinkData.readPosition(entry);
+            String title = WirelessLinkPersistence.cleanName(entry.getString("name"));
+            if (id != null && position != null && !title.isEmpty())
+                clusterTitles.computeIfAbsent(id, ignored -> new Object2ObjectOpenHashMap<>())
+                    .put(
+                        new Address(
+                            position.dimension(),
+                            position.x(),
+                            position.y(),
+                            position.z(),
+                            ForgeDirection.getOrientation(entry.getInteger("side"))),
+                        title);
+        }
         NBTTagList named = tag.getTagList("groupNames", 10);
         for (int i = 0; i < named.tagCount(); i++) {
             NBTTagCompound entry = named.getCompoundTagAt(i);
@@ -201,5 +286,17 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
             named.appendTag(entry);
         }));
         tag.setTag("groupNames", named);
+        NBTTagList titled = new NBTTagList();
+        clusterTitles.forEach((id, titles) -> titles.forEach((position, title) -> {
+            NBTTagCompound entry = WirelessLinkData.writePosition(new NBTTagCompound(), position);
+            entry.setInteger(
+                "side",
+                position.side()
+                    .ordinal());
+            entry.setString("frequency", id.toString());
+            entry.setString("name", title);
+            titled.appendTag(entry);
+        }));
+        tag.setTag("clusterTitles", titled);
     }
 }

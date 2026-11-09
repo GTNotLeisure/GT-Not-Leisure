@@ -292,6 +292,12 @@ public class WirelessCardViewBuilder {
             IGridNode remote = only == null ? link.node() : only;
             entry.setLong("targetId", identify(link, remote, nextIds, targets));
             entry.setBoolean("singleDevice", only != null);
+            if (only == null) {
+                String title = WirelessMachineGroups.clusterTitle(frequency, link);
+                if (!title.isEmpty()) entry.setString("name", title);
+                entry.setString("clusterTitle", title);
+                entry.setBoolean("titleable", WirelessMachineGroups.canName(frequency));
+            }
             entry.setString(
                 "remote",
                 probe(player, frequency, remote).state()

@@ -111,8 +111,8 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                 .right(scroll.getThickness() + WELL_GAP)
                 .background(owner.variant.inset));
         box.child(list);
-        boolean canRenameMachine = renameTarget() != null;
-        int nameWidth = width - EDGE * 2 - (canRenameMachine ? RENAME_WIDTH + GAP : 0);
+        boolean renameable = renameTarget() != null;
+        int nameWidth = width - EDGE * 2 - (renameable ? RENAME_WIDTH + GAP : 0);
         Flow name = Flow.row()
             .widthRel(1f)
             .height(NAME_HEIGHT)
@@ -122,7 +122,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                     .asWidget()
                     .expanded()
                     .height(NAME_HEIGHT));
-        if (canRenameMachine) name.child(renameButton());
+        if (renameable) name.child(renameButton());
         Flow modes = Flow.row()
             .widthRel(1f)
             .height(AE2Theme.BUTTON_HEIGHT)
@@ -271,14 +271,18 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
     }
 
     private Target renameTarget() {
-        return group == null ? null : Target.machine(group.header());
+        return group == null ? null : Target.row(group.header());
     }
 
     private WirelessCardActionButton renameButton() {
         return textButton(
             () -> StatCollector.translateToLocal("selectWorld.rename"),
             () -> owner.openRename(renameTarget())).size(RENAME_WIDTH, NAME_HEIGHT)
-                .tooltipBuilder(tooltip -> tooltip.addLine(tr("devices.rename_group")));
+                .tooltipBuilder(tooltip -> tooltip.addLine(tr(renameTooltip(group.header()))));
+    }
+
+    private static String renameTooltip(NBTTagCompound row) {
+        return row.getBoolean("group") ? "devices.rename_group" : "devices.rename_cluster";
     }
 
     private static WirelessCardActionButton textButton(Supplier<String> text, Runnable action) {
@@ -469,12 +473,12 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                         if (!position.isEmpty()) tooltip.addLine(EnumChatFormatting.GRAY + position);
                     })
                     .tooltipAutoUpdate(true));
-            if (lineData(index).hasKey("machineId", 4)) child(
+            if (Target.row(lineData(index)) != null) child(
                 iconButton(
                     Icon.EDIT,
-                    () -> lineData(index).hasKey("machineId", 4),
-                    () -> owner.openRename(Target.machine(lineData(index))),
-                    tooltip -> tooltip.addLine(tr("devices.rename_group"))).pos(buttonsX, 4));
+                    () -> Target.row(lineData(index)) != null,
+                    () -> owner.openRename(Target.row(lineData(index))),
+                    tooltip -> tooltip.addLine(tr(renameTooltip(lineData(index))))).pos(buttonsX, 4));
             // Machine groups have no single position, as in the main list.
             if (!machine) addLocationButtons(this, index);
         }

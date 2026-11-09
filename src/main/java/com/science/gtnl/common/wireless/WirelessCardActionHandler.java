@@ -4,6 +4,7 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.CYCLE_VISUALI
 import static com.science.gtnl.common.wireless.WirelessCardActions.HIGHLIGHT;
 import static com.science.gtnl.common.wireless.WirelessCardActions.OPEN_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.REFRESH;
+import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_CLUSTER;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_DEVICE;
 import static com.science.gtnl.common.wireless.WirelessCardActions.RENAME_GROUP;
 import static com.science.gtnl.common.wireless.WirelessCardActions.SET_VISUALISATION;
@@ -75,7 +76,7 @@ public class WirelessCardActionHandler {
             return;
         }
         var row = session.snapshot == null ? null : session.snapshot.target(targetId);
-        if (isRowAction(action) && (binding == null || row == null)) {
+        if ((isRowAction(action) || action == RENAME_CLUSTER) && (binding == null || row == null)) {
             message("stale");
             session.update(true);
             return;
@@ -90,6 +91,12 @@ public class WirelessCardActionHandler {
             try {
                 if (binding == null || group == null
                     || !WirelessOperations.renameGroup(player, binding.frequency(), group, text)) message("stale");
+            } catch (WirelessOperations.Denied denied) {
+                message("denied");
+            }
+        } else if (action == RENAME_CLUSTER) {
+            try {
+                if (!WirelessOperations.renameCluster(player, binding.frequency(), row, text)) message("denied");
             } catch (WirelessOperations.Denied denied) {
                 message("denied");
             }
@@ -148,7 +155,7 @@ public class WirelessCardActionHandler {
                 message("stale");
             }
         } else if (action != REFRESH) return;
-        if (action == REFRESH) session.view.invalidatePresentation();
+        if (action == REFRESH || action == RENAME_CLUSTER) session.view.invalidatePresentation();
         session.update(true);
     }
 

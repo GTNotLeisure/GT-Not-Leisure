@@ -14,6 +14,7 @@ public class WirelessCardActions {
     public static final int SET_VISUALISATION = 62;
     public static final int RENAME_GROUP = 63;
     public static final int RENAME_DEVICE = 64;
+    public static final int RENAME_CLUSTER = 65;
     public static final int OPEN_RENAME = 70;
     public static final int OPEN_DEVICE = 80;
     private static final int ROW_STRIDE = 10;
