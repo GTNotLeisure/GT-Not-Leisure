@@ -7,7 +7,6 @@ import java.util.Objects;
 
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
 // Bulk tools such as Matter Manipulator place a structure over many ticks; its fragments must not open entrances.
@@ -17,7 +16,7 @@ public class WirelessConstructionSites {
     private static final Map<Object, Activity> ACTIVE = new Reference2ObjectOpenHashMap<>();
     private static long ticks;
 
-    private record Activity(List<Site> sites, long lastTick, Runnable finished) {}
+    private record Activity(List<Site> sites, long lastTick) {}
 
     public record Site(int dimension, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 
@@ -52,36 +51,12 @@ public class WirelessConstructionSites {
     }
 
     public static void update(Object task, boolean building, Site... sites) {
-        update(task, building, (Runnable) null, sites);
-    }
-
-    public static void update(Object task, boolean building, Runnable finished, Site... sites) {
         if (task == null) return;
         List<Site> regions = Arrays.stream(sites)
             .filter(Objects::nonNull)
             .toList();
-        if (building && !regions.isEmpty()) ACTIVE.put(task, new Activity(regions, ticks, finished));
-        else {
-            Activity ended = ACTIVE.remove(task);
-            if (ended != null) finish(List.of(ended));
-            else if (finished != null) finished.run();
-        }
-    }
-
-    public static Runnable once(Runnable action) {
-        boolean[] done = { false };
-        return () -> {
-            if (done[0]) return;
-            done[0] = true;
-            action.run();
-        };
-    }
-
-    private static void finish(List<Activity> ended) {
-        if (ended.isEmpty()) return;
-        WirelessClusterManager.invalidateTopology();
-        for (Activity activity : ended) if (activity.finished() != null) activity.finished()
-            .run();
+        if (building && !regions.isEmpty()) ACTIVE.put(task, new Activity(regions, ticks));
+        else if (ACTIVE.remove(task) != null) WirelessClusterManager.invalidateTopology();
     }
 
     public static boolean contains(Address address) {
@@ -100,10 +75,9 @@ public class WirelessConstructionSites {
 
     static void tick() {
         ticks++;
-        List<Activity> quiet = new ObjectArrayList<>();
-        ACTIVE.values()
-            .removeIf(activity -> ticks - activity.lastTick() > QUIET_TICKS && quiet.add(activity));
-        finish(quiet);
+        if (ACTIVE.values()
+            .removeIf(activity -> ticks - activity.lastTick() > QUIET_TICKS))
+            WirelessClusterManager.invalidateTopology();
     }
 
     static void clear() {

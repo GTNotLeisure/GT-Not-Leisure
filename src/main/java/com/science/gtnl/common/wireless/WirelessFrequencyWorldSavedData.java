@@ -3,7 +3,6 @@ package com.science.gtnl.common.wireless;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 
 import net.minecraft.nbt.NBTTagCompound;
@@ -114,27 +113,18 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
         if (!Objects.equals(previous, next)) markDirty();
     }
 
-    void moveGroupNames(BiFunction<Address, Integer, Address> destination) {
-        boolean changed = false;
-        for (var names : groupNames.values()) {
-            Map<Address, GroupName> moved = new Object2ObjectOpenHashMap<>();
-            var entries = names.entrySet()
-                .iterator();
-            while (entries.hasNext()) {
-                var entry = entries.next();
-                Address target = destination.apply(
-                    entry.getKey(),
-                    entry.getValue()
-                        .meta());
-                if (target == null) continue;
-                moved.put(target, entry.getValue());
-                entries.remove();
-            }
-            // Re-key together so a chain of machines shifted onto each other's old positions keeps every name.
-            names.putAll(moved);
-            changed |= !moved.isEmpty();
+    void moveGroupNames(Address source, Address target, int meta) {
+        var networks = groupNames.values()
+            .iterator();
+        while (networks.hasNext()) {
+            var names = networks.next();
+            GroupName moved = names.remove(source);
+            GroupName replaced = names.remove(target);
+            if (moved == null && replaced == null) continue;
+            if (moved != null && moved.meta() == meta) names.put(target, moved);
+            if (names.isEmpty()) networks.remove();
+            markDirty();
         }
-        if (changed) markDirty();
     }
 
     void forgetGroupNames(UUID frequency, BiPredicate<Address, Integer> removed) {
