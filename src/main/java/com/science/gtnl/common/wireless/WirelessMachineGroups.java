@@ -19,6 +19,7 @@ import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 import appeng.api.implementations.parts.IPartCable;
 import appeng.api.networking.IGridHost;
+import appeng.api.parts.IPartHost;
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
@@ -265,6 +266,8 @@ public class WirelessMachineGroups {
         var keys = WirelessClusterManager.titleKeys(frequency, link.cluster());
         String title = scope.registry()
             .clusterTitle(scope.network(), keys);
+        if (title.isEmpty()) title = scope.registry()
+            .clusterTitle(scope.network(), WirelessClusterManager.memberAddresses(link.cluster()));
         // Re-key onto the current anchor and entrances so the title survives either one being replaced later.
         if (!title.isEmpty()) scope.registry()
             .keepClusterTitle(scope.network(), keys, title);
@@ -309,6 +312,7 @@ public class WirelessMachineGroups {
         if (world == null || !world.blockExists(position.x(), position.y(), position.z())) return false;
         TileEntity tile = world.getTileEntity(position.x(), position.y(), position.z());
         if (tile != null && tile.isInvalid()) return false;
+        if (tile instanceof IPartHost host) return host.getPart(position.side()) == null;
         return !(tile instanceof IGridHost);
     }
 

@@ -141,9 +141,10 @@ public class PortalGunWheelScreen extends WheelScreen {
     private static DynamicDrawable icon(int slot, State state) {
         return new DynamicDrawable(() -> {
             PortalGunDestination favorite = favorite(slot);
-            int selected = EquipmentTheme.wheelHighlight(ScreenThemes.portalGun());
-            IKey number = IKey.str(String.valueOf(slot + 1))
-                .color(slot == state.selected ? selected : favorite != null ? FILLED_COLOR : EMPTY_COLOR);
+            IKey label = IKey.str(String.valueOf(slot + 1));
+            IKey number = slot == state.selected ? label.style(EnumChatFormatting.BOLD)
+                .color(FILLED_COLOR)
+                .shadow(true) : label.color(favorite != null ? FILLED_COLOR : EMPTY_COLOR);
             IDrawable item = favorite == null || favorite.icon() == null ? IDrawable.EMPTY
                 : state.icon(favorite.icon());
             if (item == IDrawable.EMPTY) return number;

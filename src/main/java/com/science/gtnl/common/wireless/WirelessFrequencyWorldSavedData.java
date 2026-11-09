@@ -179,19 +179,13 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
             .iterator();
         while (networks.hasNext()) {
             var titles = networks.next();
-            Map<Address, String> moved = new Object2ObjectOpenHashMap<>();
-            titles.entrySet()
-                .removeIf(entry -> {
-                    Address key = entry.getKey();
-                    if (!sameBlock(key, source)) return false;
-                    moved.put(
-                        new Address(target.dimension(), target.x(), target.y(), target.z(), key.side()),
-                        entry.getValue());
-                    return true;
-                });
-            if (moved.isEmpty()) continue;
-            titles.putAll(moved);
-            markDirty();
+            for (ForgeDirection side : ForgeDirection.values()) {
+                String moved = titles.remove(new Address(source.dimension(), source.x(), source.y(), source.z(), side));
+                Address destination = new Address(target.dimension(), target.x(), target.y(), target.z(), side);
+                String replaced = moved == null ? titles.remove(destination) : titles.put(destination, moved);
+                if (moved != null || replaced != null) markDirty();
+            }
+            if (titles.isEmpty()) networks.remove();
         }
     }
 
@@ -201,10 +195,6 @@ public class WirelessFrequencyWorldSavedData extends WorldSavedData {
             .removeIf(removed)) return;
         if (titles.isEmpty()) clusterTitles.remove(network);
         markDirty();
-    }
-
-    private static boolean sameBlock(Address a, Address b) {
-        return a.dimension() == b.dimension() && a.x() == b.x() && a.y() == b.y() && a.z() == b.z();
     }
 
     @Override
