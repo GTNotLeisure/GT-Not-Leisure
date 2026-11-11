@@ -120,6 +120,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private List<String> archive = Collections.emptyList(), reachable = Collections.emptyList();
     private Set<String> archiveSet = Collections.emptySet();
     private List<NBTTagCompound> route = Collections.emptyList();
+    private final NBTTagCompound archivedStep = new NBTTagCompound();
     private final SpeciesView archiveView = new SpeciesView(() -> archive);
     private final SpeciesView reachableView = new SpeciesView(() -> reachable);
     private String draftText;
@@ -450,7 +451,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         ParentWidget<?> breeding = new ParentWidget<>().pos(0, 38)
             .size(WIDTH, 20)
             .setEnabledIf(widget -> !washingOperation.getBoolValue());
-        addStep(breeding, () -> route.isEmpty() ? new NBTTagCompound() : route.get(0), 0);
+        addStep(breeding, this::breedingStep, 0);
         page.child(breeding);
         ParentWidget<?> washing = new ParentWidget<>().pos(0, 38)
             .size(WIDTH, 20)
@@ -477,6 +478,18 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         page.child(label(() -> tr("gtnl.crop_breeder.parallel", parallel.getIntValue()), 0, 69, WIDTH));
         page.child(createTerminalRow(panel, sync).pos(0, 78));
         return page;
+    }
+
+    private NBTTagCompound breedingStep() {
+        if (!route.isEmpty()) return route.get(0);
+        String id = archiveSet.contains(target.getStringValue()) ? target.getStringValue() : "";
+        if (!id.equals(archivedStep.getString("result"))) {
+            ICropCard crop = CropRegistry.instance.get(id);
+            archivedStep.setString("parent0", id);
+            archivedStep.setString("result", id);
+            archivedStep.setLong("eu", crop == null ? 0 : CropBreedingRecipeRules.requiredVoltage(crop));
+        }
+        return archivedStep;
     }
 
     @Override
@@ -579,8 +592,9 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
                 }));
         page.child(viewport);
         page.child(
-            label(() -> tr("gtnl.crop_breeder.no_route"), 0, 30, WIDTH)
-                .setEnabledIf(widget -> route.isEmpty() && routeWidget.history.isEmpty()));
+            label(() -> tr("gtnl.crop_breeder.no_route"), 0, 30, WIDTH).setEnabledIf(
+                widget -> route.isEmpty() && routeWidget.history.isEmpty()
+                    && !archiveSet.contains(target.getStringValue())));
         return page;
     }
 

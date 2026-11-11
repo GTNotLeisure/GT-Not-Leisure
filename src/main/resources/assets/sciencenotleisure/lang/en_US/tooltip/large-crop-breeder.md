@@ -1,6 +1,8 @@
 Insert an analyzed seed into an input bus to archive its species and stats. The machine consumes one seed per new species
 Select a target in the controller to breed it from archived parents, including intermediate generations
 Newly bred species start at 1/1/1. Subsequent production uses their archived stats
+Archived targets can produce seeds in breeding mode without a parent route, substrates or catalysts. The archive is retained
+This also works for manually bred analyzed seeds. After improving a seed, switch back to breeding mode to output seeds with the updated stats
 Seed improvement uses {white:{var:baseEu} EU/t}
 Every {white:{var:washSeconds} seconds}, it picks one stat below 31: {green:{var:washUp}%} +1, {gray:{var:washSame}%} unchanged, {red:{var:washDown}%} -1
 Place required substrates in an {white:input bus}; they are {green:not consumed}. Vanilla substrates need no item

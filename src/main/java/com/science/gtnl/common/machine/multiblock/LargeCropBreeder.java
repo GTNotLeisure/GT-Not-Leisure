@@ -189,30 +189,33 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         collectSamples();
         if (targetCrop.isEmpty()) return CheckRecipeResultRegistry.NO_RECIPE;
         if (washingMode) return startWashing();
-        List<ICropMutation> route = getPlan().steps;
-        if (route.isEmpty()) {
-            return SimpleCheckRecipeResult.ofFailure("gtnl_crop_no_route");
+        ICropCard crop = CropRegistry.instance.get(targetCrop);
+        ICropMutation mutation = null;
+        if (!archive.containsKey(targetCrop)) {
+            List<ICropMutation> route = getPlan().steps;
+            if (route.isEmpty()) {
+                return SimpleCheckRecipeResult.ofFailure("gtnl_crop_no_route");
+            }
+            mutation = route.get(0);
+            crop = mutation.getOutput();
         }
-        ICropMutation mutation = route.get(0);
-        long recipeVoltage = CropBreedingRecipeRules.requiredVoltage(mutation.getOutput());
+        if (crop == null) return CheckRecipeResultRegistry.NO_RECIPE;
+        long recipeVoltage = CropBreedingRecipeRules.requiredVoltage(crop);
         if (recipeVoltage > getMaxInputVoltage() || BASE_EUT > getMaxInputEu())
             return CheckRecipeResultRegistry.insufficientPower(recipeVoltage);
-        ArrayList<ICropCard> parents = new ArrayList<>(mutation.getParents());
+        ArrayList<ICropCard> parents = mutation == null ? new ArrayList<>() : new ArrayList<>(mutation.getParents());
         for (ICropCard parent : parents) {
             if (!archive.containsKey(parent.getId())) return CheckRecipeResultRegistry.NO_RECIPE;
         }
-        SeedStats stats = archive.get(
-            mutation.getOutput()
-                .getId());
+        SeedStats stats = archive.get(crop.getId());
         if (stats == null) stats = archivedStats(1, 1, 1);
-        ItemStack output = mutation.getOutput()
-            .getSeedItem(stats);
+        ItemStack output = crop.getSeedItem(stats);
         if (output == null) return CheckRecipeResultRegistry.NO_RECIPE;
         output.stackSize = 1;
         if (!hasOutputSpace(output)) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
 
-        ItemStack[] catalysts = getStoredInputs().toArray(new ItemStack[0]);
-        int[] consume = breedingConsumption(mutation, parents, catalysts);
+        ItemStack[] catalysts = mutation == null ? new ItemStack[0] : getStoredInputs().toArray(new ItemStack[0]);
+        int[] consume = mutation == null ? new int[0] : breedingConsumption(mutation, parents, catalysts);
         if (!validConsumption(consume, catalysts)) {
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
         }
@@ -230,7 +233,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         if (limit < 1) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
 
         int parallels = 1;
-        if (!consumesPerParallel(mutation, consume)) parallels = limit;
+        if (mutation == null || !consumesPerParallel(mutation, consume)) parallels = limit;
         else if (limit > 1) {
             ItemStack[] remaining = new ItemStack[catalysts.length];
             for (int i = 0; i < catalysts.length; i++) {
@@ -248,7 +251,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             }
         }
         fertilizer.amount = FERTILIZER_PER_PARALLEL * parallels;
-        int duration = CropBreedingRecipeRules.baseDuration(mutation.getOutput());
+        int duration = CropBreedingRecipeRules.baseDuration(crop);
         long eut = BASE_EUT;
         while (duration > 1 && recipeVoltage <= getMaxInputVoltage() / 4 && eut * parallels <= getMaxInputEu() / 4) {
             recipeVoltage *= 4;
@@ -258,10 +261,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         depleteInput(fertilizer);
         for (int i = 0; i < consume.length; i++) if (consume[i] > 0) catalysts[i].stackSize -= consume[i];
         updateSlots();
-        activeCrop = mutation.getOutput()
-            .getId();
+        activeCrop = crop.getId();
         activeParallel = parallels;
-        activeChance = CropBreedingChance.percent(mutation.getOutput());
+        activeChance = CropBreedingChance.percent(crop);
         int successes = 0;
         for (int i = 0; i < parallels; i++)
             if (getBaseMetaTileEntity().getRandomNumber(100) < activeChance) successes++;
@@ -644,6 +646,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     public int getSuccessChance() {
         if (!getActiveCrop().isEmpty()) return activeChance;
+        if (archive.containsKey(targetCrop)) return CropBreedingChance.percent(CropRegistry.instance.get(targetCrop));
         List<ICropMutation> steps = getPlan().steps;
         return steps.isEmpty() ? 0
             : CropBreedingChance.percent(
