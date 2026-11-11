@@ -1494,6 +1494,7 @@ public class SuperDualInputHatchME extends MTEHatchInputBus
         aNBT.setBoolean("additionalConnection", additionalConnection);
         aNBT.setInteger("refreshTime", autoPullRefreshTime);
         aNBT.setByte("color", this.getColor());
+        aNBT.setTag("circuit", GTUtility.saveItem(getStackInSlot(getCircuitSlot())));
 
         NBTTagList storedList = new NBTTagList();
         for (int i = 0; i < SLOT_COUNT; i++) {
