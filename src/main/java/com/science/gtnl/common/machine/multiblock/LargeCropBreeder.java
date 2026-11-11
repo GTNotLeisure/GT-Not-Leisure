@@ -200,8 +200,10 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             crop = mutation.getOutput();
         }
         if (crop == null) return CheckRecipeResultRegistry.NO_RECIPE;
+        long maxVoltage = getMaxInputVoltage();
+        long maxInputEu = getMaxInputEu();
         long recipeVoltage = CropBreedingRecipeRules.requiredVoltage(crop);
-        if (recipeVoltage > getMaxInputVoltage() || BASE_EUT > getMaxInputEu())
+        if (recipeVoltage > maxVoltage || BASE_EUT > maxInputEu)
             return CheckRecipeResultRegistry.insufficientPower(recipeVoltage);
         ArrayList<ICropCard> parents = mutation == null ? new ArrayList<>() : new ArrayList<>(mutation.getParents());
         for (ICropCard parent : parents) {
@@ -212,26 +214,18 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         ItemStack output = crop.getSeedItem(stats);
         if (output == null) return CheckRecipeResultRegistry.NO_RECIPE;
         output.stackSize = 1;
-        if (!hasOutputSpace(output)) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
+        int limit = (int) Math.min(getMaxParallelRecipes(), maxInputEu / BASE_EUT);
+        limit = outputParallels(output, limit);
+        if (limit < 1) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
 
         ItemStack[] catalysts = mutation == null ? new ItemStack[0] : getStoredInputs().toArray(new ItemStack[0]);
         int[] consume = mutation == null ? new int[0] : breedingConsumption(mutation, parents, catalysts);
         if (!validConsumption(consume, catalysts)) {
             return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
         }
-        int limit = (int) Math.min(getMaxParallelRecipes(), getMaxInputEu() / BASE_EUT);
         FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL * limit);
         limit = Math.min(limit, depleteInputQuantity(fertilizer, true) / FERTILIZER_PER_PARALLEL);
         if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
-        limit = Math.min(
-            limit,
-            new VoidProtectionHelper().setMachine(this)
-                .setItemOutputs(new ItemStack[] { output })
-                .setMaxParallel(limit)
-                .build()
-                .getMaxParallel());
-        if (limit < 1) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
-
         int parallels = 1;
         if (mutation == null || !consumesPerParallel(mutation, consume)) parallels = limit;
         else if (limit > 1) {
@@ -253,12 +247,12 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         fertilizer.amount = FERTILIZER_PER_PARALLEL * parallels;
         int duration = CropBreedingRecipeRules.baseDuration(crop);
         long eut = BASE_EUT;
-        while (duration > 1 && recipeVoltage <= getMaxInputVoltage() / 4 && eut * parallels <= getMaxInputEu() / 4) {
+        while (duration > 1 && recipeVoltage <= maxVoltage / 4 && eut <= maxInputEu / parallels / 4) {
             recipeVoltage *= 4;
             eut *= 4;
             duration = Math.max(1, duration / 2);
         }
-        depleteInput(fertilizer);
+        if (!depleteInput(fertilizer)) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
         for (int i = 0; i < consume.length; i++) if (consume[i] > 0) catalysts[i].stackSize -= consume[i];
         updateSlots();
         activeCrop = crop.getId();
@@ -380,11 +374,17 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     }
 
     private boolean hasOutputSpace(ItemStack output) {
-        return !new VoidProtectionHelper().setMachine(this)
-            .setItemOutputs(seedOutputs(output))
-            .setMaxParallel(1)
+        ItemStack seed = output.copy();
+        seed.stackSize = 1;
+        return outputParallels(seed, output.stackSize) == output.stackSize;
+    }
+
+    private int outputParallels(ItemStack seed, int limit) {
+        return new VoidProtectionHelper().setMachine(this)
+            .setItemOutputs(new ItemStack[] { seed })
+            .setMaxParallel(limit)
             .build()
-            .isItemFull();
+            .getMaxParallel();
     }
 
     @Override

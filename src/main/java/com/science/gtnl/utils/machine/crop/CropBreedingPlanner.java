@@ -1,10 +1,12 @@
 package com.science.gtnl.utils.machine.crop;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +17,7 @@ import com.gtnewhorizon.cropsnh.api.ICropMutation;
 import com.gtnewhorizon.cropsnh.farming.registries.MutationRegistry;
 import com.gtnewhorizon.cropsnh.farming.requirements.breeding.WorldOnlyBreedingRequirement;
 
-public final class CropBreedingPlanner {
+public class CropBreedingPlanner {
 
     private static volatile List<ICropMutation> registryMutations;
 
@@ -47,24 +49,37 @@ public final class CropBreedingPlanner {
     }
 
     private static Plan search(String target, Set<String> archive, List<ICropMutation> mutations) {
+        if (archive.isEmpty()) return new Plan(Collections.emptyList(), Collections.emptyList());
         Map<String, Candidate> candidates = new HashMap<>();
         for (String id : archive) candidates.put(id, new Candidate());
-        boolean changed;
-        do {
-            changed = false;
-            for (ICropMutation mutation : mutations) {
-                String result = mutation.getOutput()
-                    .getId();
-                if (archive.contains(result)) continue;
-                Candidate next = resolve(mutation, candidates);
-                if (next == null) continue;
-                Candidate old = candidates.get(result);
-                if (old == null || next.cost < old.cost) {
-                    candidates.put(result, next);
-                    changed = true;
-                }
+        Map<String, List<ICropMutation>> dependents = new HashMap<>();
+        ArrayDeque<ICropMutation> queue = new ArrayDeque<>();
+        Set<ICropMutation> queued = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (ICropMutation mutation : mutations) {
+            if (archive.contains(
+                mutation.getOutput()
+                    .getId()))
+                continue;
+            for (ICropCard parent : mutation.getParents()) {
+                dependents.computeIfAbsent(parent.getId(), id -> new ArrayList<>())
+                    .add(mutation);
             }
-        } while (changed);
+            if (queued.add(mutation)) queue.addLast(mutation);
+        }
+        while (!queue.isEmpty()) {
+            ICropMutation mutation = queue.removeFirst();
+            queued.remove(mutation);
+            String result = mutation.getOutput()
+                .getId();
+            Candidate next = resolve(mutation, candidates);
+            if (next == null) continue;
+            Candidate old = candidates.get(result);
+            if (old != null && next.cost >= old.cost) continue;
+            candidates.put(result, next);
+            for (ICropMutation dependent : dependents.getOrDefault(result, Collections.emptyList())) {
+                if (queued.add(dependent)) queue.addLast(dependent);
+            }
+        }
 
         Candidate best = candidates.get(target);
         List<String> reachable = new ArrayList<>(candidates.keySet());
@@ -74,15 +89,15 @@ public final class CropBreedingPlanner {
     }
 
     private static Candidate resolve(ICropMutation mutation, Map<String, Candidate> candidates) {
-        Candidate result = new Candidate();
         String output = mutation.getOutput()
             .getId();
         for (ICropCard parent : mutation.getParents()) {
             Candidate source = candidates.get(parent.getId());
             if (source == null || parent.getId()
                 .equals(output) || source.steps.containsKey(output)) return null;
-            result.steps.putAll(source.steps);
         }
+        Candidate result = new Candidate();
+        for (ICropCard parent : mutation.getParents()) result.steps.putAll(candidates.get(parent.getId()).steps);
         result.steps.put(output, mutation);
         Map<String, ICropMutation> pending = new LinkedHashMap<>(result.steps);
         result.steps.clear();
@@ -123,13 +138,13 @@ public final class CropBreedingPlanner {
         return result.toString();
     }
 
-    private static final class Candidate {
+    private static class Candidate {
 
         private final Map<String, ICropMutation> steps = new LinkedHashMap<>();
         private long cost;
     }
 
-    public static final class Plan {
+    public static class Plan {
 
         public final List<ICropMutation> steps;
         public final List<String> reachable;

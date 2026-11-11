@@ -94,7 +94,7 @@ import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 
-public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder> {
+public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder> {
 
     private static final int WIDTH = 232, BODY_HEIGHT = 230, SPECIES_PER_PAGE = 30;
     private static final int ROUTE_WIDTH = WIDTH - 4, ROUTE_HEIGHT = BODY_HEIGHT - 18;
@@ -120,7 +120,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     private List<String> archive = Collections.emptyList(), reachable = Collections.emptyList();
     private Set<String> archiveSet = Collections.emptySet();
     private List<NBTTagCompound> route = Collections.emptyList();
-    private final NBTTagCompound archivedStep = new NBTTagCompound();
+    private final NBTTagCompound productionStep = new NBTTagCompound();
     private final SpeciesView archiveView = new SpeciesView(() -> archive);
     private final SpeciesView reachableView = new SpeciesView(() -> reachable);
     private String draftText;
@@ -481,15 +481,22 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
     }
 
     private NBTTagCompound breedingStep() {
-        if (!route.isEmpty()) return route.get(0);
-        String id = archiveSet.contains(target.getStringValue()) ? target.getStringValue() : "";
-        if (!id.equals(archivedStep.getString("result"))) {
+        String activeId = duration.getIntValue() > 0 ? activeBreedingCrop() : "";
+        if (!route.isEmpty() && (activeId.isEmpty() || activeId.equals(
+            route.get(0)
+                .getString("result"))))
+            return route.get(0);
+        String id = activeId.isEmpty() ? target.getStringValue() : activeId;
+        boolean archived = archiveSet.contains(id);
+        if (!archived && activeId.isEmpty()) id = "";
+        String parent = archived ? id : "";
+        if (!id.equals(productionStep.getString("result")) || !parent.equals(productionStep.getString("parent0"))) {
             ICropCard crop = CropRegistry.instance.get(id);
-            archivedStep.setString("parent0", id);
-            archivedStep.setString("result", id);
-            archivedStep.setLong("eu", crop == null ? 0 : CropBreedingRecipeRules.requiredVoltage(crop));
+            productionStep.setString("parent0", parent);
+            productionStep.setString("result", id);
+            productionStep.setLong("eu", crop == null ? 0 : CropBreedingRecipeRules.requiredVoltage(crop));
         }
-        return archivedStep;
+        return productionStep;
     }
 
     @Override
@@ -784,7 +791,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
             });
     }
 
-    private static final class SearchableItemDisplayWidget extends ItemDisplayWidget {
+    private static class SearchableItemDisplayWidget extends ItemDisplayWidget {
 
         private final Slot neiSlot = new Slot(new InventoryBasic("", false, 1), 0, 0, 0);
 
@@ -809,7 +816,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private static final class CatalystDisplay implements Supplier<ItemStack> {
+    private static class CatalystDisplay implements Supplier<ItemStack> {
 
         private final ItemStack[] alternatives;
 
@@ -870,14 +877,14 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         return StatCollector.translateToLocalFormatted(key, args);
     }
 
-    private final class BreedingRouteWidget extends ParentWidget<BreedingRouteWidget>
-        implements IViewport, Interactable {
+    private class BreedingRouteWidget extends ParentWidget<BreedingRouteWidget> implements IViewport, Interactable {
 
         private final ScrollWidget<?> viewport;
         private final VerticalScrollData vertical;
         private final HorizontalScrollData horizontal;
         private List<NBTTagCompound> lastSteps;
         private String lastTarget = "";
+        private boolean lastTargetArchived;
         private final Map<String, NBTTagCompound> history = new LinkedHashMap<>();
         private RouteLayout layout = new RouteLayout(Collections.emptyList(), "");
         private final Animator zoomAnimation = new Animator().duration(160)
@@ -906,17 +913,21 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         public void onUpdate() {
             super.onUpdate();
             String currentTarget = target.getStringValue();
-            if (lastSteps == route && lastTarget.equals(currentTarget)) return;
+            boolean targetArchived = archiveSet.contains(currentTarget);
+            if (lastSteps == route && lastTarget.equals(currentTarget) && lastTargetArchived == targetArchived) return;
             boolean targetChanged = !lastTarget.equals(currentTarget) || lastSteps == null
                 || (lastSteps.isEmpty() && !route.isEmpty());
             lastSteps = route;
             lastTarget = currentTarget;
+            lastTargetArchived = targetArchived;
             if (targetChanged) {
                 stopZoom();
                 history.clear();
             }
             for (NBTTagCompound step : route) history.put(step.getString("result"), step);
-            layout = new RouteLayout(new ArrayList<>(history.values()), history.isEmpty() ? "" : currentTarget);
+            layout = new RouteLayout(
+                new ArrayList<>(history.values()),
+                history.isEmpty() && !targetArchived ? "" : currentTarget);
             removeAll();
             for (RouteNode node : layout.nodes.values()) {
                 if (!node.parents.isEmpty()) child(routeConnection(node));
@@ -1040,7 +1051,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private final class BreedingRouteViewport extends ScrollWidget<BreedingRouteViewport> {
+    private class BreedingRouteViewport extends ScrollWidget<BreedingRouteViewport> {
 
         private final Area contentClip = new Area();
 
@@ -1094,7 +1105,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private static final class RouteLayout {
+    private static class RouteLayout {
 
         private final Map<String, RouteNode> nodes = new LinkedHashMap<>();
         private final int width;
@@ -1197,7 +1208,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private static final class RouteNode {
+    private static class RouteNode {
 
         private final String uid;
         private final List<RouteNode> parents = new ArrayList<>(4);
@@ -1225,7 +1236,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
 
     }
 
-    private static final class RouteArrowTexture extends UITexture {
+    private static class RouteArrowTexture extends UITexture {
 
         private final boolean arrowHead;
 
@@ -1296,7 +1307,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private static final class SpeciesView {
+    private static class SpeciesView {
 
         private final Supplier<List<String>> source;
         private final StringValue search = new StringValue("");
@@ -1342,7 +1353,7 @@ public final class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBr
         }
     }
 
-    private static final class CropDropTextField extends TextFieldWidget
+    private static class CropDropTextField extends TextFieldWidget
         implements RecipeViewerGhostIngredientSlot<ItemStack> {
 
         @Override
