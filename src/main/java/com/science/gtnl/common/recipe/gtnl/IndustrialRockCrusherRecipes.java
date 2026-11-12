@@ -167,7 +167,6 @@ public class IndustrialRockCrusherRecipes implements IRecipePool {
                     aeBlocks.skyStone()
                         .maybeStack(1)
                         .orNull()))
-            .circuit(7)
             .itemOutputs(
                 aeBlocks.skyStone()
                     .maybeStack(1)
