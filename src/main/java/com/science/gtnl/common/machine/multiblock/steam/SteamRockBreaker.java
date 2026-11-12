@@ -89,13 +89,15 @@ public class SteamRockBreaker extends SteamMultiMachineBase<SteamRockBreaker> im
                 'A',
                 GTStructureChannels.TIER_MACHINE_CASING.use(
                     StructureUtility.ofChain(
-                        buildSteamWirelessInput(SteamRockBreaker.class).casingIndex(10)
+                        buildSteamWirelessInput(SteamRockBreaker.class)
+                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
                             .hint(1)
                             .build(),
-                        buildSteamBigInput(SteamRockBreaker.class).casingIndex(10)
+                        buildSteamBigInput(SteamRockBreaker.class)
+                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
                             .hint(1)
                             .build(),
-                        buildSteamInput(SteamRockBreaker.class).casingIndex(10)
+                        buildSteamInput(SteamRockBreaker.class).casingIndex(Casings.BronzePlatedBricks.getTextureId())
                             .hint(1)
                             .build(),
                         GTStructureUtility.buildHatchAdder(SteamRockBreaker.class)
@@ -105,7 +107,7 @@ public class SteamRockBreaker extends SteamMultiMachineBase<SteamRockBreaker> im
                                 SteamHatchElement.OutputBus_Steam,
                                 HatchElement.OutputBus,
                                 HatchElement.Maintenance)
-                            .casingIndex(10)
+                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
                             .hint(1)
                             .buildAndChain(
                                 StructureUtility.onElementPass(

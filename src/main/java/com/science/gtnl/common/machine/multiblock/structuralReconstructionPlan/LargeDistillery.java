@@ -33,7 +33,6 @@ import com.science.gtnl.utils.structure.GTNLStructureErrors;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures.BlockIcons;
 import gregtech.api.enums.VoidingMode;
 import gregtech.api.interfaces.IHatchElement;
@@ -353,7 +352,7 @@ public class LargeDistillery extends GTMMultiMachineBase<LargeDistillery> implem
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(11);
+        return Casings.MultitankExteriorCasing.getTextureId();
     }
 
     @Override

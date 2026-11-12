@@ -23,7 +23,6 @@ import com.science.gtnl.utils.StructureUtils;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -160,7 +159,7 @@ public class FishingGround extends GTMMultiMachineBase<FishingGround> implements
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(18);
+        return Casings.HastelloyXStructuralBlock.getTextureId();
     }
 
     @Override

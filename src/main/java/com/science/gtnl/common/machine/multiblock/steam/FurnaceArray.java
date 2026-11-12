@@ -56,7 +56,6 @@ public class FurnaceArray extends SteamMultiMachineBase<FurnaceArray> implements
     private static final int HORIZONTAL_OFF_SET = 1;
     private static final int VERTICAL_OFF_SET = 1;
     private static final int DEPTH_OFF_SET = 0;
-    public static int CASING_INDEX = GTNLCasings.CompressedFurnaceCasing.getTextureId();
 
     public long furnaceCount = 1;
     public long coalCount = 0;
@@ -106,7 +105,7 @@ public class FurnaceArray extends SteamMultiMachineBase<FurnaceArray> implements
                     new String[][] { { "AAA", "AAA", "AAA" }, { "A~A", "A A", "AAA" }, { "AAA", "AAA", "AAA" }, }))
             .addElement(
                 'A',
-                buildHatchAdder(FurnaceArray.class).casingIndex(CASING_INDEX)
+                buildHatchAdder(FurnaceArray.class).casingIndex(GTNLCasings.CompressedFurnaceCasing.getTextureId())
                     .hint(1)
                     .atLeast(
                         SteamHatchElement.InputBus_Steam,
@@ -355,24 +354,28 @@ public class FurnaceArray extends SteamMultiMachineBase<FurnaceArray> implements
 
     @Override
     public int getCasingTextureID() {
-        return CASING_INDEX;
+        return GTNLCasings.CompressedFurnaceCasing.getTextureId();
     }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
         int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == aFacing) {
-            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CASING_INDEX),
+            if (aActive) return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(GTNLCasings.CompressedFurnaceCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(Textures.BlockIcons.OVERLAY_FRONT_STEAM_FURNACE_ACTIVE)
                     .extFacing()
                     .build() };
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CASING_INDEX), TextureFactory.builder()
-                .addIcon(Textures.BlockIcons.OVERLAY_FRONT_STEAM_FURNACE)
-                .extFacing()
-                .build() };
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(GTNLCasings.CompressedFurnaceCasing.getTextureId()),
+                TextureFactory.builder()
+                    .addIcon(Textures.BlockIcons.OVERLAY_FRONT_STEAM_FURNACE)
+                    .extFacing()
+                    .build() };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CASING_INDEX) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(GTNLCasings.CompressedFurnaceCasing.getTextureId()) };
     }
 
     @Override

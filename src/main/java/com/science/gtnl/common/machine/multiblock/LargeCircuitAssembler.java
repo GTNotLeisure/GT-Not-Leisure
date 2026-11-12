@@ -19,7 +19,6 @@ import com.science.gtnl.utils.StructureUtils;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
@@ -67,7 +66,7 @@ public class LargeCircuitAssembler extends GTMMultiMachineBase<LargeCircuitAssem
             .addElement(
                 'D',
                 GTStructureUtility.buildHatchAdder(LargeCircuitAssembler.class)
-                    .casingIndex(TAE.getIndexFromPage(2, 2))
+                    .casingIndex(Casings.MultiUseCasing.getTextureId())
                     .hint(1)
                     .atLeast(
                         HatchElement.InputHatch,
@@ -150,7 +149,7 @@ public class LargeCircuitAssembler extends GTMMultiMachineBase<LargeCircuitAssem
 
     @Override
     public int getCasingTextureID() {
-        return TAE.getIndexFromPage(2, 2);
+        return Casings.MultiUseCasing.getTextureId();
     }
 
     @Override

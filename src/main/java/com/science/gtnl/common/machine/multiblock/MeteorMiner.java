@@ -40,13 +40,11 @@ import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.structure.TileEntityStructureElement;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.Mods;
 import gregtech.api.enums.OrePrefixes;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -161,7 +159,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
                 'H',
                 GTStructureUtility.buildHatchAdder(MeteorMiner.class)
                     .atLeast(HatchElement.Maintenance, HatchElement.OutputBus, HatchElement.Energy)
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(Casings.StructuralSolarCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.StructuralSolarCasing.asElement()))
             .addElement(
@@ -171,7 +169,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
                     .description(HatchElement.InputBus::getDescriptionLangKey)
                     .shouldReject(t -> !t.mInputBusses.isEmpty())
                     .adder(MeteorMiner::addInjector)
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(Casings.StructuralSolarCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.StructuralSolarCasing.asElement()))
             .addElement(
@@ -181,7 +179,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
                         HatchElement.Maintenance,
                         HatchElement.OutputBus,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy))
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(Casings.MiningNeutroniumCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.MiningNeutroniumCasing.asElement()))
             .addElement('K', Casings.FusionCoilBlock.asElement())
@@ -237,8 +235,8 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
 
     @Override
     public int getCasingTextureID() {
-        return tierMachine > 1 ? GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings8, 2)
-            : TAE.getIndexFromPage(0, 6);
+        return tierMachine > 1 ? Casings.MiningNeutroniumCasing.getTextureId()
+            : Casings.StructuralSolarCasing.getTextureId();
     }
 
     @Override

@@ -31,7 +31,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gtPlusPlus.core.material.MaterialsAlloy;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class FieldForgePress extends WirelessEnergyMultiMachineBase<FieldForgePress> {
@@ -135,7 +134,7 @@ public class FieldForgePress extends WirelessEnergyMultiMachineBase<FieldForgePr
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset + 4;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

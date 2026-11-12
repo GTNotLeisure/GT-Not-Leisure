@@ -51,7 +51,6 @@ import gtnhlanth.common.register.LanthItemList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import tectech.mechanics.dataTransport.ALRecipeDataPacket;
-import tectech.thing.casing.BlockGTCasingsTT;
 import tectech.thing.casing.TTCasingsContainer;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDataItemsInput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDataItemsOutput;
@@ -194,7 +193,7 @@ public class DataCenter extends TTMultiMachineBase implements ISurvivalConstruct
                         DataBankHatches.OutboundConnector,
                         DataBankHatches.InboundConnector,
                         DataBankHatches.WirelessOutboundConnector)
-                    .casingIndex(getCasingTextureID() + 1)
+                    .casingIndex(Casings.ComputerCasing.getTextureId())
                     .hint(2)
                     .buildAndChain(TTCasingsContainer.sBlockCasingsTT, 1))
             .addElement('D', Casings.AdvancedIridiumPlatedMachineCasing.asElement())
@@ -224,7 +223,7 @@ public class DataCenter extends TTMultiMachineBase implements ISurvivalConstruct
     }
 
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset;
+        return Casings.HighPowerCasing.getTextureId();
     }
 
     public boolean addDataBankHatchToMachineList(IGregTechTileEntity aTileEntity, int aBaseCasingIndex) {

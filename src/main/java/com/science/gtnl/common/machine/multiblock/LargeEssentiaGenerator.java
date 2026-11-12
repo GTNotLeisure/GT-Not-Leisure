@@ -25,6 +25,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.block.blocks.tile.TileEntityEssentiaHatch;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
@@ -586,7 +587,7 @@ public class LargeEssentiaGenerator extends MultiMachineBase<LargeEssentiaGenera
 
     @Override
     public int getCasingTextureID() {
-        return 1536;
+        return GTNLCasings.MagicCasing.getTextureId();
     }
 
     @Override

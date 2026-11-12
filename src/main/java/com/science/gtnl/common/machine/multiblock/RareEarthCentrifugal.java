@@ -81,7 +81,7 @@ public class RareEarthCentrifugal extends MultiMachineBase<RareEarthCentrifugal>
 
     @Override
     public int getCasingTextureID() {
-        return Casings.RadiationProofMachineCasing.getTextureId();
+        return Casings.MolecularContainmentCasing.getTextureId();
     }
 
     @Override

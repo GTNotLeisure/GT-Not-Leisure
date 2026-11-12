@@ -27,7 +27,6 @@ import com.science.gtnl.utils.recipes.metadata.IsaMillMetadata;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
@@ -352,7 +351,7 @@ public class IsaMill extends GTMMultiMachineBase<IsaMill> implements ISurvivalCo
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(2);
+        return Casings.IsaMillExteriorCasing.getTextureId();
     }
 
     @Override

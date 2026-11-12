@@ -20,7 +20,6 @@ import com.science.gtnl.utils.StructureUtils;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
@@ -147,7 +146,7 @@ public class FlotationCellRegulator extends GTMMultiMachineBase<FlotationCellReg
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(18);
+        return Casings.HastelloyXStructuralBlock.getTextureId();
     }
 
     @Override

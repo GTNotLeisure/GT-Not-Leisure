@@ -25,6 +25,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.gui.modularui.GTNLMultiBlockBaseGui;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
@@ -130,9 +131,13 @@ public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> imp
 
     @Override
     public int getCasingTextureID() {
-        if (mCasingTier >= 0) {
-            return 1540 + mCasingTier;
-        } else return 1540;
+        return switch (mCasingTier) {
+            case 1 -> GTNLCasings.PreciseUnitCasing1.getTextureId();
+            case 2 -> GTNLCasings.PreciseUnitCasing2.getTextureId();
+            case 3 -> GTNLCasings.PreciseUnitCasing3.getTextureId();
+            case 4 -> GTNLCasings.PreciseUnitCasing4.getTextureId();
+            default -> GTNLCasings.ImpreciseUnitCasing.getTextureId();
+        };
     }
 
     @Override

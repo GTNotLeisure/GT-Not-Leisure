@@ -21,6 +21,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.block.blocks.tile.TileEntityEssentiaHatch;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
@@ -63,7 +64,6 @@ public class SmallInfusionMatrix extends MultiMachineBase<SmallInfusionMatrix> i
     private static final int HORIZONTAL_OFFSET = 3;
     private static final int VERTICAL_OFFSET = 3;
     private static final int DEPTH_OFFSET = 0;
-    private static final int CASING_TEXTURE_ID = 1536;
 
     private final EssentiaSupply essentiaSupply = new EssentiaSupply("SmallInfusionMatrix");
     private final OwnerResearchCache researchCache = new OwnerResearchCache();
@@ -276,7 +276,7 @@ public class SmallInfusionMatrix extends MultiMachineBase<SmallInfusionMatrix> i
 
     @Override
     public int getCasingTextureID() {
-        return CASING_TEXTURE_ID;
+        return GTNLCasings.MagicCasing.getTextureId();
     }
 
     @Override

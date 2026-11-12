@@ -19,7 +19,6 @@ import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.enums.BlockIcons;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
@@ -31,7 +30,6 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -70,13 +68,13 @@ public class SteamCarpenter extends SteamMultiMachineBase<SteamCarpenter> implem
             .addElement(
                 'A',
                 StructureUtility.ofChain(
-                    buildSteamWirelessInput(SteamCarpenter.class).casingIndex(10)
+                    buildSteamWirelessInput(SteamCarpenter.class).casingIndex(Casings.BronzePlatedBricks.getTextureId())
                         .hint(1)
                         .build(),
-                    buildSteamBigInput(SteamCarpenter.class).casingIndex(10)
+                    buildSteamBigInput(SteamCarpenter.class).casingIndex(Casings.BronzePlatedBricks.getTextureId())
                         .hint(1)
                         .build(),
-                    buildSteamInput(SteamCarpenter.class).casingIndex(10)
+                    buildSteamInput(SteamCarpenter.class).casingIndex(Casings.BronzePlatedBricks.getTextureId())
                         .hint(1)
                         .build(),
                     GTStructureUtility.buildHatchAdder(SteamCarpenter.class)
@@ -86,7 +84,7 @@ public class SteamCarpenter extends SteamMultiMachineBase<SteamCarpenter> implem
                             SteamHatchElement.OutputBus_Steam,
                             HatchElement.OutputBus,
                             HatchElement.Maintenance)
-                        .casingIndex(10)
+                        .casingIndex(Casings.BronzePlatedBricks.getTextureId())
                         .hint(1)
                         .buildAndChain(),
                     Casings.BronzePlatedBricks.asElement()))
@@ -139,23 +137,20 @@ public class SteamCarpenter extends SteamMultiMachineBase<SteamCarpenter> implem
         if (side == facing) {
             if (aActive) {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_CARPENTER_ACTIVE)
                         .extFacing()
                         .build() };
             }
             return new ITexture[] {
-                Textures.BlockIcons
-                    .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)),
+                Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_CARPENTER)
                     .extFacing()
                     .build() };
         }
-        return new ITexture[] { Textures.BlockIcons
-            .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()) };
     }
 
     @Override

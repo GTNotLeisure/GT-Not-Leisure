@@ -15,6 +15,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.GTMMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
@@ -26,7 +27,6 @@ import com.science.gtnl.utils.recipes.metadata.FuelRefiningMetadata;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -91,7 +91,7 @@ public class FuelRefiningComplex extends GTMMultiMachineBase<FuelRefiningComplex
             .addElement('H', Casings.ChemicallyInertMachineCasing.asElement())
             .addElement('I', Casings.PTFEPipeCasing.asElement())
             .addElement('J', GTStructureUtility.ofFrame(Materials.TungstenSteel))
-            .addElement('K', Casings.WashPlantCasing.asElement())
+            .addElement('K', GTNLCasings.WashPlantCasing.asElement())
             .addElement(
                 'L',
                 GTStructureUtility.buildHatchAdder(FuelRefiningComplex.class)
@@ -194,7 +194,7 @@ public class FuelRefiningComplex extends GTMMultiMachineBase<FuelRefiningComplex
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(33);
+        return Casings.InconelReinforcedCasing.getTextureId();
     }
 
     @Override

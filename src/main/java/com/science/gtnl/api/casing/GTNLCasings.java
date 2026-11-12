@@ -1,5 +1,7 @@
 package com.science.gtnl.api.casing;
 
+import static kubatech.loaders.BlockLoader.defcCasingBlock;
+
 import java.util.Objects;
 
 import net.minecraft.block.Block;
@@ -15,7 +17,12 @@ import com.science.gtnl.utils.enums.ModsItemlist;
 import com.science.gtnl.utils.item.ItemUtils;
 
 import bartworks.system.material.WerkstoffLoader;
+import goodgenerator.loader.Loaders;
+import gregtech.api.GregTechAPI;
+import gregtech.api.casing.Casings;
 import gregtech.api.casing.ICasing;
+import gregtech.api.enums.Textures;
+import gregtech.api.render.TextureFactory;
 import gregtech.api.util.GTUtility;
 
 public enum GTNLCasings implements ICasing {
@@ -134,6 +141,32 @@ public enum GTNLCasings implements ICasing {
     ReboltedNeutroniumCasing(() -> WerkstoffLoader.BWBlockCasingsAdvanced, 31_766 + 129,
         GTNLMaterials.Neutronium.getId()),
 
+    // Named textures already registered by external mods.
+    MagicCasing(Casings.MagicCasing::getBlock, Casings.MagicCasing.getBlockMeta(),
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 0)),
+    ImpreciseUnitCasing(() -> Loaders.impreciseUnitCasing, 0,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 4)),
+    PreciseUnitCasing1(() -> Loaders.preciseUnitCasing, 0,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 5)),
+    PreciseUnitCasing2(() -> Loaders.preciseUnitCasing, 1,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 6)),
+    PreciseUnitCasing3(() -> Loaders.preciseUnitCasing, 2,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 7)),
+    PreciseUnitCasing4(() -> Loaders.preciseUnitCasing, 3,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 8)),
+    MagneticFluxCasing(() -> Loaders.magneticFluxCasing, 0,
+        GTUtility.getTextureId(Loaders.GoodGeneratorTexturePage, (byte) 9)),
+    StainlessSteelReinforcedBlock(() -> GregTechAPI.sBlockReinforced, 2, GTUtility.getTextureId((byte) 1, (byte) 82)),
+    DraconicFusionCasing(() -> defcCasingBlock, 7, GTUtility.getTextureId((byte) 1, (byte) 63)),
+
+    // GT5 registers this texture at 114, but its casing definition still points to 75.
+    WashPlantCasing(Casings.WashPlantCasing::getBlock, Casings.WashPlantCasing.getBlockMeta(),
+        GTUtility.getTextureId((byte) 0, (byte) 114)),
+
+    // GT5 does not register a texture for this hatch casing.
+    BulkProductionFrame(Casings.BulkProductionFrame::getBlock, Casings.BulkProductionFrame.getBlockMeta(),
+        GTUtility.getTextureId(MetaCasing.TEXTURE_PAGE_INDEX, (byte) 125), true),
+
     // Reserve the end of GTNL's texture page for external casing textures.
     YellowConcrete(() -> ItemUtils.getBlockFromItemStack(ModsItemlist.EtFuturumRequiemYellowConcrete.get(1)), 4,
         GTUtility.getTextureId(MetaCasing.TEXTURE_PAGE_INDEX, (byte) 127));
@@ -142,11 +175,27 @@ public enum GTNLCasings implements ICasing {
     private volatile Block block;
     public final int meta;
     public final int textureId;
+    private final boolean copiedTexture;
 
     GTNLCasings(BlockSupplier blockGetter, int meta, int textureId) {
+        this(blockGetter, meta, textureId, false);
+    }
+
+    GTNLCasings(BlockSupplier blockGetter, int meta, int textureId, boolean copiedTexture) {
         this.blockGetter = blockGetter;
         this.meta = meta;
         this.textureId = textureId;
+        this.copiedTexture = copiedTexture;
+    }
+
+    public static void registerCopiedTextures() {
+        for (GTNLCasings casing : values()) {
+            if (casing.copiedTexture) {
+                Textures.BlockIcons.setCasingTextureForId(
+                    casing.getTextureId(),
+                    TextureFactory.of(casing.getBlock(), casing.getBlockMeta()));
+            }
+        }
     }
 
     @Override
@@ -185,4 +234,5 @@ public enum GTNLCasings implements ICasing {
     private static int casingTexture(MetaCasing casing, int meta) {
         return GTUtility.getTextureId(casing.getTexturePageIndex(), casing.getTextureIndexInPage(meta));
     }
+
 }

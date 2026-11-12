@@ -34,7 +34,6 @@ import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.HeatingCoilLevel;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -93,7 +92,7 @@ public class MegaBlastFurnace extends GTMMultiMachineBase<MegaBlastFurnace> impl
                         HatchElement.Maintenance,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy),
                         ParallelCon)
-                    .casingIndex(TAE.GTPP_INDEX(15))
+                    .casingIndex(getCasingTextureID())
                     .hint(1)
                     .buildAndChain(
                         StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.BlastSmelterCasing.asElement())))
@@ -267,7 +266,7 @@ public class MegaBlastFurnace extends GTMMultiMachineBase<MegaBlastFurnace> impl
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(15);
+        return Casings.BlastSmelterCasing.getTextureId();
     }
 
     @Override

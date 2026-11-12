@@ -31,7 +31,6 @@ import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gtnhlanth.common.register.LanthItemList;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class AetronPressor extends WirelessEnergyMultiMachineBase<AetronPressor> {
@@ -128,7 +127,7 @@ public class AetronPressor extends WirelessEnergyMultiMachineBase<AetronPressor>
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset + 4;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

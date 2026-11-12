@@ -1,7 +1,6 @@
 package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-import static gregtech.api.GregTechAPI.sBlockCasings1;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,7 +40,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTStructureUtility;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
@@ -124,7 +122,7 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
                 StructureUtility.ofChain(
                     GTStructureUtility.buildHatchAdder(SteamCactusWonder.class)
                         .atLeast(SteamHatchElement.InputBus_Steam, HatchElement.InputBus, HatchElement.OutputHatch)
-                        .casingIndex(10)
+                        .casingIndex(Casings.BronzeFireboxCasing.getTextureId())
                         .hint(1)
                         .buildAndChain(),
                     Casings.BronzeFireboxCasing.asElement()))
@@ -223,7 +221,7 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
         int aColorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
             return new ITexture[] {
-                Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings1, 10)),
+                Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(BlockIcons.OVERLAY_FRONT_CACTUS_WONDER)
                     .extFacing()
@@ -234,8 +232,7 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
                     .glow()
                     .build() };
         }
-        return new ITexture[] {
-            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings1, 10)) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()) };
     }
 
     @Override

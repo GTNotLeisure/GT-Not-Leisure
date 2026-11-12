@@ -31,7 +31,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class VortexMatterCentrifuge extends WirelessEnergyMultiMachineBase<VortexMatterCentrifuge> {
@@ -134,7 +133,7 @@ public class VortexMatterCentrifuge extends WirelessEnergyMultiMachineBase<Vorte
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset + 4;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

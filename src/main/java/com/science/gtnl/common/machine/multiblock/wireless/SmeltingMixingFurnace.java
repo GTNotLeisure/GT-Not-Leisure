@@ -64,7 +64,6 @@ import gtPlusPlus.core.util.minecraft.ItemUtils;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -122,7 +121,7 @@ public class SmeltingMixingFurnace extends WirelessEnergyMultiMachineBase<Smelti
             .addElement('L', Casings.ContainmentFieldGenerator.asElement())
             .addElement('M', Casings.HollowCasing.asElement())
             .addElement('N', GTStructureUtility.ofFrame(Materials.Infinity))
-            .addElement('O', Casings.WashPlantCasing.asElement())
+            .addElement('O', GTNLCasings.WashPlantCasing.asElement())
             .addElement('P', Casings.MolecularContainmentCasing.asElement())
             .addElement('Q', Casings.HastelloyNReactorCasing.asElement())
             .addElement(
@@ -331,7 +330,7 @@ public class SmeltingMixingFurnace extends WirelessEnergyMultiMachineBase<Smelti
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset;
+        return Casings.HighPowerCasing.getTextureId();
     }
 
     @Override

@@ -27,7 +27,6 @@ import com.science.gtnl.utils.StructureUtils;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -90,7 +89,7 @@ public class LargeBrewer extends GTMMultiMachineBase<LargeBrewer> implements ISu
                     .buildAndChain(
                         StructureUtility
                             .onElementPass(x -> ++x.mCountCasing, Casings.StructuralCokeOvenCasing.asElement())))
-            .addElement('D', HatchElement.Muffler.newAny(TAE.GTPP_INDEX(1), 1))
+            .addElement('D', HatchElement.Muffler.newAny(Casings.StructuralCokeOvenCasing.getTextureId(), 1))
             .build();
     }
 
@@ -163,7 +162,7 @@ public class LargeBrewer extends GTMMultiMachineBase<LargeBrewer> implements ISu
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(1);
+        return Casings.StructuralCokeOvenCasing.getTextureId();
     }
 
     @Override

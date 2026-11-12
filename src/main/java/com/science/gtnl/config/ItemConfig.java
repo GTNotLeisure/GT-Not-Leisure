@@ -65,28 +65,28 @@ public class ItemConfig {
         public boolean elainaUnlimitedFlight = true;
 
         @Comment("Land Skills enchantment ID. Must match client/server; do not change after enchanting saved items")
-        @DefaultInt(200)
+        @DefaultInt(230)
         @RangeInt(min = 0, max = 32767)
         @Sync(false)
-        public int landSkillsEnchantmentId = 200;
+        public int landSkillsEnchantmentId = 230;
 
         @Comment("Air Skills enchantment ID. Must match client/server; do not change after enchanting saved items")
-        @DefaultInt(201)
+        @DefaultInt(231)
         @RangeInt(min = 0, max = 32767)
         @Sync(false)
-        public int airSkillsEnchantmentId = 201;
+        public int airSkillsEnchantmentId = 231;
 
         @Comment("Hovering enchantment ID. Must match client/server; do not change after enchanting saved items")
-        @DefaultInt(202)
+        @DefaultInt(232)
         @RangeInt(min = 0, max = 32767)
         @Sync(false)
-        public int hoveringEnchantmentId = 202;
+        public int hoveringEnchantmentId = 232;
 
         @Comment("Seabreeze enchantment ID. Must match client/server; do not change after enchanting saved items")
-        @DefaultInt(203)
+        @DefaultInt(233)
         @RangeInt(min = 0, max = 32767)
         @Sync(false)
-        public int seabreezeEnchantmentId = 203;
+        public int seabreezeEnchantmentId = 233;
     }
 
     @Name("elaina_brooch")

@@ -119,7 +119,7 @@ public class EnergyInfuser extends TTMultiMachineBase implements IConstructable,
                 'C',
                 buildHatchAdder(EnergyInfuser.class)
                     .atLeast(InputHatch, InputBus, OutputBus, Maintenance, Energy.or(ExoticEnergy))
-                    .casingIndex(1028)
+                    .casingIndex(Casings.MolecularCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(onElementPass(x -> ++x.mCountCasing, Casings.MolecularCasing.asElement())))
             .addElement('D', Casings.MolecularCoil.asElement())

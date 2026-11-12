@@ -28,7 +28,6 @@ import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 import bartworks.util.BWUtil;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -213,7 +212,7 @@ public class VacuumDryingFurnace extends GTMMultiMachineBase<VacuumDryingFurnace
 
     @Override
     public int getCasingTextureID() {
-        return TAE.getIndexFromPage(3, 10);
+        return Casings.VacuumCasing.getTextureId();
     }
 
     @Override

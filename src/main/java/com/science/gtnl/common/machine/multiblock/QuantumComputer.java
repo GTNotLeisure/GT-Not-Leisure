@@ -68,7 +68,6 @@ import it.unimi.dsi.fastutil.objects.ReferenceArrayList;
 public class QuantumComputer extends MTETooltipMultiBlockBase
     implements IConstructable, ISecondaryDescribable, IActionHost, IGridProxyable, ICustomNameObject {
 
-    public static int CASING_INDEX = GTNLCasings.QuantumComputerCasing.getTextureId();
     public static final EnumSet<ForgeDirection> upDirection = EnumSet.of(ForgeDirection.UP);
     public static final EnumSet<ForgeDirection> emptyDirection = EnumSet.noneOf(ForgeDirection.class);
 
@@ -779,11 +778,13 @@ public class QuantumComputer extends MTETooltipMultiBlockBase
     public ITexture[] getTexture(IGregTechTileEntity baseMetaTileEntity, ForgeDirection sideDirection,
         ForgeDirection facingDirection, int colorIndex, boolean active, boolean redstoneLevel) {
         if ((sideDirection.flag & (ForgeDirection.UP.flag | ForgeDirection.DOWN.flag)) != 0) {
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CASING_INDEX),
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(GTNLCasings.QuantumComputerCasing.getTextureId()),
                 active ? TextureFactory.of(Textures.BlockIcons.OVERLAY_ME_INPUT_HATCH_ACTIVE)
                     : TextureFactory.of(Textures.BlockIcons.OVERLAY_ME_INPUT_HATCH) };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CASING_INDEX) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(GTNLCasings.QuantumComputerCasing.getTextureId()) };
     }
 
     @Override

@@ -295,7 +295,7 @@ public class WhiteNightGenerator extends MultiMachineBase<WhiteNightGenerator> {
 
     @Override
     public int getCasingTextureID() {
-        return Casings.ReinforcedSterileWaterPlantCasing.getTextureId();
+        return Casings.SolidifierCasing.getTextureId();
     }
 
     @Override

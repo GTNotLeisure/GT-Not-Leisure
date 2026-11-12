@@ -28,7 +28,6 @@ import com.science.gtnl.utils.enums.BlockIcons;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
@@ -47,7 +46,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStructureUtility;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -223,16 +221,14 @@ public class SteamManufacturer extends SteamMultiMachineBase<SteamManufacturer> 
         if (side == facing) {
             if (aActive) {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_MANUFACTURER_ACTIVE)
                         .extFacing()
                         .build() };
             } else {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_MANUFACTURER)
                         .extFacing()
@@ -240,7 +236,7 @@ public class SteamManufacturer extends SteamMultiMachineBase<SteamManufacturer> 
             }
         }
         return new ITexture[] {
-            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)) };
+            Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()) };
     }
 
     @Override

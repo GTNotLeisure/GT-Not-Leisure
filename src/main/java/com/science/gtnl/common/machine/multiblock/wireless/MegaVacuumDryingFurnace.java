@@ -43,7 +43,6 @@ import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gregtech.common.misc.GTStructureChannels;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class MegaVacuumDryingFurnace extends WirelessEnergyMultiMachineBase<MegaVacuumDryingFurnace> {
@@ -75,7 +74,7 @@ public class MegaVacuumDryingFurnace extends WirelessEnergyMultiMachineBase<Mega
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset;
+        return Casings.HighPowerCasing.getTextureId();
     }
 
     @Override

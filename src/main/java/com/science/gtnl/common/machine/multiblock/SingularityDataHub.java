@@ -84,7 +84,6 @@ import lombok.Getter;
 import lombok.Setter;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class SingularityDataHub extends MultiMachineBase<SingularityDataHub>
@@ -289,7 +288,7 @@ public class SingularityDataHub extends MultiMachineBase<SingularityDataHub>
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset + 4;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

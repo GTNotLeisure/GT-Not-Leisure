@@ -86,7 +86,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import tectech.TecTech;
 import tectech.recipe.EyeOfHarmonyRecipe;
 import tectech.thing.block.TileEntityEyeOfHarmony;
-import tectech.thing.casing.BlockGTCasingsTT;
 import tectech.thing.metaTileEntity.multi.MTEEyeOfHarmony;
 import tectech.thing.metaTileEntity.multi.base.INameFunction;
 import tectech.thing.metaTileEntity.multi.base.IStatusFunction;
@@ -261,7 +260,7 @@ public class EyeOfHarmonyInjector extends TTMultiMachineBase
             .addElement(
                 'P',
                 ofChain(
-                    buildHatchAdder(EyeOfHarmonyInjector.class).casingIndex(BlockGTCasingsTT.textureOffset)
+                    buildHatchAdder(EyeOfHarmonyInjector.class).casingIndex(Casings.HighPowerCasing.getTextureId())
                         .hint(1)
                         .atLeast(InputHatch, OutputHatch, InputBus, OutputBus, Energy.or(ExoticEnergy))
                         .buildAndChain(),

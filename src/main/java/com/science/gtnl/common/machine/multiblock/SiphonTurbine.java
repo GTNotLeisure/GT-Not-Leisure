@@ -107,7 +107,7 @@ public class SiphonTurbine extends MultiMachineBase<SiphonTurbine> {
 
     @Override
     public int getCasingTextureID() {
-        return Casings.HeatProofMachineCasing.textureId;
+        return Casings.HeatProofMachineCasing.getTextureId();
     }
 
     @Override

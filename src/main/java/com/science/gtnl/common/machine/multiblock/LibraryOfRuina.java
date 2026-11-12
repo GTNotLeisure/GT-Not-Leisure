@@ -195,7 +195,7 @@ public class LibraryOfRuina extends GTMMultiMachineBase<LibraryOfRuina> implemen
 
     @Override
     public int getCasingTextureID() {
-        return 1662;
+        return Casings.ShieldedAcceleratorCasing.getTextureId();
     }
 
     @Override

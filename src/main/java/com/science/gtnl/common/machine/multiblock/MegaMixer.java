@@ -24,7 +24,6 @@ import com.science.gtnl.utils.StructureUtils;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -88,7 +87,7 @@ public class MegaMixer extends GTMMultiMachineBase<MegaMixer> implements ISurviv
             .addElement(
                 'D',
                 GTStructureUtility.buildHatchAdder(MegaMixer.class)
-                    .casingIndex(TAE.GTPP_INDEX(11))
+                    .casingIndex(Casings.MultitankExteriorCasing.getTextureId())
                     .hint(1)
                     .atLeast(
                         HatchElement.InputHatch,

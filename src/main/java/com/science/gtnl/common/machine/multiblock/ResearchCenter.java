@@ -84,7 +84,6 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
     private static final int HORIZONTAL_OFF_SET = 28;
     private static final int VERTICAL_OFF_SET = 4;
     private static final int DEPTH_OFF_SET = 4;
-    private static final int CONTROLLER_TEXTURE_ID = Casings.RadiantNaquadahAlloyCasing.getTextureId();
     private static final String[][] shape = StructureUtils.readStructureFromFile(RESEARCH_CENTER_STRUCTURE_FILE_PATH);
     private static final IStructureDefinition<MTEResearchStation> STRUCTURE_DEFINITION = IStructureDefinition
         .<MTEResearchStation>builder()
@@ -101,7 +100,7 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
                     InputBus,
                     OutputBus,
                     InputHatch)
-                .casingIndex(CONTROLLER_TEXTURE_ID)
+                .casingIndex(Casings.RadiantNaquadahAlloyCasing.getTextureId())
                 .hint(1)
                 .buildAndChain(Casings.RadiantNaquadahAlloyCasing.asElement()))
         .addElement('D', Casings.StabilizedNaquadahWaterPlantCasing.asElement())
@@ -175,10 +174,12 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CONTROLLER_TEXTURE_ID),
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.RadiantNaquadahAlloyCasing.getTextureId()),
                 new TTRenderedExtendedFacingTexture(aActive ? TTMultiblockBase.ScreenON : TTMultiblockBase.ScreenOFF) };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(CONTROLLER_TEXTURE_ID) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(Casings.RadiantNaquadahAlloyCasing.getTextureId()) };
     }
 
     @Override

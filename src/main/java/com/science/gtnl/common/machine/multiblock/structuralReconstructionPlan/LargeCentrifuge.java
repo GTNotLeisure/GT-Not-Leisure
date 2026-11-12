@@ -28,7 +28,6 @@ import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -189,7 +188,7 @@ public class LargeCentrifuge extends GTMMultiMachineBase<LargeCentrifuge> implem
 
     @Override
     public int getCasingTextureID() {
-        return (byte) TAE.GTPP_INDEX(0);
+        return Casings.CentrifugeCasing.getTextureId();
     }
 
     @Override

@@ -22,6 +22,7 @@ import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 
 import gregtech.GTMod;
 import gregtech.api.GregTechAPI;
+import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.ItemList;
@@ -395,7 +396,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getCasingTextureIndex() {
-            return 10;
+            return (byte) Casings.BronzePlatedBricks.getTextureId();
         }
 
         @Override
@@ -420,7 +421,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getFireboxTextureIndex() {
-            return 45;
+            return (byte) Casings.BronzeFireboxCasing.getTextureId();
         }
 
         @Override
@@ -476,7 +477,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getCasingTextureIndex() {
-            return 16;
+            return (byte) Casings.SolidSteelMachineCasing.getTextureId();
         }
 
         @Override
@@ -501,7 +502,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getFireboxTextureIndex() {
-            return 46;
+            return (byte) Casings.SteelFireboxCasing.getTextureId();
         }
 
         @Override
@@ -557,7 +558,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getCasingTextureIndex() {
-            return 50;
+            return (byte) Casings.StableTitaniumMachineCasing.getTextureId();
         }
 
         @Override
@@ -582,7 +583,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getFireboxTextureIndex() {
-            return 51;
+            return (byte) Casings.TitaniumFireboxCasing.getTextureId();
         }
 
         @Override
@@ -638,7 +639,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getCasingTextureIndex() {
-            return 48;
+            return (byte) Casings.RobustTungstenSteelMachineCasing.getTextureId();
         }
 
         @Override
@@ -663,7 +664,7 @@ public abstract class LargeBoiler extends EnhancedMultiMachineBase<LargeBoiler> 
 
         @Override
         public byte getFireboxTextureIndex() {
-            return 47;
+            return (byte) Casings.TungstensteelFireboxCasing.getTextureId();
         }
 
         @Override

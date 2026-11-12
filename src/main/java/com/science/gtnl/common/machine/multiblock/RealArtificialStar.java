@@ -173,7 +173,7 @@ public class RealArtificialStar extends MultiMachineBase<RealArtificialStar> {
                 buildHatchAdder(RealArtificialStar.class)
                     .atLeast(HatchElement.Maintenance, HatchElement.InputBus, HatchElement.OutputBus)
                     .adder(RealArtificialStar::addInputBusOrOutputBusToMachineList)
-                    .casingIndex(13)
+                    .casingIndex(Casings.DimensionalInjectionCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(GregTechAPI.sBlockCasings1, 13))
             .addElement(
@@ -396,7 +396,7 @@ public class RealArtificialStar extends MultiMachineBase<RealArtificialStar> {
 
     @Override
     public int getCasingTextureID() {
-        return 13;
+        return Casings.DimensionalInjectionCasing.getTextureId();
     }
 
     @Override

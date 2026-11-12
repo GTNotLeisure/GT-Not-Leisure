@@ -25,7 +25,6 @@ import com.science.gtnl.utils.enums.BlockIcons;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Mods;
@@ -37,7 +36,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -168,8 +166,7 @@ public class SteamInfernalCokeOven extends SteamMultiMachineBase<SteamInfernalCo
         if (side == aFacing) {
             if (aActive) {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_INFERNAL_COKE_OVEN_ACTIVE)
                         .extFacing()
@@ -181,16 +178,14 @@ public class SteamInfernalCokeOven extends SteamMultiMachineBase<SteamInfernalCo
                         .build() };
             } else {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_STEAM_INFERNAL_COKE_OVEN)
                         .extFacing()
                         .build() };
             }
         }
-        return new ITexture[] { Textures.BlockIcons
-            .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings1, 10)) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()) };
     }
 
     @Override

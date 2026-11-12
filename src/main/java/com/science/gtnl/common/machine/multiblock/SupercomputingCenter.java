@@ -68,7 +68,6 @@ import gtPlusPlus.core.fluids.GTPPFluids;
 import gtPlusPlus.core.material.MaterialsAlloy;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import tectech.mechanics.dataTransport.QuantumDataPacket;
-import tectech.thing.casing.BlockGTCasingsTT;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDataInput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDataOutput;
 import tectech.thing.metaTileEntity.hatch.MTEHatchRack;
@@ -202,7 +201,7 @@ public class SupercomputingCenter extends TTMultiMachineBase implements ISurviva
             .addElement(
                 'C',
                 buildHatchAdder(SupercomputingCenter.class).atLeast(CustomHatchElement.RackHatch)
-                    .casingIndex(BlockGTCasingsTT.textureOffset + 1)
+                    .casingIndex(Casings.ComputerCasing.getTextureId())
                     .shouldReject(t -> !t.mRackHatchs.isEmpty())
                     .hint(1)
                     .buildAndChain(sBlockCasingsTT, 1))

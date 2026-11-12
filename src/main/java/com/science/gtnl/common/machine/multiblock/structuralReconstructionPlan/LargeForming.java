@@ -20,7 +20,6 @@ import com.science.gtnl.utils.StructureUtils;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -140,7 +139,7 @@ public class LargeForming extends GTMMultiMachineBase<LargeForming> implements I
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(33);
+        return Casings.InconelReinforcedCasing.getTextureId();
     }
 
     @Override

@@ -93,7 +93,7 @@ public class CompoundDistillationFractionator extends WirelessEnergyMultiMachine
                             x -> ++x.mCountCasing,
                             Casings.StabilizedNaquadahWaterPlantCasing.asElement())))
             .addElement('E', Casings.SlickSterileFlocculationCasing.asElement())
-            .addElement('F', Casings.WashPlantCasing.asElement())
+            .addElement('F', GTNLCasings.WashPlantCasing.asElement())
             .addElement('G', Casings.NaquadriaReinforcedWaterPlantCasing.asElement())
             .addElement('H', GTNLCasings.FusionGlass.asElement())
             .addElement('I', GTNLCasings.NeutroniumPipeCasing.asElement())

@@ -244,7 +244,7 @@ public class ElementCopying extends WirelessEnergyMultiMachineBase<ElementCopyin
 
     @Override
     public int getCasingTextureID() {
-        return 1028;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

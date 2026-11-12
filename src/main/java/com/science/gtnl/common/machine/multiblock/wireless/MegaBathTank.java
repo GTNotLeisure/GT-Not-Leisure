@@ -91,7 +91,7 @@ public class MegaBathTank extends WirelessEnergyMultiMachineBase<MegaBathTank> {
                             x -> ++x.mCountCasing,
                             Casings.ReinforcedSterileWaterPlantCasing.asElement())))
             .addElement('F', Casings.ReactiveGasContainmentCasing.asElement())
-            .addElement('G', Casings.WashPlantCasing.asElement())
+            .addElement('G', GTNLCasings.WashPlantCasing.asElement())
             .addElement('H', Casings.PTFEPipeCasing.asElement())
             .addElement('I', GTNLCasings.FusionGlass.asElement())
             .addElement('J', Casings.ChemicalGradeGlass.asElement())

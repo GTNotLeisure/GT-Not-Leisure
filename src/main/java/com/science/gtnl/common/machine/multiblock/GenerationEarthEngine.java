@@ -14,6 +14,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
@@ -95,10 +96,11 @@ public class GenerationEarthEngine extends MultiMachineBase<GenerationEarthEngin
                         HatchElement.OutputHatch,
                         HatchElement.Maintenance,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy))
-                    .casingIndex(Casings.EuropiumReinforcedRadiationProofMachineCasing.getTextureId())
+                    .casingIndex(GTNLCasings.BulkProductionFrame.getTextureId())
                     .hint(1)
                     .buildAndChain(
-                        StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.BulkProductionFrame.asElement())))
+                        StructureUtility
+                            .onElementPass(x -> ++x.mCountCasing, GTNLCasings.BulkProductionFrame.asElement())))
             .addElement('M', CommonElements.BlockBeacon.get())
             .addElement('N', StructureUtility.ofBlock(EnderIO.blockIngotStorageEndergy, 3))
             .build();

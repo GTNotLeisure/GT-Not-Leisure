@@ -18,6 +18,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureElement;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.block.blocks.tile.TileEntityEssentiaHatch;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
@@ -60,7 +61,6 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
     private static final int HORIZONTAL_OFFSET = 2;
     private static final int VERTICAL_OFFSET = 4;
     private static final int DEPTH_OFFSET = 0;
-    private static final int CASING_TEXTURE_ID = 1536;
 
     private static final int MAX_PARALLEL_RECIPES = 1;
 
@@ -271,7 +271,7 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
 
     @Override
     public int getCasingTextureID() {
-        return CASING_TEXTURE_ID;
+        return GTNLCasings.MagicCasing.getTextureId();
     }
 
     @Override

@@ -148,7 +148,7 @@ public class CrystalBuilder extends WirelessEnergyMultiMachineBase<CrystalBuilde
 
     @Override
     public int getCasingTextureID() {
-        return 1028;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

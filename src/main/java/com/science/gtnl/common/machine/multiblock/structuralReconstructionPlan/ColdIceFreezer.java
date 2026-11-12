@@ -24,7 +24,6 @@ import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -83,7 +82,7 @@ public class ColdIceFreezer extends MultiMachineBase<ColdIceFreezer> implements 
     @Override
     public void updateHatchTexture() {
         super.updateHatchTexture();
-        for (MTEHatch h : mMufflerHatches) h.updateTexture(TAE.getIndexFromPage(2, 10));
+        for (MTEHatch h : mMufflerHatches) h.updateTexture(Casings.AdvancedCryogenicCasing.getTextureId());
     }
 
     @Override
@@ -139,7 +138,7 @@ public class ColdIceFreezer extends MultiMachineBase<ColdIceFreezer> implements 
             .addElement('C', Casings.TungstensteelPipeCasing.asElement())
             .addElement('D', GTStructureUtility.ofFrame(Materials.Aluminium))
             .addElement('E', Casings.AdvancedCryogenicCasing.asElement())
-            .addElement('F', HatchElement.Muffler.newAny(TAE.getIndexFromPage(2, 10), 1))
+            .addElement('F', HatchElement.Muffler.newAny(Casings.AdvancedCryogenicCasing.getTextureId(), 1))
             .build();
     }
 

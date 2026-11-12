@@ -29,7 +29,6 @@ import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -94,7 +93,8 @@ public class FastNeutronBreederReactor extends WirelessEnergyMultiMachineBase<Fa
                     .casingIndex(getCasingTextureID())
                     .hint(1)
                     .buildAndChain(
-                        StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.BulkProductionFrame.asElement())))
+                        StructureUtility
+                            .onElementPass(x -> ++x.mCountCasing, GTNLCasings.BulkProductionFrame.asElement())))
             .addElement('F', Casings.PressureContainmentCasing.asElement())
             .addElement('G', Casings.AdvancedIridiumPlatedMachineCasing.asElement())
             .addElement('H', Casings.FieldRestrictionCasing.asElement())
@@ -192,7 +192,7 @@ public class FastNeutronBreederReactor extends WirelessEnergyMultiMachineBase<Fa
 
     @Override
     public int getCasingTextureID() {
-        return TAE.getIndexFromPage(0, 10);
+        return GTNLCasings.BulkProductionFrame.getTextureId();
     }
 
     @Override

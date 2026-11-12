@@ -541,12 +541,12 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
                             HatchElement.Uncertainty,
                             HatchElement.InputData,
                             HatchElement.OutputData)
-                        .casingIndex(BlockGTCasingsTT.textureOffset + 1)
+                        .casingIndex(Casings.ComputerCasing.getTextureId())
                         .hint(1)
                         .buildAndChain(TTCasingsContainer.sBlockCasingsTT, 1),
                     buildHatchAdder(HighPerformanceComputationArray.class)
                         .adder(HighPerformanceComputationArray::addWirelessDataOutputToMachineList)
-                        .casingIndex(BlockGTCasingsTT.textureOffset + 1)
+                        .casingIndex(Casings.ComputerCasing.getTextureId())
                         .hint(1)
                         .buildAndChain(TTCasingsContainer.sBlockCasingsTT, 1)))
             .addElement('B', Casings.ComputerCasing.asElement())
@@ -555,19 +555,19 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
             .addElement(
                 'E',
                 buildHatchAdder(HighPerformanceComputationArray.class).atLeast(RackHatchElement.RackHatch_0)
-                    .casingIndex(BlockGTCasingsTT.textureOffset + 3)
+                    .casingIndex(Casings.AdvancedComputerCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.AdvancedComputerCasing.asElement()))
             .addElement(
                 'F',
                 buildHatchAdder(HighPerformanceComputationArray.class).atLeast(RackHatchElement.RackHatch_1)
-                    .casingIndex(BlockGTCasingsTT.textureOffset + 3)
+                    .casingIndex(Casings.AdvancedComputerCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.AdvancedComputerCasing.asElement()))
             .addElement(
                 'G',
                 buildHatchAdder(HighPerformanceComputationArray.class).atLeast(RackHatchElement.RackHatch_2)
-                    .casingIndex(BlockGTCasingsTT.textureOffset + 3)
+                    .casingIndex(Casings.AdvancedComputerCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(Casings.AdvancedComputerCasing.asElement()))
             .build();

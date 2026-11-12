@@ -44,7 +44,6 @@ import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gtnhlanth.common.register.LanthItemList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -227,7 +226,7 @@ public class MatterFabricator extends GTMMultiMachineBase<MatterFabricator> impl
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset;
+        return Casings.HighPowerCasing.getTextureId();
     }
 
     @Override

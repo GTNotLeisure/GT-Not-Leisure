@@ -23,7 +23,6 @@ import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
@@ -177,7 +176,8 @@ public class PlatinumBasedTreatment extends MultiMachineBase<PlatinumBasedTreatm
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int aColorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
-            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.GTPP_INDEX(0)),
+            if (aActive) return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.HeatProofMachineCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(Textures.BlockIcons.OVERLAY_FRONT_ELECTRIC_BLAST_FURNACE_ACTIVE)
                     .extFacing()
@@ -187,7 +187,8 @@ public class PlatinumBasedTreatment extends MultiMachineBase<PlatinumBasedTreatm
                     .extFacing()
                     .glow()
                     .build() };
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.GTPP_INDEX(0)),
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.HeatProofMachineCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(Textures.BlockIcons.OVERLAY_FRONT_ELECTRIC_BLAST_FURNACE)
                     .extFacing()
@@ -198,12 +199,13 @@ public class PlatinumBasedTreatment extends MultiMachineBase<PlatinumBasedTreatm
                     .glow()
                     .build() };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.GTPP_INDEX(0)) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(Casings.HeatProofMachineCasing.getTextureId()) };
     }
 
     @Override
     public int getCasingTextureID() {
-        return TAE.getIndexFromPage(2, 2);
+        return Casings.MultiUseCasing.getTextureId();
     }
 
     @Override

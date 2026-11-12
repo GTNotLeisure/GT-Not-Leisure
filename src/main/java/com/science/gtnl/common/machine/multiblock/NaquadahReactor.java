@@ -696,7 +696,7 @@ public abstract class NaquadahReactor<T extends NaquadahReactor<T>> extends Mult
 
         @Override
         public int getCasingTextureID() {
-            return (12 << 7) + 9;
+            return GTNLCasings.MagneticFluxCasing.getTextureId();
         }
 
         @Override

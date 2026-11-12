@@ -15,6 +15,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
@@ -114,7 +115,7 @@ public class PetrochemicalPlant extends MultiMachineBase<PetrochemicalPlant> imp
             .addElement('U', GTStructureUtility.ofFrame(Materials.Steel))
             .addElement('V', GTStructureUtility.ofFrame(Materials.RedstoneAlloy))
             .addElement('W', GTStructureUtility.ofFrame(Materials.Vanadium))
-            .addElement('X', Casings.WashPlantCasing.asElement())
+            .addElement('X', GTNLCasings.WashPlantCasing.asElement())
             .addElement('Y', Casings.MultitankExteriorCasing.asElement())
             .addElement('Z', Casings.SturdyAluminiumMachineCasing.asElement())
             .addElement('0', Casings.ReinforcedGlass.asElement())

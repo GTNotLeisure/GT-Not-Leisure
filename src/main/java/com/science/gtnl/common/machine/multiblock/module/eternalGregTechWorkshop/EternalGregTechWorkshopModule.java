@@ -80,7 +80,7 @@ public abstract class EternalGregTechWorkshopModule extends MultiMachineBase<Ete
                         HatchElement.OutputBus,
                         HatchElement.InputHatch,
                         HatchElement.OutputHatch)
-                    .casingIndex(960)
+                    .casingIndex(Casings.SingularityReinforcedStellarShieldingCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(
                         StructureUtility.onElementPass(
@@ -208,7 +208,7 @@ public abstract class EternalGregTechWorkshopModule extends MultiMachineBase<Ete
 
     @Override
     public int getCasingTextureID() {
-        return 960;
+        return Casings.SingularityReinforcedStellarShieldingCasing.getTextureId();
     }
 
     @Override

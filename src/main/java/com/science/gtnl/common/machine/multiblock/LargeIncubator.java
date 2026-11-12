@@ -23,6 +23,7 @@ import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.gtnllib.utils.GameUtils;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.utils.StructureUtils;
@@ -265,7 +266,7 @@ public class LargeIncubator extends MultiMachineBase<LargeIncubator> implements 
 
     @Override
     public int getCasingTextureID() {
-        return 210;
+        return GTNLCasings.StainlessSteelReinforcedBlock.getTextureId();
     }
 
     @Override

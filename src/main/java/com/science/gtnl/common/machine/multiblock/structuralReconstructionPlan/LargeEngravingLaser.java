@@ -17,7 +17,6 @@ import com.science.gtnl.common.machine.multiMachineBase.GTMMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.utils.StructureUtils;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -30,7 +29,6 @@ import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -132,8 +130,7 @@ public class LargeEngravingLaser extends GTMMultiMachineBase<LargeEngravingLaser
         if (side == aFacing) {
             if (aActive) {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings10, 1)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.LaserContainmentCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(Textures.BlockIcons.OVERLAY_FRONT_ENGRAVER_ACTIVE)
                         .extFacing()
@@ -145,8 +142,7 @@ public class LargeEngravingLaser extends GTMMultiMachineBase<LargeEngravingLaser
                         .build() };
             } else {
                 return new ITexture[] {
-                    Textures.BlockIcons
-                        .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings10, 1)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.LaserContainmentCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(Textures.BlockIcons.OVERLAY_FRONT_ENGRAVER)
                         .extFacing()
@@ -158,8 +154,8 @@ public class LargeEngravingLaser extends GTMMultiMachineBase<LargeEngravingLaser
                         .build() };
             }
         }
-        return new ITexture[] { Textures.BlockIcons
-            .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings10, 1)) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(Casings.LaserContainmentCasing.getTextureId()) };
 
     }
 

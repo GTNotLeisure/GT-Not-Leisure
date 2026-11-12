@@ -95,14 +95,17 @@ public class Steamgate extends EnhancedMultiMachineBase<Steamgate> implements IS
     public ITexture[] getTexture(IGregTechTileEntity baseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean active, boolean redstoneLevel) {
         if (side == facing) {
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(14870), TextureFactory.builder()
-                .addIcon(OVERLAY_FRONT_STEAM_GATE)
-                .extFacing()
-                .glow()
-                .build() };
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(GTNLCasings.SteamgateChevronBlock.getTextureId()),
+                TextureFactory.builder()
+                    .addIcon(OVERLAY_FRONT_STEAM_GATE)
+                    .extFacing()
+                    .glow()
+                    .build() };
 
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(14870) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(GTNLCasings.SteamgateChevronBlock.getTextureId()) };
     }
 
     @Override

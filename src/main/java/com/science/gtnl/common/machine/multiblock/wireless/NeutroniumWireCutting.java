@@ -37,7 +37,6 @@ import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gtPlusPlus.core.material.MaterialsAlloy;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -77,19 +76,19 @@ public class NeutroniumWireCutting extends WirelessEnergyMultiMachineBase<Neutro
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
         int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == aFacing) {
-            if (aActive)
-                return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(BlockGTCasingsTT.textureOffset),
-                    TextureFactory.builder()
-                        .addIcon(Textures.BlockIcons.OVERLAY_DTPF_ON)
-                        .extFacing()
-                        .build() };
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(BlockGTCasingsTT.textureOffset),
+            if (aActive) return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.HighPowerCasing.getTextureId()),
+                TextureFactory.builder()
+                    .addIcon(Textures.BlockIcons.OVERLAY_DTPF_ON)
+                    .extFacing()
+                    .build() };
+            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.HighPowerCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(Textures.BlockIcons.OVERLAY_DTPF_OFF)
                     .extFacing()
                     .build() };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(BlockGTCasingsTT.textureOffset) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.HighPowerCasing.getTextureId()) };
     }
 
     @Override

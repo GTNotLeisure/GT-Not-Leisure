@@ -221,6 +221,7 @@ import com.science.gtnl.utils.enums.GTNLMachineID;
 import com.science.gtnl.utils.enums.ModsItemlist;
 import com.science.gtnl.utils.text.AnimatedText;
 
+import gregtech.api.casing.Casings;
 import gregtech.api.enums.Mods;
 import gregtech.api.enums.Textures;
 import gregtech.api.render.TextureFactory;
@@ -228,6 +229,7 @@ import gregtech.api.render.TextureFactory;
 public class MultiblockLoader {
 
     public static void registry() {
+        GTNLCasings.registerCopiedTextures();
         GTNLItemList.QuantumComputer.set(new QuantumComputer(GTNLMachineID.QUANTUM_COMPUTER.ID, "QuantumComputer", ""));
         AnimatedTooltipHandler.addItemTooltip(GTNLItemList.QuantumComputer.get(1), AnimatedText.GT_NOT_LEISURE);
 
@@ -1465,7 +1467,7 @@ public class MultiblockLoader {
             GTNLCasings.YellowConcrete.getTextureId(),
             beeCasing != null && beeCasing.getItem() instanceof ItemBlock
                 ? TextureFactory.of(Block.getBlockFromItem(beeCasing.getItem()), beeCasing.getItemDamage())
-                : Textures.BlockIcons.getCasingTextureForId(10));
+                : Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()));
 
         GTNLItemList.LargeBeeBreeder.set(
             new LargeBeeBreeder(

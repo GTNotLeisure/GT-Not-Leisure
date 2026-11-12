@@ -283,7 +283,7 @@ public class NuclearReactor extends MultiMachineBase<NuclearReactor>
 
     @Override
     public int getCasingTextureID() {
-        return Casings.HastelloyNSealantBlock.textureId;
+        return Casings.HastelloyNSealantBlock.getTextureId();
     }
 
     @Override
@@ -407,7 +407,7 @@ public class NuclearReactor extends MultiMachineBase<NuclearReactor>
         return GTStructureUtility.buildHatchAdder(NuclearReactor.class)
             .hatchClasses(NuclearItemBus.class, NuclearFluidHatch.class)
             .descriptions(() -> CORE_CELL_HATCH_NAMES)
-            .casingIndex(Casings.HastelloyNSealantBlock.textureId)
+            .casingIndex(Casings.HastelloyNSealantBlock.getTextureId())
             .hint(2)
             .hint(() -> StatCollector.translateToLocal("gtnl.structure.nuclear_reactor.core_cell"))
             .adder(NuclearReactor::registerCoreCellByCoords)

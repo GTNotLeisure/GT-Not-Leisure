@@ -2,7 +2,6 @@ package com.science.gtnl.common.machine.multiblock.wireless;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 import static com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase.CustomHatchElement.ParallelCon;
-import static kubatech.loaders.BlockLoader.defcCasingBlock;
 
 import java.util.List;
 
@@ -178,7 +177,7 @@ public class KerrNewmanHomogenizer extends WirelessEnergyMultiMachineBase<KerrNe
                         HatchElement.OutputHatch,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy),
                         ParallelCon)
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(Casings.PressureContainmentCasing.getTextureId())
                     .hint(3)
                     .buildAndChain(
                         StructureUtility
@@ -213,11 +212,11 @@ public class KerrNewmanHomogenizer extends WirelessEnergyMultiMachineBase<KerrNe
                         HatchElement.OutputHatch,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy),
                         ParallelCon)
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(GTNLCasings.DraconicFusionCasing.getTextureId())
                     .hint(1)
                     .buildAndChain(
                         StructureUtility
-                            .onElementPass(x -> ++x.mCountCasing, StructureUtility.ofBlock(defcCasingBlock, 7))))
+                            .onElementPass(x -> ++x.mCountCasing, GTNLCasings.DraconicFusionCasing.asElement())))
             .addElement('G', Casings.HastelloyXStructuralBlock.asElement())
             .addElement('H', GTNLCasings.NeutroniumGearbox.asElement())
             .addElement('I', Casings.BackgroundRadiationAbsorbentCasing.asElement())
@@ -246,10 +245,11 @@ public class KerrNewmanHomogenizer extends WirelessEnergyMultiMachineBase<KerrNe
                         HatchElement.OutputHatch,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy),
                         ParallelCon)
-                    .casingIndex(getCasingTextureID())
+                    .casingIndex(GTNLCasings.BulkProductionFrame.getTextureId())
                     .hint(1)
                     .buildAndChain(
-                        StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.BulkProductionFrame.asElement())))
+                        StructureUtility
+                            .onElementPass(x -> ++x.mCountCasing, GTNLCasings.BulkProductionFrame.asElement())))
             .addElement('Y', Casings.DimensionalBridge.asElement())
             .addElement(
                 'Z',

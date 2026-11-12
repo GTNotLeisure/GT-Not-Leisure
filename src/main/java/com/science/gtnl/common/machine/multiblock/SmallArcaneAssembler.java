@@ -26,6 +26,7 @@ import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.mojang.authlib.GameProfile;
+import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
@@ -74,7 +75,6 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
     private static final int HORIZONTAL_OFFSET = 2;
     private static final int VERTICAL_OFFSET = 3;
     private static final int DEPTH_OFFSET = 0;
-    private static final int CASING_TEXTURE_ID = 1536;
     private static final int VIS_NODE_SCAN_INTERVAL = 200;
     private static final long WAND_CHARGE_EUT = 32;
     private static final int WAND_CHARGE_INTERVAL = 128;
@@ -658,7 +658,7 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
 
     @Override
     public int getCasingTextureID() {
-        return CASING_TEXTURE_ID;
+        return GTNLCasings.MagicCasing.getTextureId();
     }
 
     @Override

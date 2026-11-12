@@ -23,7 +23,6 @@ import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -160,7 +159,7 @@ public class MagneticEnergyReactionFurnace extends WirelessEnergyMultiMachineBas
 
     @Override
     public int getCasingTextureID() {
-        return TAE.getIndexFromPage(3, 3);
+        return Casings.TemperedArcFurnaceCasing.getTextureId();
     }
 
     @Override

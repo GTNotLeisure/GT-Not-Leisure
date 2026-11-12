@@ -56,7 +56,6 @@ import gregtech.common.misc.GTStructureChannels;
 import gregtech.common.tileentities.machines.IDualInputInventoryWithPattern;
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.MTEHatchSolidifier;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class PhaseChangeCube extends WirelessEnergyMultiMachineBase<PhaseChangeCube> {
@@ -275,7 +274,7 @@ public class PhaseChangeCube extends WirelessEnergyMultiMachineBase<PhaseChangeC
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset;
+        return Casings.HighPowerCasing.getTextureId();
     }
 
     @Override

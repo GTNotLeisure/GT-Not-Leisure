@@ -35,7 +35,6 @@ import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.HeatingCoilLevel;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
@@ -130,7 +129,7 @@ public class BlazeBlastFurnace extends MultiMachineBase<BlazeBlastFurnace> imple
                         .casingIndex(getCasingTextureID())
                         .hint(1)
                         .build()))
-            .addElement('F', HatchElement.Muffler.newAny(TAE.getIndexFromPage(2, 11), 1))
+            .addElement('F', HatchElement.Muffler.newAny(Casings.VolcanusCasing.getTextureId(), 1))
             .build();
     }
 
@@ -277,31 +276,32 @@ public class BlazeBlastFurnace extends MultiMachineBase<BlazeBlastFurnace> imple
 
     @Override
     public int getCasingTextureID() {
-        return TAE.GTPP_INDEX(15);
+        return Casings.BlastSmelterCasing.getTextureId();
     }
 
     @Override
     public void updateHatchTexture() {
         super.updateHatchTexture();
-        for (MTEHatch h : mMufflerHatches) h.updateTexture(TAE.getIndexFromPage(2, 11));
+        for (MTEHatch h : mMufflerHatches) h.updateTexture(Casings.VolcanusCasing.getTextureId());
     }
 
     @Override
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection aFacing,
         int colorIndex, boolean aActive, boolean redstoneLevel) {
         if (side == aFacing) {
-            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.getIndexFromPage(2, 11)),
+            if (aActive) return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.VolcanusCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(TexturesGtBlock.oMCAAdvancedEBFActive)
                     .extFacing()
                     .build() };
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.getIndexFromPage(2, 11)),
+            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.VolcanusCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(TexturesGtBlock.oMCAAdvancedEBF)
                     .extFacing()
                     .build() };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(TAE.getIndexFromPage(2, 11)) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.VolcanusCasing.getTextureId()) };
     }
 
     @Override

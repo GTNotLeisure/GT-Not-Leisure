@@ -2,7 +2,6 @@ package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 import static com.science.gtnl.utils.enums.BlockIcons.OVERLAY_FRONT_MEGA_SOLAR_BOILER;
-import static gregtech.api.GregTechAPI.sBlockCasings1;
 
 import java.util.List;
 
@@ -97,7 +96,7 @@ public class MegaSolarBoiler extends SteamMultiMachineBase<MegaSolarBoiler> impl
                             HatchElement.InputBus,
                             HatchElement.InputHatch,
                             HatchElement.OutputHatch)
-                        .casingIndex(10)
+                        .casingIndex(Casings.BronzePlatedBricks.getTextureId())
                         .hint(1)
                         .buildAndChain(),
                     Casings.BronzePlatedBricks.asElement()))
@@ -138,7 +137,7 @@ public class MegaSolarBoiler extends SteamMultiMachineBase<MegaSolarBoiler> impl
         int aColorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
             return new ITexture[] {
-                Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings1, 10)),
+                Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(OVERLAY_FRONT_MEGA_SOLAR_BOILER)
                     .extFacing()
@@ -149,8 +148,7 @@ public class MegaSolarBoiler extends SteamMultiMachineBase<MegaSolarBoiler> impl
                     .glow()
                     .build() };
         }
-        return new ITexture[] {
-            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings1, 10)) };
+        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(Casings.BronzePlatedBricks.getTextureId()) };
     }
 
     @Override

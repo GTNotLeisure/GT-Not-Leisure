@@ -1,7 +1,6 @@
 package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-import static gregtech.api.GregTechAPI.sBlockCasings2;
 import static gregtech.api.recipe.RecipeMaps.compressorRecipes;
 
 import java.util.List;
@@ -41,7 +40,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStructureUtility;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.tileentities.render.RenderingTileEntityBlackhole;
 
@@ -213,7 +211,7 @@ public class MegaSteamCompressor extends SteamMultiMachineBase<MegaSteamCompress
         if (side == facing) {
             if (aActive) {
                 return new ITexture[] {
-                    Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings2, 0)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_MEGA_STEAM_COMPRESSOR_ACTIVE)
                         .extFacing()
@@ -225,7 +223,7 @@ public class MegaSteamCompressor extends SteamMultiMachineBase<MegaSteamCompress
                         .build() };
             } else {
                 return new ITexture[] {
-                    Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings2, 0)),
+                    Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()),
                     TextureFactory.builder()
                         .addIcon(BlockIcons.OVERLAY_FRONT_MEGA_STEAM_COMPRESSOR)
                         .extFacing()
@@ -238,7 +236,7 @@ public class MegaSteamCompressor extends SteamMultiMachineBase<MegaSteamCompress
             }
         }
         return new ITexture[] {
-            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(sBlockCasings2, 0)) };
+            Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()) };
 
     }
 

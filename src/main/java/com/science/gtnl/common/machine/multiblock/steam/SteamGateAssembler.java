@@ -20,7 +20,6 @@ import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -30,7 +29,6 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
-import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 
 @IMetaTileEntity.SkipGenerateDescription
@@ -175,8 +173,7 @@ public class SteamGateAssembler extends SteamMultiMachineBase<SteamGateAssembler
         int aColorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
             return new ITexture[] {
-                Textures.BlockIcons
-                    .getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)),
+                Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(OVERLAY_FRONT_STEAM_GATE_ASSEMBLER)
                     .extFacing()
@@ -188,7 +185,7 @@ public class SteamGateAssembler extends SteamMultiMachineBase<SteamGateAssembler
                     .build() };
         }
         return new ITexture[] {
-            Textures.BlockIcons.getCasingTextureForId(GTUtility.getCasingTextureIndex(GregTechAPI.sBlockCasings2, 0)) };
+            Textures.BlockIcons.getCasingTextureForId(Casings.SolidSteelMachineCasing.getTextureId()) };
     }
 
     @Override

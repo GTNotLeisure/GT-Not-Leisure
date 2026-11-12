@@ -52,7 +52,6 @@ import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
 import gregtech.api.enums.SoundResource;
-import gregtech.api.enums.TAE;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoidingMode;
 import gregtech.api.interfaces.ITexture;
@@ -739,7 +738,7 @@ public abstract class KuangBiaoOneGiantNuclearFusionReactor
 
         @Override
         public int getCasingTextureID() {
-            return TAE.GTPP_INDEX(44);
+            return Casings.FusionMachineCasingMKIII.getTextureId();
         }
 
         @Override
@@ -1057,7 +1056,7 @@ public abstract class KuangBiaoOneGiantNuclearFusionReactor
 
         @Override
         public int getCasingTextureID() {
-            return TAE.GTPP_INDEX(52);
+            return Casings.FusionMachineCasingMKIV.getTextureId();
         }
 
         @Override

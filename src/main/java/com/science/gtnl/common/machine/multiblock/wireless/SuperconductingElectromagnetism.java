@@ -41,7 +41,6 @@ import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gtnhlanth.common.register.LanthItemList;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class SuperconductingElectromagnetism extends WirelessEnergyMultiMachineBase<SuperconductingElectromagnetism> {
@@ -142,7 +141,7 @@ public class SuperconductingElectromagnetism extends WirelessEnergyMultiMachineB
 
     @Override
     public int getCasingTextureID() {
-        return BlockGTCasingsTT.textureOffset + 4;
+        return Casings.MolecularCasing.getTextureId();
     }
 
     @Override

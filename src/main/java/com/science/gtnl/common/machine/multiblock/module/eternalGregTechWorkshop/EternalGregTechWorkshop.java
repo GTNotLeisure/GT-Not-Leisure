@@ -168,7 +168,7 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
                     HatchElement.OutputBus,
                     HatchElement.InputHatch,
                     HatchElement.OutputHatch)
-                .casingIndex(961)
+                .casingIndex(Casings.CelestialMatterGuidanceCasing.getTextureId())
                 .hint(1)
                 .buildAndChain(
                     StructureUtility
@@ -187,7 +187,7 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
             'Y',
             HatchElementBuilder.<EternalGregTechWorkshop>builder()
                 .atLeast(EternalGregTechWorkshop.moduleElement.Module)
-                .casingIndex(960)
+                .casingIndex(Casings.SingularityReinforcedStellarShieldingCasing.getTextureId())
                 .hint(1)
                 .hint(1)
                 .buildAndChain(TTCasingsContainer.GodforgeCasings, 0))
@@ -300,18 +300,21 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
     public ITexture[] getTexture(IGregTechTileEntity aBaseMetaTileEntity, ForgeDirection side, ForgeDirection facing,
         int colorIndex, boolean aActive, boolean aRedstone) {
         if (side == facing) {
-            if (aActive) return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(getCasingTextureID() + 1),
+            if (aActive) return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.CelestialMatterGuidanceCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(BlockIcons.OVERLAY_FRONT_GOD_FORGE_CONTROLLER)
                     .extFacing()
                     .build() };
-            return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(getCasingTextureID() + 1),
+            return new ITexture[] {
+                Textures.BlockIcons.getCasingTextureForId(Casings.CelestialMatterGuidanceCasing.getTextureId()),
                 TextureFactory.builder()
                     .addIcon(BlockIcons.OVERLAY_FRONT_GOD_FORGE_CONTROLLER)
                     .extFacing()
                     .build() };
         }
-        return new ITexture[] { Textures.BlockIcons.getCasingTextureForId(getCasingTextureID() + 1) };
+        return new ITexture[] {
+            Textures.BlockIcons.getCasingTextureForId(Casings.CelestialMatterGuidanceCasing.getTextureId()) };
     }
 
     @Override
@@ -326,7 +329,7 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
 
     @Override
     public int getCasingTextureID() {
-        return 960;
+        return Casings.SingularityReinforcedStellarShieldingCasing.getTextureId();
     }
 
     @Override

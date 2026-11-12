@@ -50,7 +50,6 @@ import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gtnhintergalactic.recipe.IGRecipeMaps;
 import lombok.Getter;
 import lombok.Setter;
-import tectech.thing.casing.BlockGTCasingsTT;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class SpaceAssembler extends GTMMultiMachineBase<SpaceAssembler>
@@ -130,7 +129,7 @@ public class SpaceAssembler extends GTMMultiMachineBase<SpaceAssembler>
             .addElement(
                 'E',
                 GTStructureUtility.buildHatchAdder(SpaceAssembler.class)
-                    .casingIndex(BlockGTCasingsTT.textureOffset + 3)
+                    .casingIndex(Casings.AdvancedComputerCasing.getTextureId())
                     .hint(1)
                     .atLeast(
                         HatchElement.InputHatch,
