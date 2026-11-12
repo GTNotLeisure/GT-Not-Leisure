@@ -46,8 +46,8 @@ public class ElementCopyingGui extends GTNLMultiBlockBaseGui<ElementCopying> {
     private static final int ENTRY_COLUMNS = 10;
     private static final int ENTRY_BUTTON_SIZE = 16;
     private static final int ENTRY_STEP = 18;
-    private static final int ENTRY_START_X = 9;
-    private static final int ENTRY_START_Y = 10;
+    private static final int ENTRY_START_X = 7;
+    private static final int ENTRY_START_Y = 12;
 
     public ElementCopyingGui(ElementCopying multiblock) {
         super(multiblock);
@@ -113,9 +113,9 @@ public class ElementCopyingGui extends GTNLMultiBlockBaseGui<ElementCopying> {
         panel.setDisablePanelsBelow(false)
             .setCloseOnOutOfBoundsClick(false)
             .setDraggable(true);
-        panel.child(ButtonWidget.panelCloseButton());
         panel.child(createEntryGrid(syncManager));
         panel.child(createSummaryText(syncManager));
+        panel.child(ButtonWidget.panelCloseButton());
         return panel;
     }
 

@@ -1945,6 +1945,7 @@ gtnl.machine.crystal_builder.recipe_type=高压釜
 gtnl.machine.large_rock_crusher.name=大型碎岩机
 gtnl.recipe.industrial_rock_crusher=工业碎岩机
 gtnl.machine.large_rock_crusher.recipe_type=工业碎岩机
+GT5U.gui.text.recipe_result.gtnl.crusher.invalid_selection=所选产物没有对应配方
 
 gtnl.machine.phase_change_cube.name=相变魔方
 gtnl.machine.phase_change_cube.recipe_type=提取机 / 流体提取机 / 流体固化器

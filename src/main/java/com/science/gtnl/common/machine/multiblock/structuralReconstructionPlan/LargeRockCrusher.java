@@ -5,23 +5,29 @@ import static com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase.
 import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.util.List;
+import java.util.Objects;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.ICrusherGui;
 import com.science.gtnl.api.casing.GTNLCasings;
+import com.science.gtnl.common.gui.modularui.multiblock.CrusherGui;
 import com.science.gtnl.common.machine.multiMachineBase.GTMMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
+import com.science.gtnl.common.recipe.gtnl.IndustrialRockCrusherRecipes;
 import com.science.gtnl.utils.StructureUtils;
 
 import gregtech.api.casing.Casings;
@@ -38,11 +44,13 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gtPlusPlus.core.material.MaterialsAlloy;
 import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 
 @IMetaTileEntity.SkipGenerateDescription
-public class LargeRockCrusher extends GTMMultiMachineBase<LargeRockCrusher> implements ISurvivalConstructable {
+public class LargeRockCrusher extends GTMMultiMachineBase<LargeRockCrusher>
+    implements ISurvivalConstructable, ICrusherGui {
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     public static final String LRC_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/large_rock_crusher";
@@ -53,6 +61,8 @@ public class LargeRockCrusher extends GTMMultiMachineBase<LargeRockCrusher> impl
 
     public static FluidStack water = Materials.Water.getFluid(1);
     public static FluidStack lava = Materials.Lava.getFluid(1);
+
+    public ItemId itemEntry = null;
 
     public LargeRockCrusher(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -126,6 +136,13 @@ public class LargeRockCrusher extends GTMMultiMachineBase<LargeRockCrusher> impl
 
     @Override
     public @NotNull CheckRecipeResult checkProcessing() {
+        if (itemEntry != null && !IndustrialRockCrusherRecipes.hasVirtualInputsFor(itemEntry)) {
+            itemEntry = null;
+            setSingleRecipeCheck(null);
+            scheduleRecipeCheckImmediate();
+            return ICrusherGui.INVALID;
+        }
+
         boolean hasWater = false;
         boolean hasLava = false;
 
@@ -188,5 +205,51 @@ public class LargeRockCrusher extends GTMMultiMachineBase<LargeRockCrusher> impl
     @Override
     public IMetaTileEntity newMetaEntity(IGregTechTileEntity aTileEntity) {
         return new LargeRockCrusher(this.mName);
+    }
+
+    @Override
+    public void setProcessingInputItems(List<ItemStack> inputItems) {
+        List<ItemStack> virtualInputs = IndustrialRockCrusherRecipes.virtualInputsFor(itemEntry);
+        super.setProcessingInputItems(virtualInputs != null ? virtualInputs : inputItems);
+    }
+
+    @Override
+    public ItemId getItemEntry() {
+        return this.itemEntry;
+    }
+
+    @Override
+    public void setItemEntry(ItemId entry) {
+        if (entry != null && !IndustrialRockCrusherRecipes.ENTRIES.isEmpty()
+            && !IndustrialRockCrusherRecipes.ENTRIES.contains(entry)) {
+            entry = null;
+        }
+        if (Objects.equals(this.itemEntry, entry)) return;
+        this.itemEntry = entry;
+        setSingleRecipeCheck(null);
+        scheduleRecipeCheckImmediate();
+    }
+
+    @Override
+    protected @NotNull MTEMultiBlockBaseGui<?> getGui() {
+        return new CrusherGui<>(this);
+    }
+
+    @Override
+    public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+
+        if (itemEntry != null) {
+            aNBT.setTag("itemEntry", itemEntry.write(new NBTTagCompound()));
+        }
+    }
+
+    @Override
+    public void loadNBTData(NBTTagCompound aNBT) {
+        super.loadNBTData(aNBT);
+
+        if (aNBT.hasKey("itemEntry", 10)) {
+            itemEntry = ItemId.create(aNBT.getCompoundTag("itemEntry"));
+        }
     }
 }

@@ -4,22 +4,28 @@ import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 import static com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase.CustomHatchElement.ParallelCon;
 
 import java.util.List;
+import java.util.Objects;
 
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.jetbrains.annotations.NotNull;
 
+import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.ICrusherGui;
 import com.science.gtnl.api.casing.GTNLCasings;
+import com.science.gtnl.common.gui.modularui.multiblock.CrusherGui;
 import com.science.gtnl.common.machine.multiMachineBase.WirelessEnergyMultiMachineBase;
 import com.science.gtnl.common.machine.multiblock.structuralReconstructionPlan.LargeRockCrusher;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
+import com.science.gtnl.common.recipe.gtnl.IndustrialRockCrusherRecipes;
 import com.science.gtnl.utils.StructureUtils;
 
 import gregtech.api.GregTechAPI;
@@ -38,9 +44,10 @@ import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 
 @IMetaTileEntity.SkipGenerateDescription
-public class MantleCrusher extends WirelessEnergyMultiMachineBase<MantleCrusher> {
+public class MantleCrusher extends WirelessEnergyMultiMachineBase<MantleCrusher> implements ICrusherGui {
 
     private static final int HORIZONTAL_OFF_SET = 7;
     private static final int VERTICAL_OFF_SET = 10;
@@ -48,6 +55,8 @@ public class MantleCrusher extends WirelessEnergyMultiMachineBase<MantleCrusher>
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String MC_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/mantle_crusher";
     private static final String[][] shape = StructureUtils.readStructureFromFile(MC_STRUCTURE_FILE_PATH);
+
+    public ItemId itemEntry = null;
 
     public MantleCrusher(String aName) {
         super(aName);
@@ -135,6 +144,13 @@ public class MantleCrusher extends WirelessEnergyMultiMachineBase<MantleCrusher>
 
     @Override
     public @NotNull CheckRecipeResult checkProcessing() {
+        if (itemEntry != null && !IndustrialRockCrusherRecipes.hasVirtualInputsFor(itemEntry)) {
+            itemEntry = null;
+            setSingleRecipeCheck(null);
+            scheduleRecipeCheckImmediate();
+            return ICrusherGui.INVALID;
+        }
+
         boolean hasWater = false;
         boolean hasLava = false;
 
@@ -182,5 +198,51 @@ public class MantleCrusher extends WirelessEnergyMultiMachineBase<MantleCrusher>
         tt.addAutoTooltip(this)
             .toolTipFinisher();
         return tt;
+    }
+
+    @Override
+    public void setProcessingInputItems(List<ItemStack> inputItems) {
+        List<ItemStack> virtualInputs = IndustrialRockCrusherRecipes.virtualInputsFor(itemEntry);
+        super.setProcessingInputItems(virtualInputs != null ? virtualInputs : inputItems);
+    }
+
+    @Override
+    public ItemId getItemEntry() {
+        return this.itemEntry;
+    }
+
+    @Override
+    public void setItemEntry(ItemId entry) {
+        if (entry != null && !IndustrialRockCrusherRecipes.ENTRIES.isEmpty()
+            && !IndustrialRockCrusherRecipes.ENTRIES.contains(entry)) {
+            entry = null;
+        }
+        if (Objects.equals(this.itemEntry, entry)) return;
+        this.itemEntry = entry;
+        setSingleRecipeCheck(null);
+        scheduleRecipeCheckImmediate();
+    }
+
+    @Override
+    protected @NotNull MTEMultiBlockBaseGui<?> getGui() {
+        return new CrusherGui<>(this);
+    }
+
+    @Override
+    public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
+
+        if (itemEntry != null) {
+            aNBT.setTag("itemEntry", itemEntry.write(new NBTTagCompound()));
+        }
+    }
+
+    @Override
+    public void loadNBTData(NBTTagCompound aNBT) {
+        super.loadNBTData(aNBT);
+
+        if (aNBT.hasKey("itemEntry", 10)) {
+            itemEntry = ItemId.create(aNBT.getCompoundTag("itemEntry"));
+        }
     }
 }
