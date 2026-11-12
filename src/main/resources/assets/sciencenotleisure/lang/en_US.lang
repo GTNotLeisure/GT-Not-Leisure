@@ -1867,6 +1867,7 @@ gtnl.machine.crystal_builder.recipe_type=Autoclave
 gtnl.machine.large_rock_crusher.name=Large Rock Crusher
 gtnl.recipe.industrial_rock_crusher=Industrial Rock Crusher
 gtnl.machine.large_rock_crusher.recipe_type=Rock Crusher
+GT5U.gui.text.recipe_result.gtnl.crusher.invalid_selection=The selected output has no recipe
 
 gtnl.machine.phase_change_cube.name=Phase Change Cube
 gtnl.machine.phase_change_cube.recipe_type=Extractor / Fluid Extractor / Fluid Solidifier
