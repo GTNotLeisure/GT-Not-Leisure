@@ -184,6 +184,16 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
     public void loadNBTData(NBTTagCompound aNBT) {
         super.loadNBTData(aNBT);
 
+        Arrays.fill(mInventory, 0, SIDE_SLOT_COUNT, null);
+        NBTTagList inventory = aNBT.getTagList("Inventory", 10);
+        for (int i = 0; i < inventory.tagCount(); i++) {
+            NBTTagCompound tag = inventory.getCompoundTagAt(i);
+            int index = tag.getInteger("IntSlot");
+            if (index < 0 || index >= SIDE_SLOT_COUNT) continue;
+            ItemStack config = GTUtility.loadItem(tag);
+            mInventory[index] = GTUtility.isStackInvalid(config) ? null : GTUtility.copyAmount(1, config);
+        }
+
         Arrays.fill(mInventory, SIDE_SLOT_COUNT, SIDE_SLOT_COUNT * 2, null);
 
         if (aNBT.hasKey("storedStackSizes")) {
@@ -198,6 +208,7 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
             }
         }
         normalizeLegacyFilterStacks();
+        configureWatchers();
     }
 
     // TODO : remove later
