@@ -18,6 +18,7 @@ import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.utils.Color;
+import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
 import com.cleanroommc.modularui.value.sync.BooleanSyncValue;
 import com.cleanroommc.modularui.value.sync.IntSyncValue;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
@@ -40,7 +41,6 @@ import appeng.core.localization.WailaText;
 import gregtech.api.modularui2.GTGuiTextures;
 import gregtech.api.modularui2.GTGuis;
 import gregtech.api.modularui2.GTWidgetThemes;
-import gregtech.api.util.GTUtility;
 import gregtech.common.gui.modularui.hatch.base.MTEHatchBaseGui;
 import gregtech.common.gui.modularui.util.StockingSlot;
 import gregtech.common.modularui2.widget.builder.ItemSlotGridBuilder;
@@ -90,8 +90,10 @@ public class SuperInputBusMEGui extends MTEHatchBaseGui<SuperInputBusME> {
             .doesAddGregTechLogo(false)
             .build();
 
-        panel.child(createFilterGrid(panel, syncManager))
-            .child(createStockGrid(syncManager))
+        IItemHandlerModifiable configHandler = createConfigItemHandler();
+
+        panel.child(createFilterGrid(panel, syncManager, configHandler))
+            .child(createStockGrid(syncManager, configHandler))
             .child(
                 GTGuiTextures.PICTURE_ARROW_DOUBLE.asWidget()
                     .size(12)
@@ -119,7 +121,8 @@ public class SuperInputBusMEGui extends MTEHatchBaseGui<SuperInputBusME> {
         syncManager.syncValue(BOOTING_SYNC_KEY, new BooleanSyncValue(machine::isBooting));
     }
 
-    public Grid createFilterGrid(ModularPanel parent, PanelSyncManager syncManager) {
+    public Grid createFilterGrid(ModularPanel parent, PanelSyncManager syncManager,
+        IItemHandlerModifiable configHandler) {
         BooleanSyncValue autoPullSyncer = syncManager.findSyncHandler(AUTO_PULL_SYNC_KEY, BooleanSyncValue.class);
         syncManager.registerSlotGroup(FILTER_INV_NAME, getSlotRows());
 
@@ -128,31 +131,25 @@ public class SuperInputBusMEGui extends MTEHatchBaseGui<SuperInputBusME> {
                 .gridOfWidthHeight(
                     SLOT_COLUMNS,
                     getSlotRows(),
-                    (x, y, index) -> createFilterSlot(parent, syncManager, autoPullSyncer, index)));
+                    (x, y, index) -> createFilterSlot(parent, syncManager, autoPullSyncer, configHandler, index)));
     }
 
     public ItemSlot createFilterSlot(ModularPanel parent, PanelSyncManager syncManager, BooleanSyncValue autoPullSyncer,
-        int index) {
+        IItemHandlerModifiable configHandler, int index) {
         IPanelHandler slotSizePanel = syncManager.syncedPanel(
             SLOT_SIZE_PANEL_KEY_PREFIX + index,
             true,
             (manager, handler) -> createStoredStackSizePanel(parent, manager, index));
 
-        ModularSlot slot = new ModularSlot(machine.inventoryHandler, index).slotGroup(FILTER_INV_NAME)
-            .filter(stack -> !autoPullSyncer.getBoolValue() && !machine.containsFilterStackForGui(stack))
-            .changeListener((newStack, onlyAmountChanged, client, init) -> {
-                if (!client && !init) {
-                    ItemStack stack = newStack == null ? null : GTUtility.copyAmount(1, newStack);
-                    machine.updateInformationSlotForGui(index, stack);
-                }
-            });
+        ModularSlot slot = new ModularSlot(configHandler, index).slotGroup(FILTER_INV_NAME)
+            .filter(stack -> !autoPullSyncer.getBoolValue() && !machine.containsFilterStackForGui(stack));
 
         return new StoredStackSizeSlot(autoPullSyncer, slotSizePanel).slot(slot);
     }
 
-    public Grid createStockGrid(PanelSyncManager syncManager) {
+    public Grid createStockGrid(PanelSyncManager syncManager, IItemHandlerModifiable configHandler) {
         return createGridShell(STOCK_GRID_X).child(
-            new ItemSlotGridBuilder(machine.inventoryHandler, syncManager).size(SLOT_COLUMNS, getSlotRows())
+            new ItemSlotGridBuilder(configHandler, syncManager).size(SLOT_COLUMNS, getSlotRows())
                 .slotGroupKey(STOCK_INV_NAME)
                 .indexOffset(machine.getStockSlotOffsetForGui())
                 .accessibility(false, false)
@@ -366,6 +363,52 @@ public class SuperInputBusMEGui extends MTEHatchBaseGui<SuperInputBusME> {
     protected Widget<?> makeLogoWidget() {
         return new IDrawable.DrawableWidget(GTNLMui2Textures.PICTURE_GTNL_LOGO).size(SLOT_SIZE)
             .pos(LOGO_X, LOGO_Y);
+    }
+
+    protected IItemHandlerModifiable createConfigItemHandler() {
+        return new IItemHandlerModifiable() {
+
+            @Override
+            public int getSlots() {
+                return SuperInputBusME.SIDE_SLOT_COUNT * 2;
+            }
+
+            @Override
+            public ItemStack getStackInSlot(int slotIndex) {
+                boolean forConfig = slotIndex < SuperInputBusME.SIDE_SLOT_COUNT;
+                int index = slotIndex % SuperInputBusME.SIDE_SLOT_COUNT;
+                return forConfig ? machine.getSlotConfig(index) : machine.getStockDisplayStack(index);
+            }
+
+            @Override
+            public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+                return null;
+            }
+
+            @Override
+            public ItemStack extractItem(int slot, int amount, boolean simulate) {
+                return null;
+            }
+
+            @Override
+            public int getSlotLimit(int slot) {
+                return slot < SuperInputBusME.SIDE_SLOT_COUNT ? 1 : Integer.MAX_VALUE;
+            }
+
+            @Override
+            public void setStackInSlot(int slotIndex, ItemStack stack) {
+                if (slotIndex < 0) return;
+                if (slotIndex >= SuperInputBusME.SIDE_SLOT_COUNT) {
+                    machine.setStockDisplayStack(slotIndex - SuperInputBusME.SIDE_SLOT_COUNT, stack);
+                    return;
+                }
+                machine.setSlotConfig(slotIndex, stack);
+                if (machine.getBaseMetaTileEntity()
+                    .isServerSide()) {
+                    machine.updateInformationSlotForGui(slotIndex, machine.getSlotConfig(slotIndex));
+                }
+            }
+        };
     }
 
     public static class StoredStackSizeSlot extends StockingSlot {

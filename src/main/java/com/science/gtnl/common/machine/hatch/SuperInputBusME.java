@@ -21,9 +21,9 @@ import com.science.gtnl.common.gui.modularui.hatch.SuperInputBusMEGui;
 import com.science.gtnl.utils.enums.GTNLItemList;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.PowerMultiplier;
 import appeng.api.implementations.IPowerChannelState;
 import appeng.api.networking.GridFlags;
+import appeng.api.networking.energy.IEnergyGrid;
 import appeng.api.networking.security.BaseActionSource;
 import appeng.api.networking.storage.IStackWatcher;
 import appeng.api.storage.IMEMonitor;
@@ -34,6 +34,7 @@ import appeng.api.storage.data.IItemList;
 import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
+import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.IConfigurationCircuitSupport;
@@ -64,6 +65,9 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
     public static int SIDE_SLOT_COUNT = 100;
     public static int ALL_SLOT_COUNT = SIDE_SLOT_COUNT * 2 + 1 + 9 * 9;
 
+    private final ItemStack[] stockDisplayCache = new ItemStack[SIDE_SLOT_COUNT];
+    public final int[] displayStackSizes = new int[SIDE_SLOT_COUNT];
+
     public ItemStack[] shadowInventory = new ItemStack[SIDE_SLOT_COUNT];
     public int[] storedStackSizes = new int[SIDE_SLOT_COUNT];
     {
@@ -71,6 +75,8 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
     }
     public int[] savedStackSizes = new int[SIDE_SLOT_COUNT];
     private IStackWatcher watcher;
+
+    protected boolean justHadNewItems = false;
 
     public SuperInputBusME(int aID, boolean autoPullAvailable, String aName, String aNameRegional) {
         super(aID, autoPullAvailable, aName, aNameRegional);
@@ -142,11 +148,6 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
         super.saveNBTData(aNBT);
-        int[] sizes = new int[SIDE_SLOT_COUNT];
-        for (int i = 0; i < SIDE_SLOT_COUNT; ++i) {
-            sizes[i] = mInventory[i + SIDE_SLOT_COUNT] == null ? 0 : mInventory[i + SIDE_SLOT_COUNT].stackSize;
-        }
-        aNBT.setIntArray("sizes", sizes);
 
         NBTTagList stackSizeList = new NBTTagList();
         for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
@@ -182,18 +183,8 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
         super.loadNBTData(aNBT);
-        if (aNBT.hasKey("sizes")) {
-            int[] sizes = aNBT.getIntArray("sizes");
-            if (sizes.length == SIDE_SLOT_COUNT) {
-                for (int i = 0; i < SIDE_SLOT_COUNT; ++i) {
-                    if (sizes[i] != 0 && mInventory[i] != null) {
-                        ItemStack s = mInventory[i].copy();
-                        s.stackSize = sizes[i];
-                        mInventory[i + SIDE_SLOT_COUNT] = s;
-                    }
-                }
-            }
-        }
+
+        Arrays.fill(mInventory, SIDE_SLOT_COUNT, SIDE_SLOT_COUNT * 2, null);
 
         if (aNBT.hasKey("storedStackSizes")) {
             NBTTagList list = aNBT.getTagList("storedStackSizes", 10);
@@ -205,6 +196,15 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
                     storedStackSizes[slot] = size;
                 }
             }
+        }
+        normalizeLegacyFilterStacks();
+    }
+
+    // TODO : remove later
+    protected void normalizeLegacyFilterStacks() {
+        for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
+            ItemStack filter = mInventory[i];
+            if (filter != null && filter.stackSize != 1) mInventory[i] = GTUtility.copyAmount(1, filter);
         }
     }
 
@@ -253,25 +253,26 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
             NBTTagCompound tag = list.getCompoundTagAt(i);
             int slot = tag.getInteger("slot");
             int size = tag.getInteger("size");
-
-            if (slot < SIDE_SLOT_COUNT) {
+            if (slot >= 0 && slot < SIDE_SLOT_COUNT && size > 0) {
                 storedStackSizes[slot] = size;
             }
         }
 
         additionalConnection = nbt.getBoolean("additionalConnection");
         if (!autoPullItemList) {
+            clearSlotConfigs();
             NBTTagList stockingItems = nbt.getTagList("itemsToStock", 10);
-            for (int i = 0; i < stockingItems.tagCount(); i++) {
-                this.mInventory[i] = GTUtility.loadItem(stockingItems.getCompoundTagAt(i));
+            for (int i = 0; i < stockingItems.tagCount() && i < SIDE_SLOT_COUNT; i++) {
+                setSlotConfig(i, GTUtility.loadItem(stockingItems.getCompoundTagAt(i)));
             }
+            configureWatchers();
         }
         setInventorySlotContents(getCircuitSlot(), circuit);
         updateValidGridProxySides();
         byte color = nbt.getByte("color");
         this.getBaseMetaTileEntity()
             .setColorization(color);
-
+        updateAllInformationSlots();
         return true;
     }
 
@@ -293,7 +294,9 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
         NBTTagList stockingItems = new NBTTagList();
         if (!autoPullItemList) {
             for (int index = 0; index < SIDE_SLOT_COUNT; index++) {
-                stockingItems.appendTag(GTUtility.saveItem(mInventory[index]));
+                ItemStack config = getSlotConfig(index);
+                if (config == null) continue;
+                stockingItems.appendTag(GTUtility.saveItem(config));
             }
             nbt.setTag("itemsToStock", stockingItems);
         }
@@ -335,52 +338,12 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
         if (aIndex == getCircuitSlot() || (aIndex >= getManualSlot() && aIndex < ALL_SLOT_COUNT)) {
             return mInventory[aIndex];
         }
-
+        if (aIndex >= SIDE_SLOT_COUNT && aIndex < SIDE_SLOT_COUNT * 2) return null; // 显示槽
         if (!processingRecipe) return null;
+        if (!isAllowedToWork()) return null;
 
-        // Display slots
-        if (aIndex >= SIDE_SLOT_COUNT && aIndex < SIDE_SLOT_COUNT * 2) return null;
-
-        if (mInventory[aIndex] != null) {
-
-            AENetworkProxy proxy = getProxy();
-            if (proxy == null || !proxy.isActive()) {
-                return null;
-            }
-
-            if (!isAllowedToWork()) {
-                this.shadowInventory[aIndex] = null;
-                this.savedStackSizes[aIndex] = 0;
-                super.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-                return null;
-            }
-
-            try {
-                IMEMonitor<IAEItemStack> sg = proxy.getStorage()
-                    .getItemInventory();
-
-                IAEItemStack request = AEItemStack.create(mInventory[aIndex]);
-                request.setStackSize(storedStackSizes[aIndex]);
-
-                IAEItemStack result = sg.extractItems(request, Actionable.SIMULATE, getRequestSource());
-
-                if (result != null) {
-                    this.shadowInventory[aIndex] = result.getItemStack();
-                    this.savedStackSizes[aIndex] = this.shadowInventory[aIndex].stackSize;
-                    this.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, this.shadowInventory[aIndex]);
-                    return this.shadowInventory[aIndex];
-                } else {
-                    // Request failed
-                    this.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-                    return null;
-                }
-            } catch (final GridAccessException ignored) {}
-            return null;
-        } else {
-            // AE available but no items requested
-            this.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-        }
-        return mInventory[aIndex];
+        // Must pass the reference out to the multi
+        return shadowInventory[aIndex];
     }
 
     @Override
@@ -392,82 +355,102 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
 
     @Override
     public void refreshItemList() {
-        if (!isActive()) {
+        if (!isAllowedToWork()) return;
+
+        IMEMonitor<IAEItemStack> sg;
+        Iterator<IAEItemStack> iterator;
+        try {
+            sg = getProxy().getStorage()
+                .getItemInventory();
+            iterator = sg.getStorageList()
+                .iterator();
+        } catch (final GridAccessException ignored) {
             return;
         }
-        boolean inputChanged = false;
-        AENetworkProxy proxy = getProxy();
-        try {
-            IMEMonitor<IAEItemStack> sg = proxy.getStorage()
-                .getItemInventory();
-            Iterator<IAEItemStack> iterator = sg.getStorageList()
-                .iterator();
-            int index = 0;
-            while (iterator.hasNext() && index < SIDE_SLOT_COUNT) {
-                IAEItemStack currItem = iterator.next();
-                if (currItem.getStackSize() >= minAutoPullStackSize) {
-                    ItemStack itemstack = GTUtility.copyAmount(
-                        storedStackSizes[index] == Integer.MAX_VALUE ? 1 : storedStackSizes[index],
-                        currItem.getItemStack());
-                    inputChanged |= !areItemStacksEqual(mInventory[index], itemstack);
-                    this.mInventory[index] = itemstack;
-                    index++;
+
+        int index = 0;
+        boolean configChanged = false;
+        while (iterator.hasNext() && index < SIDE_SLOT_COUNT) {
+            IAEItemStack curr = iterator.next();
+            if (curr.getStackSize() < minAutoPullStackSize) continue;
+
+            ItemStack oldStack = shadowInventory[index] == null ? null : shadowInventory[index].copy();
+
+            mInventory[index] = GTUtility.copyAmount(1, curr.getItemStack());
+
+            ItemStack newStack = shadowInventory[index] = curr.getItemStack();
+            savedStackSizes[index] = newStack.stackSize;
+            displayStackSizes[index] = newStack.stackSize;
+
+            boolean sametype = GTUtility.areStacksEqual(oldStack, newStack);
+            if (newStack != null) {
+                if (sametype) {
+                    if (newStack.stackSize > oldStack.stackSize) justHadNewItems = true;
+                } else {
+                    justHadNewItems = true;
                 }
             }
-            for (int i = index; i < SIDE_SLOT_COUNT; i++) {
-                inputChanged |= mInventory[i] != null;
-                mInventory[i] = null;
-            }
-
-        } catch (final GridAccessException ignored) {}
-        if (inputChanged) {
-            scheduleRecipeCheck(RecipeCheckReason.THROTTLED);
+            if (!((oldStack == null && newStack == null) || sametype)) configChanged = true;
+            index++;
         }
+
+        for (int i = index; i < SIDE_SLOT_COUNT; i++) {
+            configChanged |= mInventory[i] != null;
+            mInventory[i] = null;
+            shadowInventory[i] = null;
+            savedStackSizes[i] = 0;
+            displayStackSizes[i] = 0;
+        }
+
+        if (configChanged) configureWatchers();
     }
 
     @Override
     public void updateAllInformationSlots() {
-        for (int index = 0; index < SIDE_SLOT_COUNT; index++) {
-            updateInformationSlot(index);
+        if (isAllowedToWork()) {
+            for (int index = 0; index < SIDE_SLOT_COUNT; index++) {
+                updateInformationSlot(index);
+            }
+        } else {
+            clearExtractedStacks();
         }
     }
 
     @Override
     public CheckRecipeResult endRecipeProcessing(MTEMultiBlockBase controller) {
         CheckRecipeResult checkRecipeResult = CheckRecipeResultRegistry.SUCCESSFUL;
-        for (int i = 0; i < SIDE_SLOT_COUNT; ++i) {
-            if (savedStackSizes[i] != 0) {
-                ItemStack oldStack = shadowInventory[i];
-                if (oldStack == null || oldStack.stackSize < savedStackSizes[i]) {
-                    AENetworkProxy proxy = getProxy();
-                    try {
-                        IMEMonitor<IAEItemStack> sg = proxy.getStorage()
-                            .getItemInventory();
-                        IAEItemStack request = AEItemStack.create(mInventory[i]);
-                        int toExtract = savedStackSizes[i] - (oldStack == null ? 0 : oldStack.stackSize);
-                        request.setStackSize(toExtract);
-                        IAEItemStack result = sg.extractItems(request, Actionable.MODULATE, getRequestSource());
-                        proxy.getEnergy()
-                            .extractAEPower(request.getStackSize(), Actionable.MODULATE, PowerMultiplier.CONFIG);
-                        setInventorySlotContents(i + SIDE_SLOT_COUNT, oldStack);
-                        if (result == null || result.getStackSize() != toExtract) {
-                            controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                            checkRecipeResult = SimpleCheckRecipeResult
-                                .ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
-                        }
-                    } catch (final GridAccessException ignored) {
-                        controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                        checkRecipeResult = SimpleCheckRecipeResult
-                            .ofFailurePersistOnShutdown("stocking_hatch_fail_extraction");
-                    }
-                }
-                savedStackSizes[i] = 0;
-                shadowInventory[i] = null;
-                if (mInventory[i + SIDE_SLOT_COUNT] != null && mInventory[i + SIDE_SLOT_COUNT].stackSize <= 0) {
-                    mInventory[i + SIDE_SLOT_COUNT] = null;
-                }
+
+        IMEMonitor<IAEItemStack> sg;
+        IEnergyGrid energy;
+        try {
+            // on some setup endRecipeProcessing() somehow runs before onFirstTick();
+            if (!getProxy().isReady()) getProxy().onReady();
+            sg = getProxy().getStorage()
+                .getItemInventory();
+            energy = getProxy().getEnergy();
+        } catch (GridAccessException e) {
+            processingRecipe = false;
+            controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
+            return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+        }
+
+        for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
+            if (mInventory[i] == null || shadowInventory[i] == null || savedStackSizes[i] == 0) continue;
+
+            int toExtract = savedStackSizes[i] - shadowInventory[i].stackSize;
+            if (toExtract <= 0) continue;
+
+            savedStackSizes[i] = shadowInventory[i].stackSize;
+
+            IAEItemStack request = AEItemStack.create(shadowInventory[i]);
+            request.setStackSize(toExtract);
+            IAEItemStack result = Platform.poweredExtraction(energy, sg, request, getRequestSource());
+            if (result == null || result.getStackSize() != toExtract) {
+                controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
+                checkRecipeResult = SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
             }
         }
+
         processingRecipe = false;
         return checkRecipeResult;
     }
@@ -477,54 +460,37 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
      */
     @Override
     public void updateInformationSlot(int index) {
-        updateInformationSlot(index, mInventory[index]);
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return;
+
+        if (mInventory[index] == null || !isAllowedToWork()) {
+            shadowInventory[index] = null;
+            savedStackSizes[index] = 0;
+            return;
+        }
+
+        AENetworkProxy proxy = getProxy();
+        if (proxy == null || !proxy.isActive()) {
+            shadowInventory[index] = null;
+            savedStackSizes[index] = 0;
+            return;
+        }
+
+        try {
+            IMEMonitor<IAEItemStack> sg = proxy.getStorage()
+                .getItemInventory();
+            IAEItemStack request = AEItemStack.create(mInventory[index]);
+            request.setStackSize(storedStackSizes[index]);
+            IAEItemStack result = sg.extractItems(request, Actionable.SIMULATE, getRequestSource());
+            ItemStack extracted = result != null ? result.getItemStack() : null;
+            shadowInventory[index] = extracted;
+            savedStackSizes[index] = extracted == null ? 0 : extracted.stackSize;
+            displayStackSizes[index] = savedStackSizes[index];
+        } catch (GridAccessException ignored) {}
     }
 
     public ItemStack updateInformationSlot(int aIndex, ItemStack aStack) {
-        if (aIndex >= 0 && aIndex < SIDE_SLOT_COUNT) {
-            if (aStack == null) {
-                super.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-            } else {
-                AENetworkProxy proxy = getProxy();
-                if (!proxy.isActive()) {
-                    super.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-                    return null;
-                }
-
-                if (!isAllowedToWork()) {
-                    this.shadowInventory[aIndex] = null;
-                    this.savedStackSizes[aIndex] = 0;
-                    super.setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, null);
-                    return null;
-                }
-
-                try {
-                    IMEMonitor<IAEItemStack> sg = proxy.getStorage()
-                        .getItemInventory();
-                    IAEItemStack request = AEItemStack.create(mInventory[aIndex]);
-                    request.setStackSize(storedStackSizes[aIndex]);
-                    IAEItemStack result = sg.extractItems(request, Actionable.SIMULATE, getRequestSource());
-                    ItemStack s = (result != null) ? result.getItemStack() : null;
-                    setInventorySlotContents(aIndex + SIDE_SLOT_COUNT, s);
-                    return s;
-                } catch (final GridAccessException ignored) {}
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Used to avoid slot update.
-     */
-    public ItemStack getShadowItemStack(int index) {
-        if (index < 0 || index >= shadowInventory.length) {
-            return null;
-        }
-        return shadowInventory[index];
-    }
-
-    public int getShadowInventorySize() {
-        return shadowInventory.length;
+        updateInformationSlot(aIndex);
+        return shadowInventory[aIndex];
     }
 
     @Override
@@ -652,26 +618,91 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
         scheduleRecipeCheck(RecipeCheckReason.THROTTLED);
     }
 
-    private boolean areItemStacksEqual(ItemStack first, ItemStack second) {
-        return first == second || first != null && second != null
-            && first.stackSize == second.stackSize
-            && GTUtility.areStacksEqual(first, second, true);
-    }
-
     private void scheduleRecipeCheck(RecipeCheckReason reason) {
         for (IHatchWatcher hatchWatcher : watchers) {
             hatchWatcher.scheduleRecipeCheck(reason);
         }
     }
 
-    protected ItemStack createDisplayStack(IAEItemStack stack, int slot) {
-        ItemStack displayStack = stack == null ? null : stack.getItemStack();
-        if (displayStack == null) {
-            return null;
+    @Override
+    public void setSlotConfig(int index, ItemStack config) {
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return;
+        ItemStack normalized = (config == null || config.getItem() == null) ? null : GTUtility.copyAmount(1, config);
+        mInventory[index] = normalized;
+        if (normalized == null) {
+            shadowInventory[index] = null;
+            savedStackSizes[index] = 0;
+            displayStackSizes[index] = 0;
         }
-        long requestedSize = storedStackSizes[slot];
-        long availableSize = stack.getStackSize();
-        displayStack.stackSize = (int) Math.min(Integer.MAX_VALUE, Math.min(availableSize, requestedSize));
-        return displayStack.stackSize > 0 ? displayStack : null;
+        configureWatchers();
+    }
+
+    @Override
+    public boolean setSlotConfigAndUpdate(int index, ItemStack config) {
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return false;
+        setSlotConfig(index, config);
+        updateInformationSlot(index);
+        return true;
+    }
+
+    @Override
+    public ItemStack getSlotConfig(int index) {
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return null;
+        ItemStack config = mInventory[index];
+        return GTUtility.isStackInvalid(config) ? null : GTUtility.copyAmount(1, config);
+    }
+
+    @Override
+    protected void clearSlotConfigs() {
+        Arrays.fill(mInventory, 0, SIDE_SLOT_COUNT, null);
+        Arrays.fill(shadowInventory, null);
+        Arrays.fill(savedStackSizes, 0);
+        Arrays.fill(displayStackSizes, 0);
+        configureWatchers();
+    }
+
+    @Override
+    protected void clearExtractedStacks() {
+        Arrays.fill(shadowInventory, null);
+        Arrays.fill(savedStackSizes, 0);
+        Arrays.fill(displayStackSizes, 0);
+    }
+
+    @Override
+    public ItemStack getFirstValidStack(boolean slotsMustMatch) {
+        if (slotsMustMatch) {
+            ItemStack firstValid = null;
+            for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
+                if (shadowInventory[i] == null) continue;
+                if (firstValid == null) firstValid = shadowInventory[i];
+                else if (!GTUtility.areStacksEqual(firstValid, shadowInventory[i])) return null;
+            }
+            return firstValid;
+        }
+        for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
+            if (shadowInventory[i] != null) return shadowInventory[i];
+        }
+        return null;
+    }
+
+    public ItemStack getStockDisplayStack(int index) {
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return null;
+
+        if (!getBaseMetaTileEntity().isServerSide()) {
+            return stockDisplayCache[index];
+        }
+
+        ItemStack extracted = shadowInventory[index];
+        if (extracted == null) return null;
+        int amount = displayStackSizes[index];
+        if (amount <= 0) return null;
+        ItemStack display = extracted.copy();
+        display.stackSize = Math.min(amount, Integer.MAX_VALUE);
+        return display;
+    }
+
+    public void setStockDisplayStack(int index, ItemStack stack) {
+        if (index < 0 || index >= SIDE_SLOT_COUNT) return;
+        stockDisplayCache[index] = (stack == null || stack.getItem() == null || stack.stackSize <= 0) ? null : stack;
     }
 }
