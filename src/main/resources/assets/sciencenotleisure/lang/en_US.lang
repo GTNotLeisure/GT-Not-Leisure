@@ -234,6 +234,10 @@ gtnl.gui.config.client.portal_gun_close_ticks.tooltip=Ticks the closing animatio
 gtnl.gui.config.effect.enableghostlyshape=Enable Ghostly Shape
 gtnl.gui.config.effect.enableghostlyshape.tooltip=When the player dies and respawns, give the player the Ghost Shape effect.
 
+gtnl.gui.config.item.broom=Broom
+gtnl.gui.config.item.broom.enableviewcontrol=Enable Broom View Control
+gtnl.gui.config.item.broom.enableviewcontrol.tooltip=Allow looking up or down while moving forward to control broom altitude. Ascend and descend keys still work when disabled.
+
 gtnl.gui.config.item.energymodule=Energy Module
 gtnl.gui.config.item.energymodule.capacityt1=T1 Capacity
 gtnl.gui.config.item.energymodule.capacityt1.tooltip=EU capacity of a railgun or armor piece with a T1 energy module installed.
@@ -588,37 +592,82 @@ tc.research_name.gtnl.welcome=Your New Beginning
 tc.research_text.gtnl.welcome=No friendly
 tc.research_text.gtnl.welcome.1=Welcome to a world of curious thoughts and wonders!
 
+tc.research_name.gtnl.majo_broom=Magic Broom
+tc.research_text.gtnl.majo_broom=A little wind within the broom
+tc.research_text.gtnl.majo_broom.0=Greatwood's affinity for magic brings to mind stories of witches crossing mountain ranges on broomsticks. If flight and motion could be bound into its wooden structure, might an ordinary broom carry a traveler?<BR><BR>Your first attempts are less than graceful. One broom insists on tumbling; another deposits you in a treetop. After several adjustments, it finally follows your intent into the air, though the magic sustaining its lift eventually disperses. Contact with the ground settles the disturbed aspects and readies it for another flight.<BR><BR>In the margins of your notes, you sketch a few further possibilities: swifter winds, a longer hover, perhaps even the sea breeze that follows the water. There is still much to learn from this broom.
+
+tc.research_name.gtnl.majo_hat=Witch's Hat
+tc.research_text.gtnl.majo_hat=See the road beneath the brim
+tc.research_text.gtnl.majo_hat.0=On the road at night, distant rooftops are often hard to distinguish from the trees. The aspect of senses can extend a thaumaturge's perception, and enchanted fabric offers a suitable home for such magic. You decide to weave it into a broad-brimmed hat.<BR><BR>As the patterns beneath the brim join together, outlines emerge from the darkness and dizzying disturbances fade. Magic circulating through the fabric also steadies your concentration while casting, allowing less Vis to escape.<BR><BR>The weave continually holds its original shape, leaving little trace of wear from the weather. You settle the hat on your head and turn toward a town whose lamps have yet to be lit.
+
+tc.research_name.gtnl.majo_robe=Witch's Robe
+tc.research_text.gtnl.majo_robe=A little shelter for a long journey
+tc.research_text.gtnl.majo_robe.0=Void Metal always finds its way back to its original position. This almost instinctive restoration reminds you of the aspects circulating through enchanted fabric. Perhaps the two could sustain the shape of a robe together.<BR><BR>You conceal protective patterns within the weave, then guide the aspect of life slowly along them. Worn close to the body, this magic responds to the wearer's vitality, steadies their footing and shields the mind from the troubling echoes of warp.<BR><BR>When the wearer is badly wounded, the gathered magic draws inward to shelter the injury and encourage recovery. This response takes time to gather strength again, but it can give a traveler in danger a precious moment to breathe.
+
+tc.research_name.gtnl.elaina_broom=Elaina's Broom
+tc.research_text.gtnl.elaina_broom=Miss Broom, where shall we go next?
+tc.research_text.gtnl.elaina_broom.0=You have grown accustomed to finding somewhere to land before the broom's lift fades. Some sights, however, deserve a little more time in the air. Your study of Void Metal suggests that its restorative nature could sustain the broom's inner magical circuit, keeping the aspect of flight in circulation.<BR><BR>As the new circuit settles, the broom carries you past places where you once had to land. Its familiar touch and the enchantments you placed upon it remain, while the wind brushing your sleeves feels swifter than before.<BR><BR>The circulating magic also gathers into a gentle shelter around the broom. A traveler's wounds ease in the breeze, and nearby thaumaturgical mechanisms seem to catch its rhythm and work a little faster. You pat its handle and decide that, henceforth, it shall be Miss Broom.
+
+tc.research_name.gtnl.elaina_brooch=Elaina's Brooch
+tc.research_text.gtnl.elaina_brooch=Pin the next journey close to your heart
+tc.research_text.gtnl.elaina_brooch.0=As you sort through your travel notes, you notice a similar rhythm in the protective patterns of your hat and robe. The currents of senses, life and protection answer one another across the two garments. Perhaps it could gather in a smaller vessel, resting close to the heart and moving with the traveler's breath.<BR><BR>After patiently tracing and arranging the patterns, you bring them together in a brooch. Its warmth travels through the body, strengthening vitality and clearing the haze that troubles the senses. The familiar aspect of flight lifts your steps, bringing the distant rooftops within reach once more.<BR><BR>You leave a small mark on the back of the brooch. It recalls the morning you first set out, and all the people you had yet to meet. You fasten it to your chest, ready for the next journey.
+
+tc.research_name.gtnl.majo_wand.departure=Witch's Wand: Departure
+tc.research_text.gtnl.majo_wand.departure=A wand for the journey ahead
+tc.research_text.gtnl.majo_wand.departure.0=Before setting out, you want a wand that feels comfortable in your hand. Greatwood can hold Vis, but there is still much to discover about the way magic moves through its core.<BR><BR>Following the grain, you adjust the paths that guide the six primal aspects, giving each its own place. Infusion joins the scattered patterns into a whole. The core begins to answer your intent quietly, and casting gradually loses its awkward hesitation.<BR><BR>There is room for further refinement. You pack the wand, write "Departure" on the first page of your notes and open the door.
+
+tc.research_name.gtnl.majo_wand.resonance=Witch's Wand: Resonance
+tc.research_text.gtnl.majo_wand.resonance=Bring the six primal aspects into harmony
+tc.research_text.gtnl.majo_wand.resonance.0=With continued use, you begin to notice the subtle pull between the six primal aspects. Each follows its own path, yet their meeting can disturb the flow and allow magic to escape.<BR><BR>Silverwood's affinity for the aura offers a new direction. By letting it guide the currents within the core, you bring the meeting aspects into harmony. When the infusion ends, the magic already held inside remains, now flowing more freely.<BR><BR>A faint tremor passes through the core, almost like an answer. In your notes, you give it a name: Resonance.
+
+tc.research_name.gtnl.majo_wand.starlight=Witch's Wand: Starlight
+tc.research_text.gtnl.majo_wand.starlight=Gather starlight and weave magic
+tc.research_text.gtnl.majo_wand.starlight.0=Resonance has brought order to the core, but its pathways still grow crowded as more Vis gathers. You need a structure that can hold the six primal aspects in balance.<BR><BR>Balanced crystals point the way. Incorporating their arrangement into the core brings small magical junctions to light along the wand. They draw upon one another like stars set in an orderly night sky.<BR><BR>These points allow more magic to rest safely within the core and guide it more smoothly when you cast. You put away your notes beneath the lamp and glance outside, finding that the stars themselves have appeared.
+
+tc.research_name.gtnl.majo_wand.void=Witch's Wand: Void
+tc.research_text.gtnl.majo_wand.void=Extend your journey into the void
+tc.research_text.gtnl.majo_wand.void.0=The warmth Void Metal leaves in your palm recalls dreams that are difficult to remember. It restores itself and bears a strange connection to the darkness between the stars. Could it also carry the growing magic within your wand?<BR><BR>You extend the balanced patterns into the metal and guide the power of the void around them. After several unsettling fluctuations, the core settles, as though its pathways reach much farther somewhere beyond sight.<BR><BR>The wand holds more Vis and still feels familiar in your hand. For now, you close the page about those dreams and wonder where the next part of the journey will lead.
+
+tc.research_name.gtnl.majo_wand.ashen_legacy=Witch's Wand: Ashen Legacy
+tc.research_text.gtnl.majo_wand.ashen_legacy=Turn your travels into an ashen legacy
+tc.research_text.gtnl.majo_wand.ashen_legacy.0=Reading through the notes gathered on your travels, you find that many scattered adjustments point toward the same question: how can a core keep powerful magic in lasting harmony? Silverwood's guidance, the balance of crystals and Void Metal's restoration can finally be understood together.<BR><BR>You retrace the wand's inner patterns and unite these discoveries in a single structure. When the infusion ends, the magic already inside follows the new paths slowly, and a faint gray sheen rests on the wand. The experiments repeated along the road have at last taken a complete form.<BR><BR>You title the page "Ashen Legacy." Perhaps another witch will one day open these notes and find a road of her own within them.
+
+tc.research_name.gtnl.majo_wand.journeys_end=Witch's Wand: Journey's End
+tc.research_text.gtnl.majo_wand.journeys_end=The story ends, but the magic remains
+tc.research_text.gtnl.majo_wand.journeys_end.0=The wand has traveled far with you. With ample room for magic inside it, your attention turns from the core to the aura that always flows around it. How might the two be joined more gently, and for longer?<BR><BR>Following the balanced patterns left by your earlier work, you open a small channel for each primal aspect. The final infusion connects them to the core, allowing it to gather magic slowly. Even resting quietly in your pack, the Vis within begins to return little by little.<BR><BR>You title the final page "Journey's End" and close your notes. A breeze stirs the map by the window; the wand still glows faintly on the desk. Once you have rested, there may be another place worth setting out for.
+
+
 tc.research_name.gtnl.timeStopPocketWatch=Time Stop Pocket Watch
 tc.research_text.gtnl.timeStopPocketWatch=Mastering the Secret of Time
 tc.research_text.gtnl.timeStopPocketWatch.0=In the ancient manuscripts of the Chronomantic school, records of the “Time Stop Pocket Watch” are scarce. It is said to have been first crafted by an alchemist weary of war and noise, longing to capture eternity within the flow of time. The construction of the watch itself is not complex—the true challenge lies in imbuing it with the essence of stillness. Rumors tell that the infusion must take place on the darkest night of the lunar cycle, surrounded by silent temporal crystals and hushed metals. Every thought of the practitioner must be held in perfect focus, lest the ritual turn awry and time itself lash back. If the ritual succeeds, one may briefly freeze the world’s flow at this very moment—but beware: time is never truly mastered. It merely waits for the moment to retaliate.
 
 tc.research_name.gtnl.essentiaSmeltery=Electric Alchemical Furnace
 tc.research_text.gtnl.essentiaSmeltery=An electric flame, a steady harvest
-tc.research_text.gtnl.essentiaSmeltery.0=Having mastered essentia distillation, you begin looking for a way to keep an alchemical furnace running. Converting electricity into steady heat seems worth a try.<BR><BR>Using a machine hull as the central item, you infuse it with alchemical furnaces, pumps, and a circuit to create an §lelectric alchemical furnace§r. The three versions use LV, MV, and HV components respectively. Extracted essentia can pass directly through the configured output face into an adjacent container or tube.<BR><BR>Base power before standard overclocking: 30 EU/t<BR>Processing time per essentia: 32 ticks<BR>LV buffer capacity: 64<BR>MV buffer capacity: 128<BR>HV buffer capacity: 256<BR><BR>Items without aspects are not consumed. An empty buffer can process one item whose total essentia exceeds its capacity.
+tc.research_text.gtnl.essentiaSmeltery.0=Essentia distillation calls for a steady fire, yet tending its fuel keeps drawing you away from your research. Since electricity can provide heat continuously, perhaps it could sustain the alchemical breakdown of matter.<BR><BR>You preserve the furnace's alchemical patterns and arrange structures for heat control and flow around them. Warmth enters evenly through the walls, matter separates into its aspects, and the condensed essentia leaves through a new passage.<BR><BR>Once the fire stops wavering, distillation settles into a steady process. You can turn your attention back to the materials whose nature you have yet to understand.
 
 tc.research_name.gtnl.multiEssentiaTube=Composite Essentia Tubes
 tc.research_text.gtnl.multiEssentiaTube=Fewer tubes, a little more order
-tc.research_text.gtnl.multiEssentiaTube.0=While studying essentia buffers, you find that several aspects can wait in the same place until suction determines which one reaches the receiver. Applying this principle to tubes could simplify your growing network.<BR><BR>Infuse a magic casing with four essentia buffers and an MV pump to produce four §lcomposite essentia tubes§r. They can hold several aspects at once, while the receiver uses suction to select the one it needs.<BR><BR>Buffer capacity shared by all aspects: 64<BR>Maximum essentia transferred per tick: 16
+tc.research_text.gtnl.multiEssentiaTube.0=Essentia follows suction toward a destination, but different aspects competing for the same stretch of tube can bring the flow to a standstill. Essentia buffers allow them to wait together, and that difference catches your interest.<BR><BR>You extend the buffer's binding patterns through the tube, letting each passing aspect remain distinct until the right suction reaches it. The receiver determines which one moves next, so an aspect with nowhere to go no longer holds the whole passage so easily.<BR><BR>The magic within the new tube rests quietly, then lights along one path as essentia moves. Following it across your workshop, you begin to untangle the old network.
 
 tc.research_name.gtnl.multiEssentiaJar=Composite Essentia Jar
 tc.research_text.gtnl.multiEssentiaJar=A little less clutter on the shelves
-tc.research_text.gtnl.multiEssentiaJar.0=The success of composite tubes makes you reconsider the jars filling your workshop. If several aspects can share a tube, a jar should be able to hold them together as well.<BR><BR>Using MV circuits, magic casings, and composite tubes, you infuse a warded jar to create a §lcomposite essentia jar§r. It draws essentia from above and stores several aspects in the same vessel.<BR><BR>Storage capacity shared by all aspects: 4096<BR>Maximum essentia received per tick: 16
+tc.research_text.gtnl.multiEssentiaJar.0=The aspects sharing your new tubes draw your attention back to the jars lining the shelves. If binding patterns can preserve their boundaries in motion, perhaps the same principle could work in a vessel at rest.<BR><BR>You trace separate magical paths along the walls, giving different kinds of essentia their own places within a single jar. Suction from a tube can still distinguish them and draw out the aspect it needs.<BR><BR>As the final pattern closes, several different glimmers settle quietly into place. At last, there is room on a shelf for the notes that had been crowding the corner of your desk.
 
 tc.research_name.gtnl.multiEssentiaInputHatch=Composite Essentia Input Hatch
 tc.research_text.gtnl.multiEssentiaInputHatch=Essentia, supplied on demand
-tc.research_text.gtnl.multiEssentiaInputHatch.0=With storage and transport in place, your machines need a way to request essentia. Drawing the aspects a recipe requires from the network is just the supply system you have in mind.<BR><BR>Infuse an essentia hatch with a composite jar, tubes, and HV components to create a §lcomposite essentia input hatch§r. It buffers several aspects and draws the essentia requested by a small infusion matrix or industrial crucible.<BR><BR>Buffer capacity shared by all aspects: 4096<BR>Maximum essentia drawn per tick: 16<BR>Suction: 128
+tc.research_text.gtnl.multiEssentiaInputHatch.0=Tubes and jars can now keep different kinds of essentia in order, yet you still have to coordinate their supply during infusion. Could a matrix's need for an aspect reach the network in the same way that suction does?<BR><BR>You arrange patterns for recognition and transmission inside an essentia hatch. Aspects still needed by the ritual leave corresponding changes in its magic. Those changes travel through the tubes and draw matching essentia back to the hatch, ready for the ritual to use.<BR><BR>Watching this process, you realize that alchemical manufacture can use the same connection. Essentia can at last follow the magic being performed, bringing a clear order to the workshop's supply.
 
 tc.research_name.gtnl.smallArcaneAssembler=Small Arcane Assembler
 tc.research_text.gtnl.smallArcaneAssembler=Let the robot arms take up the wand
-tc.research_text.gtnl.smallArcaneAssembler.0=An arcane workbench can already craft with a wand. The remaining repetitive work seems well suited to robot arms. Infusing the workbench with HV components and magic casings finally puts your idea into practice.<BR><BR>The §lsmall arcane assembler§r needs a wand in its controller slot to perform arcane crafting. It uses its owner's completed research, so your knowledge remains essential to its work.<BR><BR>Electricity drives the machinery, while the wand supplies Vis. Parallel processing consumes Vis according to the number of crafts performed. If the wand lacks enough Vis, the machine waits for it to be replenished before starting.
+tc.research_text.gtnl.smallArcaneAssembler.0=You have repeated many operations at the arcane workbench more times than you can recall. Your fingers place the materials, the wand guides Vis, and familiar patterns close around them. You begin trying to record these recurring actions within a thaumaturgical structure.<BR><BR>Machinery reproduces the positions of the materials, the wand maintains the flow of magic, and your knowledge of the arcane determines how the patterns connect. With repeated correction, the workbench finally follows the recorded sequence through a complete act of crafting.<BR><BR>When you observe it again, the familiar process continues as long as the wand has enough Vis. You have time to open the unfinished research notes beside it.
 
 tc.research_name.gtnl.smallInfusionMatrix=Small Infusion Matrix
 tc.research_text.gtnl.smallInfusionMatrix=No more standing guard over the matrix
-tc.research_text.gtnl.smallInfusionMatrix.0=Automating arcane crafting has opened up new possibilities. A dedicated thaumaturgical device could also take care of the repeated preparation of components and essentia for infusion.<BR><BR>Infuse a runic matrix with HV components, magic casings, and composite tubes to create a §lsmall infusion matrix§r. It performs infusion recipes whose research its owner has completed and draws the required essentia from the connected supply.<BR><BR>Keep it supplied with materials and essentia, and the machine can continue performing infusions. Each craft requires the original recipe's essentia, with parallel processing consuming the amount needed for the number of crafts performed.
+tc.research_text.gtnl.smallInfusionMatrix.0=During infusion, a runic matrix draws upon essentia and materials in sequence. You can already make essentia answer that need; the next step is to bring the supply of materials into the same thaumaturgical structure.<BR><BR>Around a smaller matrix, you arrange patterns for supply and guidance, coordinating mechanical movements with changes in the ritual's magic. Connections established through your research give the matrix its sequence, while materials and essentia arrive along their separate paths.<BR><BR>As the familiar light of infusion appears again, the ritual can finally continue on its own. You stand nearby recording the differences in each flow of magic and wonder what other repeated work could be entrusted to runes.
 
 tc.research_name.gtnl.industrialCrucible=Industrial Crucible
 tc.research_text.gtnl.industrialCrucible=Alchemy on the production line
-tc.research_text.gtnl.industrialCrucible.0=Alchemy can already produce many otherwise elusive items, but repeatedly preparing essentia and adding catalysts still takes time. You decide to equip this ancient art with modern production machinery.<BR><BR>Infuse an electric blast furnace with crucibles, magic casings, and HV components to create an §lindustrial crucible§r. It performs crucible recipes whose research its owner has completed, drawing the required essentia from the connected supply.<BR><BR>Use a configured circuit to select the intended recipe when several share the same catalyst. Each craft consumes the original recipe's catalyst and essentia. Parallel processing uses the quantities required for the number of crafts performed.
+tc.research_text.gtnl.industrialCrucible.0=Change in a crucible begins the moment a catalyst meets essentia. You know these transformations well, yet still have to oversee the same additions and reactions again and again. Your experience with alchemical manufacture suggests that their connections can be arranged in a stable sequence.<BR><BR>You guide the essentia supply into the furnace and let machinery control when the catalyst enters. Each transformation you have studied leaves its corresponding connection in the thaumaturgical structure, directing the aspects to gather where they are needed.<BR><BR>When the expected products first emerge in succession, you can finally put down the catalyst in your hand. The familiar bubbling continues through the workshop, and your next study can begin.
 
 tc.research_name.gtnl.largeEssentiaGenerator=Combustion Engine in Magic World
 tc.research_text.gtnl.largeEssentiaGenerator=Will it cause Flux pollution?
@@ -1152,6 +1201,7 @@ gtnl.machine.smelting_mixing_furnace.info.decay_blocking_enabled=§bDecay Blocki
 
 gtnl.machine.white_night_generator.name=White Night Generator
 gtnl.machine.white_night_generator.recipe_type=§d§lViolet Baptism
+
 gtnl.potion.awe=§r§f§lAwe§r
 gtnl.effect.awe.cancel.0=§f§lDo not be afraid, I am with you. Unless I allow it, you can never leave.
 gtnl.effect.awe.cancel.1=§f§lDo not deny my existence, I am right before your eyes.
@@ -3683,6 +3733,101 @@ item.gtnl.celestweave.hud.duration_capped=>99h
 item.gtnl.celestweave.gui.multiplier=×%s
 death.attack.gtnl.celestweave.lightning=%1$s was struck by %2$s's lightning
 
+item.gtnl.majo_armor.vis_discount=Vis discount: %s%%
+
+item.gtnl.majo_hat.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}Witch's Hat§r
+item.gtnl.majo_hat.lore.0=She lowers her brim as the wind crosses the rooftops of an unfamiliar town.
+item.gtnl.majo_hat.lore.1=On sunny days, it shields her from the glaring light;
+item.gtnl.majo_hat.lore.2=on rainy nights, it helps her find the lights in the distance.
+item.gtnl.majo_hat.lore.3=Wherever the next stop may be, she puts her hat back on and sets off with a smile.
+item.gtnl.majo_hat.worn=While worn:
+item.gtnl.majo_hat.tooltip.0=Armor +3
+item.gtnl.majo_hat.tooltip.1=Night Vision
+item.gtnl.majo_hat.tooltip.2=Immune to Blindness and Nausea
+item.gtnl.majo_hat.tooltip.3=Unbreakable
+
+item.gtnl.majo_robe.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}Witch's Robe§r
+item.gtnl.majo_robe.lore.0=The hem brushes past mountain paths, market steps, and countless unfamiliar places.
+item.gtnl.majo_robe.lore.1=It gathers the dust of the road and remembers every meeting and farewell.
+item.gtnl.majo_robe.lore.2=As night falls, the witch wraps herself in her robe, keeping today's stories close and wondering what tomorrow may bring.
+item.gtnl.majo_robe.worn=While worn:
+item.gtnl.majo_robe.armor=Armor +6
+item.gtnl.majo_robe.tooltip.0=Unbreakable
+item.gtnl.majo_robe.tooltip.1=Maximum health +10
+item.gtnl.majo_robe.tooltip.2=Knockback resistance +50%
+item.gtnl.majo_robe.tooltip.3=Grants Warp Ward
+item.gtnl.majo_robe.tooltip.4=When health falls below 10:
+item.gtnl.majo_robe.tooltip.5=Regeneration III and Resistance II for 10 seconds
+item.gtnl.majo_robe.tooltip.6=Cooldown: 60 seconds
+
+item.gtnl.majo_broom.name=§{starsilver_rarity}Magic Broom§r
+entity.sciencenotleisure.MajoBroom.name=Magic Broom
+item.gtnl.majo_broom.lore.0=The first step to becoming a witch is to own a broom.
+item.gtnl.majo_broom.lore.1=A true witch takes good care of every broom she calls her own.
+item.gtnl.majo_broom.tooltip.0=Place it in the world and ride it through the air.
+item.gtnl.majo_broom.tooltip.1=Enchant the broom to make it stronger.
+item.gtnl.majo_broom.view_control_hint=(View based flight control can be disabled in the config.)
+
+enchantment.gtnl.land_skills=Land Skills
+enchantment.gtnl.land_skills.desc=Increases horizontal broom speed near the ground by 20% per level, up to level III. Incompatible with Air Skills.
+enchantment.gtnl.air_skills=Air Skills
+enchantment.gtnl.air_skills.desc=Increases horizontal broom speed in the air by 20% per level, up to level III. Incompatible with Land Skills.
+enchantment.gtnl.hovering=Hovering
+enchantment.gtnl.hovering.desc=Extends the maximum broom flight time by 25% per level, up to level IV.
+enchantment.gtnl.seabreeze=Seabreeze
+enchantment.gtnl.seabreeze.desc=Slows descent and resets flight time at the surface of water or lava, allowing continuous flight along the surface.
+
+item.gtnl.elaina_broom.name=§{infernum_spark_rarity}Elaina's Broom§r
+entity.sciencenotleisure.ElainaBroom.name=Elaina's Broom
+item.gtnl.elaina_broom.lore.0=Miss Broom has traveled with a certain cheeky witch for a long time.
+item.gtnl.elaina_broom.lore.1=Together they crossed seas of clouds and rested on the roofs of unfamiliar towns.
+item.gtnl.elaina_broom.lore.2=Through a long journey of changing sights and stories, she stayed by her side.
+item.gtnl.elaina_broom.lore.3=Whenever she wishes, their next journey can begin.
+item.gtnl.elaina_broom.tooltip.0=Unlimited flight time
+item.gtnl.elaina_broom.finite_flight=Maximum flight time: %s seconds
+item.gtnl.elaina_broom.tooltip.1=Cannot be destroyed
+item.gtnl.elaina_broom.tooltip.2=Grants Regeneration II and Resistance II while riding
+item.gtnl.elaina_broom.tooltip.3=Receive Miss Broom's blessing!
+gtnl.potion.miss_broom_blessing=Miss Broom's Blessing
+
+item.gtnl.elaina_brooch.name=§{infernum_spark_rarity}Elaina's Brooch§r
+item.gtnl.elaina_brooch.lore.0=She pins the brooch to her chest and sets out with the hope she felt on her first journey.
+item.gtnl.elaina_brooch.lore.1=Mountain paths, markets, and unfamiliar towns become stories along the way.
+item.gtnl.elaina_brooch.lore.2=When wind and rain find her, she glances down at the little brooch,
+item.gtnl.elaina_brooch.lore.3=then lifts her head and searches for the next sight she has yet to see.
+item.gtnl.elaina_brooch.worn=While equipped in a Baubles slot, gain the following:
+item.gtnl.elaina_brooch.tooltip.0=Starry Journey: Enables creative flight
+item.gtnl.elaina_brooch.tooltip.1=Magic Echo: %s
+item.gtnl.elaina_brooch.tooltip.2=Ashen Miracle: %s
+item.gtnl.elaina_brooch.disabled=Brooch bonuses are disabled by the server
+item.gtnl.elaina_brooch.armor=Sets armor to %s
+item.gtnl.elaina_brooch.max_health=Maximum health +%s
+item.gtnl.elaina_brooch.restore_health=Restores health to maximum every %s seconds
+item.gtnl.elaina_brooch.food=Sets hunger to %s and saturation to %s
+item.gtnl.elaina_brooch.cleanse=Clears negative effects
+item.gtnl.elaina_brooch.prevent_death=Prevents death
+item.gtnl.elaina_brooch.invulnerability=Grants %s seconds of immunity after a hit
+
+item.gtnl.majo_wand.name=§{infernum_spark_rarity}Witch's Wand§r
+item.gtnl.majo_wand.stage=Journey stage: %s
+item.gtnl.majo_wand.stage.departure=Departure
+item.gtnl.majo_wand.stage.resonance=Resonance
+item.gtnl.majo_wand.stage.starlight=Starlight
+item.gtnl.majo_wand.stage.void=Void
+item.gtnl.majo_wand.stage.ashen_legacy=Ashen Legacy
+item.gtnl.majo_wand.stage.journeys_end=Journey's End
+item.gtnl.majo_wand.discount=Innate Vis discount: %s%%
+item.gtnl.majo_wand.tooltip=Supports Thaumcraft foci, Vis charging and the Arcane Workbench.
+item.gtnl.majo_wand.refill=Restores 1 Vis per primal aspect each second while in your inventory.
+
+item.gtnl.majo_wand_core.departure.name=Departure Core
+item.gtnl.majo_wand_core.resonance.name=Resonance Core
+item.gtnl.majo_wand_core.starlight.name=Starlight Core
+item.gtnl.majo_wand_core.void.name=Void Core
+item.gtnl.majo_wand_core.ashen_legacy.name=Ashen Legacy Core
+item.gtnl.majo_wand_core.journeys_end.name=Journey Core
+item.gtnl.majo_wand_core.tooltip=Used to craft or infuse the corresponding stage of the Witch's Wand.
+
 item.gtnl.circuit_integrated_plus.name=Circuit Integrated Plus
 
 item.gtnl.time_stop_pocket_watch.name=Time Stop Pocket Watch
@@ -4540,4 +4685,9 @@ key.gtnl.highlight_recursive_patterns=Highlight Recursive Patterns
 key.gtnl.celestweave_dash=Celestweave Dash
 key.gtnl.equipment_settings=Equipment Wheel
 key.gtnl.celestweave_backpack=Open Celestweave Backpack
+key.gtnl.majo_broom.place=Place Magic Broom
+key.gtnl.majo_broom.ride=Place and Ride Magic Broom
+key.gtnl.majo_broom.ascend=Ascend on Broom
+key.gtnl.majo_broom.descend=Descend on Broom
+
 key.categories.gtnl=Science Not Leisure

@@ -1353,7 +1353,15 @@ public enum GTNLItemList implements IItemContainer {
     GasCollectorUEV,
     GasCollectorUIV,
     GasCollectorUMV,
-    GasCollectorUXV;
+    GasCollectorUXV,
+
+    MajoHat,
+    MajoRobe,
+    MajoBroom,
+    ElainaBroom,
+    ElainaBrooch,
+    MajoWand,
+    MajoWandCore;
 
     public static final GTNLItemList[] CELESTWEAVE_MODULE = { CelestweaveModuleApiarist, CelestweaveModuleNightVision,
         CelestweaveModuleSaturation, CelestweaveModuleRevealing, CelestweaveModuleHolo, CelestweaveModuleShield,

@@ -8,6 +8,7 @@ import com.gtnewhorizon.gtnhlib.config.Config.DefaultFloat;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultInt;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultIntList;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultStringList;
+import com.gtnewhorizon.gtnhlib.config.Config.Name;
 import com.gtnewhorizon.gtnhlib.config.Config.RangeDouble;
 import com.gtnewhorizon.gtnhlib.config.Config.RangeFloat;
 import com.gtnewhorizon.gtnhlib.config.Config.RangeInt;
@@ -26,6 +27,182 @@ import gregtech.api.enums.Mods;
 @Sync
 @Comment("Item section")
 public class ItemConfig {
+
+    @Comment("Enable special hat and robe set bonuses for DreamYao520 and SereiaWei")
+    @DefaultBoolean(false)
+    @Sync(false)
+    @RequiresMcRestart
+    public static boolean enableSpecialPlayerSetBonuses = false;
+
+    @Name("broom")
+    public static final Broom broom = new Broom();
+
+    @Comment("Broom")
+    @RequiresMcRestart
+    public static class Broom {
+
+        @Comment("Allow looking up or down while moving forward to control broom altitude")
+        @DefaultBoolean(true)
+        public boolean enableViewControl = true;
+
+        @Comment("Magic Broom maximum horizontal speed in blocks per second")
+        @DefaultDouble(12.0D)
+        @RangeDouble(min = 0.1D, max = 100.0D)
+        public double maxSpeed = 12.0D;
+
+        @Comment("Magic Broom flight duration in seconds; landing resets the timer")
+        @DefaultInt(30)
+        @RangeInt(min = 1, max = 3600)
+        public int flightDurationSeconds = 30;
+
+        @Comment("Elaina's Broom speed multiplier relative to the Magic Broom")
+        @DefaultDouble(1.5D)
+        @RangeDouble(min = 0.1D, max = 10.0D)
+        public double elainaSpeedMultiplier = 1.5D;
+
+        @Comment("Give Elaina's Broom unlimited flight; otherwise use flightDurationSeconds")
+        @DefaultBoolean(true)
+        public boolean elainaUnlimitedFlight = true;
+
+        @Comment("Land Skills enchantment ID. Must match client/server; do not change after enchanting saved items")
+        @DefaultInt(200)
+        @RangeInt(min = 0, max = 32767)
+        @Sync(false)
+        public int landSkillsEnchantmentId = 200;
+
+        @Comment("Air Skills enchantment ID. Must match client/server; do not change after enchanting saved items")
+        @DefaultInt(201)
+        @RangeInt(min = 0, max = 32767)
+        @Sync(false)
+        public int airSkillsEnchantmentId = 201;
+
+        @Comment("Hovering enchantment ID. Must match client/server; do not change after enchanting saved items")
+        @DefaultInt(202)
+        @RangeInt(min = 0, max = 32767)
+        @Sync(false)
+        public int hoveringEnchantmentId = 202;
+
+        @Comment("Seabreeze enchantment ID. Must match client/server; do not change after enchanting saved items")
+        @DefaultInt(203)
+        @RangeInt(min = 0, max = 32767)
+        @Sync(false)
+        public int seabreezeEnchantmentId = 203;
+    }
+
+    @Name("elaina_brooch")
+    public static final ElainaBrooch elaina_brooch = new ElainaBrooch();
+
+    @RequiresMcRestart
+    @Comment("Elaina's Brooch; server values are synchronized to clients")
+    public static class ElainaBrooch {
+
+        @Comment("Enable all effects granted by Elaina's Brooch")
+        @DefaultBoolean(true)
+        public boolean enabled = true;
+
+        @Comment("Grant creative flight while the brooch is worn")
+        @DefaultBoolean(true)
+        public boolean enableCreativeFlight = true;
+
+        @Comment("Override armor value and armor mitigation; 25 or more blocks all armor-blockable damage")
+        @DefaultBoolean(false)
+        public boolean overrideArmor = false;
+
+        @Comment("Fixed armor value; armor-blockable damage reduction is capped at 100%")
+        @DefaultInt(12)
+        @RangeInt(min = 0, max = 100)
+        public int armorValue = 12;
+
+        @Comment("Additional maximum health in health points, not hearts; 0 disables the bonus")
+        @DefaultDouble(20.0D)
+        @RangeDouble(min = 0.0D, max = 1000000.0D)
+        public double maxHealthBonus = 20.0D;
+
+        @Comment("Seconds between health, food and cleanse updates")
+        @DefaultInt(1)
+        @RangeInt(min = 1, max = 3600)
+        public int restoreIntervalSeconds = 1;
+
+        @Comment("Restore health to maximum at each restore interval")
+        @DefaultBoolean(false)
+        public boolean restoreHealth = false;
+
+        @Comment("Restore hunger and saturation at each restore interval")
+        @DefaultBoolean(true)
+        public boolean restoreFood = true;
+
+        @Comment("Hunger restored at each interval; vanilla maximum is 20")
+        @DefaultInt(20)
+        @RangeInt(min = 0, max = 20)
+        public int foodLevel = 20;
+
+        @Comment("Saturation restored at each interval, limited to foodLevel")
+        @DefaultDouble(20.0D)
+        @RangeDouble(min = 0.0D, max = 20.0D)
+        public double saturation = 20.0D;
+
+        @Comment("Remove negative potion effects at each restore interval")
+        @DefaultBoolean(true)
+        public boolean enableCleanse = true;
+
+        @Comment("Prevent lethal damage and death while the brooch is worn")
+        @DefaultBoolean(false)
+        public boolean preventDeath = false;
+
+        @Comment("Seconds of additional immunity after a hit; 0 disables this effect")
+        @DefaultDouble(0.5D)
+        @RangeDouble(min = 0.0D, max = 60.0D)
+        public double invulnerabilitySeconds = 0.5D;
+
+        @Comment("Enable periodic potion effects; disabling stops refreshes, existing effects expire naturally")
+        @DefaultBoolean(true)
+        public boolean enablePotionEffects = true;
+
+        @Comment("Potion duration in seconds; use at least refresh interval + 10 to avoid night vision flicker")
+        @DefaultInt(30)
+        @RangeInt(min = 1, max = 3600)
+        public int potionDurationSeconds = 30;
+
+        @Comment("Seconds between potion refreshes; a longer interval than duration causes gaps")
+        @DefaultInt(20)
+        @RangeInt(min = 1, max = 3600)
+        public int potionRefreshSeconds = 20;
+
+        @Comment("Night Vision level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int nightVisionLevel = 1;
+
+        @Comment("Fire Resistance level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int fireResistanceLevel = 1;
+
+        @Comment("Regeneration level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int regenerationLevel = 1;
+
+        @Comment("Water Breathing level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int waterBreathingLevel = 1;
+
+        @Comment("Haste level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int hasteLevel = 1;
+
+        @Comment("Resistance level; 0 disables the effect")
+        @DefaultInt(1)
+        @RangeInt(min = 0, max = 256)
+        public int resistanceLevel = 1;
+
+        @Comment("Strength level; 0 disables the effect")
+        @DefaultInt(2)
+        @RangeInt(min = 0, max = 256)
+        public int strengthLevel = 2;
+    }
 
     public static final EnergyModule energyModule = new EnergyModule();
 

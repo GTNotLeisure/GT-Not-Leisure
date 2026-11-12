@@ -5,7 +5,9 @@ import static thaumcraft.common.config.ConfigItems.itemJarNode;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.item.Item;
@@ -56,10 +58,8 @@ public class TCRecipeTools {
     public static final RecipeMetadataKey<Boolean> INFUSION_RETURNS_INCLUDED = SimpleRecipeMetadataKey
         .create(Boolean.class, "gtnl_infusion_returns_included");
 
-    // Recipe duration is derived from the total aspect amount.
     private static final int ARCANE_DURATION_BASE_TICKS = 20;
 
-    // Duration coefficients distinguish arcane crafting from infusion.
     public static final int ARCANE_DURATION_TICKS_PER_ASPECT = 8;
     public static final int INFUSION_DURATION_TICKS_PER_ASPECT = 16;
 
@@ -80,8 +80,6 @@ public class TCRecipeTools {
         UNCONSUMED_ITEMS.add(ItemId.create(ModsItemlist.ThaumcraftFocusWarding.get(1)));
     }
 
-    // Identify Thaumcraft items that should be omitted from recipe pools.
-    // Multiple recipe pools share the lazily initialized set.
     public static boolean shouldSkipThaumcraftItem(Item item) {
         if (skipItems == null) {
             skipItems = new ObjectOpenHashSet<>();
@@ -96,7 +94,6 @@ public class TCRecipeTools {
         return skipItems.contains(item);
     }
 
-    // Normalize Thaumcraft inputs and replace IC2 machines with blast furnace templates.
     public static ItemStack[] checkInputSpecial(ItemStack... itemStacks) {
         final int len = itemStacks.length;
         ItemStack[] copy = new ItemStack[len];
@@ -127,9 +124,7 @@ public class TCRecipeTools {
         return copy;
     }
 
-    // Convert Thaumcraft components into GregTech recipe inputs.
-    // Circuit boards expand by tier so any board from the same tier is accepted.
-    // Other components retain single-item semantics, and zero quantity means non-consuming.
+    // Accept circuit alternatives from the same tier; zero quantity remains non-consuming.
     public static Object toGTInput(ItemStack stack) {
         if (stack == null || stack.stackSize <= 0) return stack;
 
@@ -140,8 +135,6 @@ public class TCRecipeTools {
             return stack;
         }
 
-        // ItemData.toString() is the ore dictionary name registered for the tier.
-        // Fall back to a single item when the ore dictionary entry is empty.
         Object oreName = OrePrefixes.circuit.get(data.mMaterial.mMaterial);
         if (oreName == null || GTOreDictUnificator.getOres(oreName)
             .isEmpty()) {
@@ -161,7 +154,6 @@ public class TCRecipeTools {
         return converted;
     }
 
-    // Build the ItemStack array displayed in the NEI aspect slots.
     public static ItemStack[] createAspectDisplayStacks(AspectList aspectList) {
         return createAspectDisplayStacksFromCopy(copyAspectList(aspectList));
     }
@@ -215,8 +207,6 @@ public class TCRecipeTools {
         return withReturns.toArray(new ItemStack[0]);
     }
 
-    // Register a Thaumcraft recipe with aspect and research metadata.
-    // The convenience overload derives duration from the aspect total at LV voltage.
     public static void addArcaneRecipe(IRecipeMap map, ItemStack[] inputs, ItemStack[] output, AspectList aspects,
         String research, RecipeMetadataKey<AspectList> aspectKey, RecipeMetadataKey<String> researchKey) {
 
@@ -233,7 +223,6 @@ public class TCRecipeTools {
             TierEU.RECIPE_LV);
     }
 
-    // Derive processing duration in ticks from the aspect total.
     public static int computeAspectDuration(AspectList aspects, int ticksPerAspect) {
         if (ticksPerAspect <= 0) throw new IllegalArgumentException("Aspect duration must be positive");
         if (aspects == null) return ARCANE_DURATION_BASE_TICKS;
@@ -247,7 +236,6 @@ public class TCRecipeTools {
         return (int) duration;
     }
 
-    // Allow callers to provide duration in ticks and voltage in EU/t.
     public static void addArcaneRecipe(IRecipeMap map, ItemStack[] inputs, ItemStack[] output, AspectList aspects,
         String research, RecipeMetadataKey<AspectList> aspectKey, RecipeMetadataKey<String> researchKey, int duration,
         long eut) {
@@ -332,7 +320,6 @@ public class TCRecipeTools {
             .addTo(map);
     }
 
-    // Register the same recipe form with ore dictionary alternatives from toGTInput.
     public static void addArcaneRecipe(IRecipeMap map, Object[] inputs, ItemStack[] output, AspectList aspects,
         String research, RecipeMetadataKey<AspectList> aspectKey, RecipeMetadataKey<String> researchKey, int duration,
         long eut) {
@@ -429,10 +416,13 @@ public class TCRecipeTools {
 
     public static void getInfusionCraftingRecipe() {
         ICR.clear();
+        Map<Class<?>, Boolean> dynamicOutputs = new HashMap<>();
         for (Object r : ThaumcraftApi.getCraftingRecipes()) {
             if (!(r instanceof InfusionRecipe recipe)) {
                 continue;
             }
+            // Fixed-output recipe maps cannot preserve input-dependent output data.
+            if (dynamicOutputs.computeIfAbsent(recipe.getClass(), TCRecipeTools::hasDynamicOutput)) continue;
 
             if ((recipe.getRecipeOutput() instanceof ItemStack
                 && ((ItemStack) recipe.getRecipeOutput()).getItem() != null
@@ -445,6 +435,15 @@ public class TCRecipeTools {
                     recipe.getResearch());
                 ICR.add(y);
             }
+        }
+    }
+
+    private static boolean hasDynamicOutput(Class<?> recipeType) {
+        try {
+            return recipeType.getMethod("getRecipeOutput", ItemStack.class)
+                .getDeclaringClass() != InfusionRecipe.class;
+        } catch (NoSuchMethodException exception) {
+            throw new IllegalStateException("Missing infusion output contract", exception);
         }
     }
 

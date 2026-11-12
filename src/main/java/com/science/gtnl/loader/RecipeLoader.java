@@ -125,6 +125,7 @@ import com.science.gtnl.common.recipe.gtnl.TheTwilightForestRecipes;
 import com.science.gtnl.common.recipe.gtnl.TreeDiagramRecipes;
 import com.science.gtnl.common.recipe.gtnl.WoodDistillationRecipes;
 import com.science.gtnl.common.recipe.gtnl.oreProcessing.CheatOreProcessingRecipes;
+import com.science.gtnl.common.recipe.thaumcraft.MajoWandRecipes;
 import com.science.gtnl.config.ItemConfig;
 import com.science.gtnl.config.RecipeConfig;
 import com.science.gtnl.utils.enums.ModsItemlist;
@@ -212,7 +213,8 @@ public class RecipeLoader implements IContentLoader {
             new ElectricNeutronActivatorRecipes(), new ReactorProcessingUnitRecipes(),
             new NuclearSaltProcessingPlantRecipes(), new MaceratorRecipes(), new QuantumForceTransformerRecipes(),
             new MicroorganismMasterRecipes(), new SolarMuonCatalystRecipes(), new CircuitAssemblerRecipes(),
-            new CircuitAssemblyLineRecipes(), new WoodDistillationRecipes(), new CrucibleCraftingRecipes() };
+            new CircuitAssemblyLineRecipes(), new WoodDistillationRecipes(), new CrucibleCraftingRecipes(),
+            new MajoWandRecipes() };
 
         for (IRecipePool recipePool : recipePools) {
             recipePool.loadRecipes();

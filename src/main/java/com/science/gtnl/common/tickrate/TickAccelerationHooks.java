@@ -2,6 +2,8 @@ package com.science.gtnl.common.tickrate;
 
 import static com.science.gtnl.ScienceNotLeisure.LOG;
 
+import net.minecraft.tileentity.TileEntity;
+
 import com.science.gtnl.api.ITileEntityTickAcceleration;
 import com.science.gtnl.api.mixinHelper.IAccelerationState;
 
@@ -13,6 +15,11 @@ import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
 import tectech.thing.metaTileEntity.multi.MTEResearchStation;
 
 public class TickAccelerationHooks {
+
+    public static boolean accelerate(TileEntity tile, int tickAcceleratedRate) {
+        return tile instanceof ITileEntityTickAcceleration accelerated
+            && accelerated.tickAcceleration(tickAcceleratedRate);
+    }
 
     public static boolean accelerate(BaseMetaTileEntity tile, int tickAcceleratedRate) {
         if (tile.isActive()) {
