@@ -34,12 +34,12 @@ public class CrusherGui<M extends MTEMultiBlockBase & ICrusherGui> extends GTNLM
 
     private static final String ITEM_SELECTION_SYNC_KEY = "crusherItemSelection";
     private static final String SELECTION_PANEL_KEY = "crusherSelectionPanel";
-    private static final int PANEL_WIDTH = 198;
-    private static final int ENTRY_COLUMNS = 10;
+    private static final int PANEL_WIDTH = 110;
+    private static final int ENTRY_COLUMNS = 5;
     private static final int ENTRY_BUTTON_SIZE = 16;
     private static final int ENTRY_STEP = 18;
     private static final int ENTRY_START_X = 9;
-    private static final int ENTRY_START_Y = 10;
+    private static final int ENTRY_START_Y = 14;
 
     public CrusherGui(M multiblock) {
         super(multiblock);
@@ -99,8 +99,8 @@ public class CrusherGui<M extends MTEMultiBlockBase & ICrusherGui> extends GTNLM
         panel.setDisablePanelsBelow(false)
             .setCloseOnOutOfBoundsClick(false)
             .setDraggable(true);
-        panel.child(ButtonWidget.panelCloseButton());
         panel.child(createEntryGrid(syncManager));
+        panel.child(ButtonWidget.panelCloseButton());
         return panel;
     }
 
@@ -151,7 +151,7 @@ public class CrusherGui<M extends MTEMultiBlockBase & ICrusherGui> extends GTNLM
     }
 
     private int getSelectionPanelHeight() {
-        return 42 + (IndustrialRockCrusherRecipes.ENTRIES.size() + 8) / ENTRY_COLUMNS * ENTRY_STEP;
+        return 16 + (IndustrialRockCrusherRecipes.ENTRIES.size() + 8) / ENTRY_COLUMNS * ENTRY_STEP;
     }
 
     private int getEntryGridHeight() {
