@@ -101,15 +101,19 @@ public class SmallEssentiaSmeltery extends MTEBasicMachine {
         if (!GTUtility.isStackValid(input) || input.stackSize <= 0) return DID_NOT_FIND_RECIPE;
 
         AspectList aspects = getEssentia(input);
-        int bufferedEssentia = outputAspects.visSize() + pendingAspects.visSize();
-        if (bufferedEssentia > 0 && bufferedEssentia + aspects.visSize() > getEssentiaBufferCapacity(mTier)) {
+        if (aspects.size() == 0) return DID_NOT_FIND_RECIPE;
+        long bufferedEssentia = totalEssentia(outputAspects) + totalEssentia(pendingAspects);
+        long inputEssentia = totalEssentia(aspects);
+        if (bufferedEssentia > 0 && bufferedEssentia + inputEssentia > getEssentiaBufferCapacity(mTier)) {
             return FOUND_RECIPE_BUT_DID_NOT_MEET_REQUIREMENTS;
         }
 
         pendingAspects.add(aspects);
         input.stackSize--;
 
-        calculateOverclockedNess((int) TierEU.RECIPE_LV, Math.max(1, aspects.visSize() * BASE_DURATION_PER_ESSENTIA));
+        calculateOverclockedNess(
+            (int) TierEU.RECIPE_LV,
+            (int) Math.min(Integer.MAX_VALUE, inputEssentia * BASE_DURATION_PER_ESSENTIA));
         return FOUND_AND_SUCCESSFULLY_USED_RECIPE;
     }
 
@@ -126,10 +130,15 @@ public class SmallEssentiaSmeltery extends MTEBasicMachine {
                 if (amount > 0) result.add(aspect, amount);
             }
         }
-        if (result.size() == 0) {
-            result.add(Aspect.ENTROPY, 1);
-        }
         return result;
+    }
+
+    private static long totalEssentia(AspectList aspects) {
+        long total = 0;
+        for (Aspect aspect : aspects.getAspects()) {
+            if (aspect != null) total += Math.max(0, aspects.getAmount(aspect));
+        }
+        return total;
     }
 
     public static boolean isOutputFacing(TileEntity tile, ForgeDirection face) {

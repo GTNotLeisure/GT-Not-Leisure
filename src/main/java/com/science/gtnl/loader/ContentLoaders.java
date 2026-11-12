@@ -39,7 +39,8 @@ public class ContentLoaders {
         new VoidMinerLoader(),
         new TextEffectLoader(),
         new CommandLoader(),
-        new RenderLoader());
+        new RenderLoader(),
+        new MajoLoader());
 
     public enum Phase {
         NOT_STARTED,

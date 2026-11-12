@@ -80,6 +80,7 @@ public class NetWorkHandler {
         registerClientbound(CelestweaveConcealPacket.class);
         registerClientbound(RemoteDeviceOpenPacket.class);
         registerServerbound(RemoteDeviceRequestPacket.class);
+        registerServerbound(MajoBroomActionPacket.class);
     }
 
     public static <T extends ClientboundPacket> void registerClientbound(Class<T> packet) {

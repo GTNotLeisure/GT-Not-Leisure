@@ -216,7 +216,7 @@ public class GTNLRecipeMaps {
 
     public static RecipeMap<RecipeMapBackend> IndustrialShapedArcaneCraftingRecipes = RecipeMapBuilder
         .of("gtnl.recipe.industrial_shaped_arcane_crafting")
-        .maxIO(9, 1, 0, 0)
+        .maxIO(10, 1, 0, 0)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
         .frontend(IndustrialInfusionCraftingRecipesFrontend::new)
         .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.IndustrialArcaneAssembler.get(1)))
@@ -253,7 +253,7 @@ public class GTNLRecipeMaps {
 
     public static RecipeMap<RecipeMapBackend> IndustrialInfusionCraftingRecipes = RecipeMapBuilder
         .of("gtnl.recipe.industrial_infusion_crafting")
-        .maxIO(25, 1, 0, 0)
+        .maxIO(25, 2, 0, 0)
         .progressBar(GTUITextures.PROGRESSBAR_ARROW_MULTIPLE)
         .frontend(IndustrialInfusionCraftingRecipesFrontend::new)
         .neiTransferRect(100, 45, 18, 72)

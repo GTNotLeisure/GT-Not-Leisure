@@ -1,6 +1,7 @@
 package com.science.gtnl.common.recipe.gtnl;
 
 import static thaumcraft.common.config.ConfigBlocks.blockCosmeticSolid;
+import static thaumcraft.common.config.ConfigItems.itemEldritchObject;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -13,10 +14,10 @@ import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.science.gtnl.api.IRecipePool;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
+import com.science.gtnl.utils.recipes.RecipeBuilder;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.TierEU;
-import gregtech.api.interfaces.IRecipeMap;
 import gregtech.api.objects.ItemData;
 import gregtech.api.objects.OreDictItemStack;
 import gregtech.api.recipe.RecipeMetadataKey;
@@ -66,48 +67,48 @@ public class InfusionCraftingRecipes implements IRecipePool {
             .isEmpty() ? null : oreName;
     }
 
+    private static ItemStack[] createOutputs(TCRecipeTools.InfusionCraftingRecipe recipe) {
+        ItemStack output = recipe.getOutput()
+            .copy();
+        if (TCRecipeTools.PRIMORDIAL_PEARL_RETURN_EXCLUSIONS.contains(ItemId.create(output))) {
+            return new ItemStack[] { output };
+        }
+        ItemStack pearl = new ItemStack(itemEldritchObject, 1, 3);
+        ItemId pearlId = ItemId.create(pearl);
+        int returns = 0;
+        for (ItemStack component : recipe.getComponents()) {
+            if (component != null && pearlId.equals(ItemId.create(component))) returns++;
+        }
+        if (returns == 0) return new ItemStack[] { output };
+        pearl.stackSize = returns;
+        return new ItemStack[] { output, pearl };
+    }
+
     @Override
     public void loadRecipes() {
         TCRecipeTools.getInfusionCraftingRecipe();
 
-        IRecipeMap IIC = GTNLRecipeMaps.IndustrialInfusionCraftingRecipes;
-
-        for (TCRecipeTools.InfusionCraftingRecipe Recipe : TCRecipeTools.ICR) {
+        for (TCRecipeTools.InfusionCraftingRecipe recipe : TCRecipeTools.ICR) {
             if (TCRecipeTools.shouldSkipThaumcraftItem(
-                Recipe.getOutput()
-                    .getItem())) {
+                recipe.getOutput()
+                    .getItem()))
                 continue;
-            }
 
-            boolean needsCircuit = COSMETIC_SOLID_OUTPUT.equals(ItemId.create(Recipe.getOutput()));
-            if (needsCircuit) {
-                TCRecipeTools.addArcaneRecipeWithCircuit(
-                    IIC,
-                    createInputs(Recipe),
-                    new ItemStack[] { Recipe.getOutput() },
-                    Recipe.getInputAspects(),
-                    Recipe.getResearch(),
-                    INFUSION_ASPECTS,
-                    INFUSION_RESEARCH,
+            RecipeBuilder builder = RecipeBuilder.builder()
+                .ignoreCollision()
+                .clearInvalid()
+                .itemInputs(createInputs(recipe))
+                .itemOutputs(createOutputs(recipe))
+                .metadata(INFUSION_ASPECTS, TCRecipeTools.copyAspectList(recipe.getInputAspects()))
+                .metadata(INFUSION_RESEARCH, recipe.getResearch())
+                .metadata(TCRecipeTools.INFUSION_RETURNS_INCLUDED, true)
+                .duration(
                     TCRecipeTools.computeAspectDuration(
-                        Recipe.getInputAspects(),
-                        TCRecipeTools.INFUSION_DURATION_TICKS_PER_ASPECT),
-                    TierEU.RECIPE_LV,
-                    11);
-                continue;
-            }
-
-            TCRecipeTools.addArcaneRecipe(
-                IIC,
-                createInputs(Recipe),
-                new ItemStack[] { Recipe.getOutput() },
-                Recipe.getInputAspects(),
-                Recipe.getResearch(),
-                INFUSION_ASPECTS,
-                INFUSION_RESEARCH,
-                TCRecipeTools
-                    .computeAspectDuration(Recipe.getInputAspects(), TCRecipeTools.INFUSION_DURATION_TICKS_PER_ASPECT),
-                TierEU.RECIPE_LV);
+                        recipe.getInputAspects(),
+                        TCRecipeTools.INFUSION_DURATION_TICKS_PER_ASPECT))
+                .eut(TierEU.RECIPE_LV);
+            if (COSMETIC_SOLID_OUTPUT.equals(ItemId.create(recipe.getOutput()))) builder.circuit(11);
+            builder.addTo(GTNLRecipeMaps.IndustrialInfusionCraftingRecipes);
         }
     }
 }

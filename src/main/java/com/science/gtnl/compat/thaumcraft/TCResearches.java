@@ -3,14 +3,17 @@ package com.science.gtnl.compat.thaumcraft;
 import static com.reavaritia.common.ItemLoader.ChronarchsClock;
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 
+import java.util.List;
 import java.util.Objects;
 
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.ResourceLocation;
 
 import com.dreammaster.item.NHItemList;
+import com.science.gtnl.common.recipe.thaumcraft.MajoWandRecipes;
 import com.science.gtnl.compat.IModCompat;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.ModsItemlist;
@@ -26,13 +29,16 @@ import gregtech.api.enums.Materials;
 import gregtech.api.enums.Mods;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.enums.TCAspects;
+import gregtech.api.util.GTModHandler;
 import gregtech.api.util.GTOreDictUnificator;
 import gtPlusPlus.xmod.gregtech.api.enums.GregtechItemList;
 import ic2.core.Ic2Items;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import tectech.thing.CustomItemList;
 import thaumcraft.api.ThaumcraftApi;
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
+import thaumcraft.api.crafting.InfusionRecipe;
 import thaumcraft.api.crafting.ShapedArcaneRecipe;
 import thaumcraft.api.research.ResearchCategories;
 import thaumcraft.api.research.ResearchItem;
@@ -41,6 +47,14 @@ import thaumcraft.common.config.ConfigBlocks;
 import thaumcraft.common.config.ConfigItems;
 
 public class TCResearches implements IModCompat {
+
+    public static final String SMELTERY = "gtnl.essentiaSmeltery";
+    public static final String TUBE = "gtnl.multiEssentiaTube";
+    public static final String JAR = "gtnl.multiEssentiaJar";
+    public static final String INPUT_HATCH = "gtnl.multiEssentiaInputHatch";
+    public static final String ARCANE_ASSEMBLER = "gtnl.smallArcaneAssembler";
+    public static final String INFUSION_MATRIX = "gtnl.smallInfusionMatrix";
+    public static final String CRUCIBLE = "gtnl.industrialCrucible";
 
     public static final String ROOT_RESEARCH = "gtnl.welcome";
 
@@ -73,6 +87,8 @@ public class TCResearches implements IModCompat {
             .setSpecial()
             .setAutoUnlock()
             .registerResearchItem();
+
+        MajoWandRecipes.registerResearches();
 
         new ResearchItem(
             "gtnl.timeStopPocketWatch",
@@ -490,6 +506,8 @@ public class TCResearches implements IModCompat {
                     existingParentOrRoot("gtnl.essentiaUpgradeRadiation"))
                 .registerResearchItem();
 
+        registerMagicMachineRecipes();
+        registerMajoEquipmentRecipes();
         if (Mods.NewHorizonsCoreMod.isModLoaded()) loadNHRecipe();
     }
 
@@ -538,6 +556,355 @@ public class TCResearches implements IModCompat {
                             'I',
                             GTOreDictUnificator.get(OrePrefixes.plateDense, Materials.PulsatingIron, 1))))
                 .setParents(existingParentOrRoot("gtnl.largeEssentiaGenerator"))
+                .registerResearchItem();
+    }
+
+    public static void registerMagicMachineRecipes() {
+        registerResearch(
+            SMELTERY,
+            2,
+            0,
+            2,
+            GTNLItemList.SmallEssentiaSmelteryLV.get(1),
+            new String[] { ROOT_RESEARCH, "DISTILESSENTIA", "INFUSION" },
+            smeltery(
+                GTNLItemList.SmallEssentiaSmelteryLV,
+                ItemList.Hull_LV,
+                ItemList.Electric_Pump_LV,
+                Materials.LV,
+                Materials.Tin,
+                8),
+            smeltery(
+                GTNLItemList.SmallEssentiaSmelteryMV,
+                ItemList.Hull_MV,
+                ItemList.Electric_Pump_MV,
+                Materials.MV,
+                Materials.AnyCopper,
+                16),
+            smeltery(
+                GTNLItemList.SmallEssentiaSmelteryHV,
+                ItemList.Hull_HV,
+                ItemList.Electric_Pump_HV,
+                Materials.HV,
+                Materials.Gold,
+                32));
+
+        registerResearch(
+            TUBE,
+            2,
+            2,
+            2,
+            GTNLItemList.MultiEssentiaTube.get(1),
+            new String[] { SMELTERY, "CENTRIFUGE" },
+            infusion(
+                TUBE,
+                GTNLItemList.MultiEssentiaTube.get(4),
+                2,
+                new AspectList().add(Aspect.ORDER, 40)
+                    .add(Aspect.WATER, 40)
+                    .add(Aspect.AIR, 20),
+                ItemRefer.Magic_Casing.get(1),
+                new ItemStack(ConfigBlocks.blockTube, 4, 4),
+                ItemList.Electric_Pump_MV.get(1)));
+
+        registerResearch(
+            JAR,
+            4,
+            2,
+            3,
+            GTNLItemList.MultiEssentiaJar.get(1),
+            new String[] { TUBE, "JARLABEL", "INFUSION" },
+            infusion(
+                JAR,
+                GTNLItemList.MultiEssentiaJar.get(1),
+                4,
+                new AspectList().add(Aspect.VOID, 64)
+                    .add(Aspect.WATER, 64)
+                    .add(Aspect.MAGIC, 32)
+                    .add(Aspect.EXCHANGE, 32),
+                new ItemStack(ConfigBlocks.blockJar, 1),
+                GTNLItemList.MultiEssentiaTube.get(4),
+                ItemRefer.Magic_Casing.get(4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.MV, 2)));
+
+        registerResearch(
+            INPUT_HATCH,
+            6,
+            2,
+            3,
+            GTNLItemList.MultiEssentiaInputHatch.get(1),
+            new String[] { JAR, "gtnl.largeEssentiaGenerator" },
+            infusion(
+                INPUT_HATCH,
+                GTNLItemList.MultiEssentiaInputHatch.get(1),
+                5,
+                new AspectList().add(Aspect.VOID, 64)
+                    .add(Aspect.WATER, 64)
+                    .add(Aspect.MECHANISM, 32)
+                    .add(Aspect.MIND, 32)
+                    .add(Aspect.EXCHANGE, 32),
+                GTNLItemList.EssentiaHatch.get(1),
+                GTNLItemList.MultiEssentiaJar.get(1),
+                GTNLItemList.MultiEssentiaTube.get(4),
+                ItemList.Electric_Pump_HV.get(1),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 4)));
+
+        registerResearch(
+            ARCANE_ASSEMBLER,
+            4,
+            0,
+            3,
+            GTNLItemList.SmallArcaneAssembler.get(1),
+            new String[] { SMELTERY, "INFUSION" },
+            infusion(
+                ARCANE_ASSEMBLER,
+                GTNLItemList.SmallArcaneAssembler.get(1),
+                5,
+                new AspectList().add(Aspect.CRAFT, 64)
+                    .add(Aspect.MECHANISM, 64)
+                    .add(Aspect.MAGIC, 32)
+                    .add(Aspect.ORDER, 32),
+                ModsItemlist.ThaumcraftArcaneWorkbench.get(1),
+                ItemList.Hull_HV.get(1),
+                ItemRefer.Magic_Casing.get(4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 4),
+                ItemList.Robot_Arm_HV.get(2)));
+
+        registerResearch(
+            INFUSION_MATRIX,
+            6,
+            0,
+            4,
+            GTNLItemList.SmallInfusionMatrix.get(1),
+            new String[] { ARCANE_ASSEMBLER, INPUT_HATCH },
+            infusion(
+                INFUSION_MATRIX,
+                GTNLItemList.SmallInfusionMatrix.get(1),
+                6,
+                new AspectList().add(Aspect.CRAFT, 64)
+                    .add(Aspect.MAGIC, 64)
+                    .add(Aspect.MECHANISM, 64)
+                    .add(Aspect.ENERGY, 64)
+                    .add(Aspect.ORDER, 32),
+                new ItemStack(ConfigBlocks.blockStoneDevice, 1, 2),
+                ItemList.Hull_HV.get(1),
+                ItemRefer.Magic_Casing.get(4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 4),
+                ItemList.Field_Generator_HV.get(2),
+                GTNLItemList.MultiEssentiaTube.get(4)));
+
+        registerResearch(
+            CRUCIBLE,
+            6,
+            4,
+            3,
+            GTNLItemList.IndustrialCrucible.get(1),
+            new String[] { INPUT_HATCH, "ALCHEMICALMANUFACTURE" },
+            infusion(
+                CRUCIBLE,
+                GTNLItemList.IndustrialCrucible.get(1),
+                5,
+                new AspectList().add(Aspect.FIRE, 64)
+                    .add(Aspect.WATER, 64)
+                    .add(Aspect.EXCHANGE, 64)
+                    .add(Aspect.MECHANISM, 32)
+                    .add(Aspect.MAGIC, 32),
+                ItemList.Machine_Multi_BlastFurnace.get(1),
+                ItemList.Hull_HV.get(1),
+                ItemRefer.Magic_Casing.get(4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 2),
+                ModsItemlist.ThaumcraftCrucible.get(4)));
+    }
+
+    private static void registerMajoEquipmentRecipes() {
+        String broom = "gtnl.majo_broom";
+        String hat = "gtnl.majo_hat";
+        String robe = "gtnl.majo_robe";
+        String elainaBroom = "gtnl.elaina_broom";
+        String brooch = "gtnl.elaina_brooch";
+
+        registerResearch(
+            broom,
+            2,
+            6,
+            2,
+            GTNLItemList.MajoBroom.get(1),
+            new String[] { ROOT_RESEARCH, "ROD_greatwood", "INFUSION" },
+            infusion(
+                broom,
+                GTNLItemList.MajoBroom.get(1),
+                2,
+                new AspectList().add(Aspect.FLIGHT, 24)
+                    .add(Aspect.MOTION, 16)
+                    .add(Aspect.MAGIC, 16),
+                new ItemStack(ConfigItems.itemWandRod, 1, 0),
+                new ItemStack(ConfigItems.itemResource, 2, 7),
+                new ItemStack(Items.feather, 2),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Thaumium, 2),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LV, 1),
+                ItemList.Electric_Motor_LV.get(1)));
+        registerResearch(
+            hat,
+            4,
+            6,
+            2,
+            GTNLItemList.MajoHat.get(1),
+            new String[] { ROOT_RESEARCH, "THAUMIUM", "GOGGLES", "INFUSION" },
+            infusion(
+                hat,
+                GTNLItemList.MajoHat.get(1),
+                3,
+                new AspectList().add(Aspect.SENSES, 32)
+                    .add(Aspect.MAGIC, 32)
+                    .add(Aspect.CLOTH, 24),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "ItemHelmetThaumium", 1),
+                new ItemStack(ConfigItems.itemResource, 4, 7),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Thaumium, 2),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.MV, 1),
+                ItemList.Sensor_MV.get(1)));
+        registerResearch(
+            robe,
+            6,
+            6,
+            3,
+            GTNLItemList.MajoRobe.get(1),
+            new String[] { hat, "VOIDMETAL", "INFUSION" },
+            infusion(
+                robe,
+                GTNLItemList.MajoRobe.get(1),
+                5,
+                new AspectList().add(Aspect.ARMOR, 64)
+                    .add(Aspect.LIFE, 48)
+                    .add(Aspect.MAGIC, 48)
+                    .add(Aspect.CLOTH, 32),
+                GTModHandler.getModItem(Mods.Thaumcraft.ID, "ItemChestplateVoid", 1),
+                new ItemStack(ConfigItems.itemResource, 4, 7),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.StainlessSteel, 2),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.HV, 2),
+                ItemList.Field_Generator_HV.get(1),
+                new ItemStack(ConfigItems.itemResource, 1, 15)));
+        registerResearch(
+            elainaBroom,
+            2,
+            8,
+            3,
+            GTNLItemList.ElainaBroom.get(1),
+            new String[] { broom, "VOIDMETAL", "INFUSION" },
+            infusion(
+                elainaBroom,
+                GTNLItemList.ElainaBroom.get(1),
+                7,
+                new AspectList().add(Aspect.FLIGHT, 96)
+                    .add(Aspect.TRAVEL, 64)
+                    .add(Aspect.MAGIC, 64)
+                    .add(Aspect.ENERGY, 48)
+                    .add(Aspect.AURA, 48),
+                true,
+                GTNLItemList.MajoBroom.get(1),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Titanium, 4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.EV, 2),
+                ItemList.Field_Generator_EV.get(1),
+                new ItemStack(ConfigItems.itemResource, 2, 17),
+                new ItemStack(ConfigItems.itemResource, 1, 15),
+                new ItemStack(ConfigItems.itemShard, 2, 6)));
+        registerResearch(
+            brooch,
+            4,
+            8,
+            3,
+            GTNLItemList.ElainaBrooch.get(1),
+            new String[] { robe, elainaBroom, "INFUSION" },
+            infusion(
+                brooch,
+                GTNLItemList.ElainaBrooch.get(1),
+                8,
+                new AspectList().add(Aspect.FLIGHT, 128)
+                    .add(Aspect.LIFE, 96)
+                    .add(Aspect.HEAL, 64)
+                    .add(Aspect.MAGIC, 96)
+                    .add(Aspect.ARMOR, 64),
+                new ItemStack(ConfigItems.itemResource, 1, 15),
+                GTNLItemList.MajoHat.get(1),
+                GTNLItemList.MajoRobe.get(1),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.TungstenSteel, 4),
+                GTOreDictUnificator.get(OrePrefixes.circuit, Materials.LuV, 2),
+                ItemList.Field_Generator_LuV.get(1),
+                GTOreDictUnificator.get(OrePrefixes.gem, Materials.Diamond, 2),
+                new ItemStack(ConfigItems.itemShard, 2, 6)));
+    }
+
+    private static ResearchPage smeltery(GTNLItemList output, ItemList hull, ItemList pump, Materials circuit,
+        Materials cable, int essentia) {
+        return infusion(
+            SMELTERY,
+            output.get(1),
+            2,
+            new AspectList().add(Aspect.FIRE, essentia)
+                .add(Aspect.EARTH, essentia)
+                .add(Aspect.ORDER, essentia),
+            hull.get(1),
+            pump.get(2),
+            GTOreDictUnificator.get(OrePrefixes.circuit, circuit, 1),
+            new ItemStack(ConfigBlocks.blockCosmeticOpaque, 2, 2),
+            new ItemStack(ConfigBlocks.blockStoneDevice, 2, 0),
+            GTOreDictUnificator.get(OrePrefixes.cableGt04, cable, 1));
+    }
+
+    private static ResearchPage infusion(String key, ItemStack output, int instability, AspectList aspects,
+        ItemStack input, ItemStack... components) {
+        return infusion(key, output, instability, aspects, false, input, components);
+    }
+
+    private static ResearchPage infusion(String key, ItemStack output, int instability, AspectList aspects,
+        boolean preserveInputData, ItemStack input, ItemStack... components) {
+        List<ItemStack> expanded = new ObjectArrayList<>();
+        // Native infusion consumes one item per pedestal, regardless of a component's stack size.
+        for (ItemStack component : components) {
+            for (int count = 0; count < component.stackSize; count++) {
+                ItemStack copy = component.copy();
+                copy.stackSize = 1;
+                expanded.add(copy);
+            }
+        }
+        ItemStack[] pedestals = expanded.toArray(new ItemStack[0]);
+        if (!preserveInputData) {
+            return new ResearchPage(
+                ThaumcraftApi.addInfusionCraftingRecipe(key, output, instability, aspects, input, pedestals));
+        }
+        InfusionRecipe recipe = new InfusionRecipe(key, output, instability, aspects, input, pedestals) {
+
+            @Override
+            public Object getRecipeOutput(ItemStack central) {
+                ItemStack result = output.copy();
+                if (central != null && central.hasTagCompound()) {
+                    result.setTagCompound(
+                        (NBTTagCompound) central.getTagCompound()
+                            .copy());
+                }
+                return result;
+            }
+        };
+        ThaumcraftApi.getCraftingRecipes()
+            .add(recipe);
+        return new ResearchPage(recipe);
+    }
+
+    private static void registerResearch(String key, int x, int y, int complexity, ItemStack icon, String[] parents,
+        ResearchPage... recipePages) {
+        ResearchPage[] pages = new ResearchPage[recipePages.length + 1];
+        pages[0] = new ResearchPage("tc.research_text." + key + ".0");
+        System.arraycopy(recipePages, 0, pages, 1, recipePages.length);
+        new ResearchItem(
+            key,
+            "gtnl",
+            new AspectList().add(Aspect.MECHANISM, 6)
+                .add(Aspect.MAGIC, 6)
+                .add(Aspect.EXCHANGE, 3),
+            x,
+            y,
+            complexity,
+            icon).setParents(parents)
+                .setPages(pages)
                 .registerResearchItem();
     }
 

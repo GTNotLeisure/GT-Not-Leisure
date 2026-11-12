@@ -234,6 +234,10 @@ gtnl.gui.config.client.portal_gun_close_ticks.tooltip=关门动画的 tick 数�
 gtnl.gui.config.effect.enableghostlyshape=启用幽灵形态
 gtnl.gui.config.effect.enableghostlyshape.tooltip=当玩家死亡重生时，给予玩家幽灵形态效果
 
+gtnl.gui.config.item.broom=扫帚
+gtnl.gui.config.item.broom.enableviewcontrol=启用扫帚视角操控
+gtnl.gui.config.item.broom.enableviewcontrol.tooltip=按住前进键时，允许通过抬头或低头控制扫帚升降；关闭后仍可使用上升、下降按键
+
 gtnl.gui.config.item.energymodule=能量模块
 gtnl.gui.config.item.energymodule.capacityt1=T1 容量
 gtnl.gui.config.item.energymodule.capacityt1.tooltip=装有 T1 能量模块时电磁炮或每件护甲的 EU 容量
@@ -588,9 +592,82 @@ tc.research_name.gtnl.welcome=你的新起点
 tc.research_text.gtnl.welcome=并不友善
 tc.research_text.gtnl.welcome.1=欢迎来到奇思妙想的新世界！
 
+tc.research_name.gtnl.majo_broom=魔法扫帚
+tc.research_text.gtnl.majo_broom=把风留在扫帚里
+tc.research_text.gtnl.majo_broom.0=宏伟之木对魔力的亲和性，让你想起了那些骑着扫帚越过山岭的故事。若将飞行与运动的要素固定在木质结构中，平凡的扫帚是否也能托起一位旅人？<BR><BR>最初的尝试并不顺利：有的扫帚只肯翻滚，有的则把你送进了树冠。经过反复调整，扫帚终于能顺着你的意念乘风而起，只是维持升力的魔力终究会散去。让它重新接触地面，紊乱的要素便能归于平衡，准备下一次起飞。<BR><BR>你在笔记的空白处留下了几个新的设想。风、悬停，还有水面上绵延不绝的海风……这把扫帚还有许多值得研究的地方。
+
+tc.research_name.gtnl.majo_hat=魔女的帽子
+tc.research_text.gtnl.majo_hat=帽檐之下，看清远方
+tc.research_text.gtnl.majo_hat.0=夜间赶路时，你常常分不清远处的屋檐与树影。感知要素能够扩展神秘使的知觉，而魔力布匹恰好可以承载这样的魔法。你决定把它织进一顶宽檐帽中。<BR><BR>当帽檐下的纹路连成一体，黑暗中的轮廓渐渐清晰，令人眩晕的干扰也随之消退。沿着织物循环的魔力还让施咒时的思绪更加集中，逸散的 Vis 因而少了许多。<BR><BR>织纹始终维持着原本的形状，旅途中的风雨很难留下破损的痕迹。你把帽子戴好，再次看向远处尚未亮灯的城镇。
+
+tc.research_name.gtnl.majo_robe=魔女的长袍
+tc.research_text.gtnl.majo_robe=风尘留在衣摆，魔力护住旅人
+tc.research_text.gtnl.majo_robe.0=虚空金属总会流回自己原本的位置。这种近乎本能的复原，让你想到魔力布匹中不断流转的要素：也许两者能够共同维持一件长袍的形态。<BR><BR>你将防护的纹路藏进织物，再让生命要素沿着这些纹路缓缓流动。长袍贴近身体时，这份魔力也与穿戴者的生命相呼应，使步伐更稳，并隔开那些侵扰心神的扭曲回声。<BR><BR>受到重创的一刻，平日积蓄的魔力会骤然收拢，护住伤处，催促身体恢复。这样的应急反应需要时间重新积蓄，却足以为险境中的旅人争取一次喘息。
+
+tc.research_name.gtnl.elaina_broom=伊蕾娜的扫帚
+tc.research_text.gtnl.elaina_broom=扫帚小姐，下一站去哪儿？
+tc.research_text.gtnl.elaina_broom.0=你已经习惯在升力散去前寻找落脚处，但总有一些风景，值得再多飞一会儿。研究虚空金属时，你发现它的复原特性也能用来维持扫帚内部的魔力回路，使飞行要素持续流转。<BR><BR>新的回路渐渐稳定下来，扫帚越过了以往不得不降落的地方。它仍保留着熟悉的触感与那些亲手留下的附魔，拂过衣袖的风却比从前更加轻快。<BR><BR>长久流转的魔力还在扫帚周围形成了一层温和的庇护。旅人的伤痛随风缓和，附近的魔导构件也仿佛受到这股韵律感染，运转得更快了一些。你轻轻拍了拍它的柄，决定以后称它为“扫帚小姐”。
+
+tc.research_name.gtnl.elaina_brooch=伊蕾娜的徽章
+tc.research_text.gtnl.elaina_brooch=把下一段旅途别在胸前
+tc.research_text.gtnl.elaina_brooch.0=整理旅途中的笔记时，你发现帽檐与衣摆上的守护纹路有着相近的韵律。感知、生命与防护的魔力彼此呼应，或许能够汇入一个更小的载体，贴近心口，随旅人一同呼吸。<BR><BR>反复梳理这些纹路之后，你终于将它们收束成一枚徽章。佩戴时，温暖的魔力沿着身体流转，使生命更为充沛，驱散侵扰感官的阴霾；熟悉的飞行要素则轻轻托住你的脚步，让远处的屋顶再次近在眼前。<BR><BR>你在徽章背面留下了一道细小的纹记。它让你想起初次出发时的清晨，以及那时还不知道会遇见的许多人。下一段旅途，就从重新别好它开始吧。
+
+tc.research_name.gtnl.majo_wand.departure=魔女的法杖：启程
+tc.research_text.gtnl.majo_wand.departure=一段旅途，一根属于自己的法杖
+tc.research_text.gtnl.majo_wand.departure.0=远行之前，你想为自己准备一根趁手的法杖。宏伟之木能够容纳 Vis，但魔力在杖芯中怎样流动，仍有许多可以琢磨的细节。<BR><BR>你顺着木材的纹理调整导引魔力的结构，让六种元始要素各得其所，再以注魔将散落的纹路连为一体。杖芯开始安静地回应你的意念，施咒时那种生涩的迟滞也渐渐消失。<BR><BR>它还留有继续改进的余地。你把法杖收进包中，在笔记的第一页写下“启程”，随后推开了门。
+
+tc.research_name.gtnl.majo_wand.resonance=魔女的法杖：共鸣
+tc.research_text.gtnl.majo_wand.resonance=让六种元始要素在杖芯中共鸣
+tc.research_text.gtnl.majo_wand.resonance.0=使用法杖的日子久了，你逐渐察觉到六种元始要素之间的细微牵引。它们各自流动，却也会在交汇时彼此扰动，使一些魔力白白逸散。<BR><BR>银树对灵气的亲和性给了你新的思路。借助它疏导杖芯中的流动，你终于让不同要素在相遇时保持协调。注魔结束后，原有的魔力依旧留在其中，流转却比从前更加从容。<BR><BR>杖芯发出的轻微震颤像是一声应答。你在笔记中记下了它的名字：共鸣。
+
+tc.research_name.gtnl.majo_wand.starlight=魔女的法杖：星辉
+tc.research_text.gtnl.majo_wand.starlight=汇聚星辉，编织魔法
+tc.research_text.gtnl.majo_wand.starlight.0=共鸣让杖芯中的魔力变得有序，但当更多 Vis 汇聚时，原有的纹路仍会显得拥挤。你需要一种能将六种元始要素维持在平衡中的结构。<BR><BR>平衡的晶体为你指出了方向。将它们的排列融入杖芯，细小的魔力节点便沿着杖身一一亮起，彼此牵引，像夜空中有序散布的星光。<BR><BR>那些光点让更多魔力得以安稳停留，也使施咒时的导引更加顺畅。你在灯下收好笔记，抬头看向窗外，才发现真正的星空已经亮了起来。
+
+tc.research_name.gtnl.majo_wand.void=魔女的法杖：虚空
+tc.research_text.gtnl.majo_wand.void=在虚空中延伸旅途
+tc.research_text.gtnl.majo_wand.void.0=虚空金属在掌心留下的温热，总让你想起那些难以记清的梦。它会自行复原，又与群星之间的幽暗有着奇异的联系。这样的材料，是否也能承载法杖中不断增长的魔力？<BR><BR>你将已有的平衡纹路延伸进金属深处，让虚空的力量环绕它们流动。几次令人不安的波动过后，杖芯终于稳定下来，仿佛那些纹路在看不见的地方又延伸了很远。<BR><BR>法杖能够容纳更多 Vis，握持时也依旧熟悉。你暂时合上了关于梦境的那一页，决定先看看它会把旅途带向何处。
+
+tc.research_name.gtnl.majo_wand.ashen_legacy=魔女的法杖：灰之传承
+tc.research_text.gtnl.majo_wand.ashen_legacy=将所见所闻化作灰之传承
+tc.research_text.gtnl.majo_wand.ashen_legacy.0=翻阅一路积攒的笔记，你发现许多看似零散的改动都指向同一个问题：怎样让强大的魔力在杖芯中长久保持协调。银树的导引、晶体的平衡与虚空金属的复原，如今终于可以放在一起理解。<BR><BR>你重新梳理法杖内部的纹路，将这些发现融入同一套结构。注魔完成时，旧有的魔力沿着新的路径缓缓流转，杖身泛起了淡淡的灰色光泽。那些旅途中反复尝试的办法，终于有了完整的形状。<BR><BR>你把这一页题为“灰之传承”。将来若有另一位魔女翻开这些笔记，或许也能从中找到属于自己的道路。
+
+tc.research_name.gtnl.majo_wand.journeys_end=魔女的法杖：旅途终章
+tc.research_text.gtnl.majo_wand.journeys_end=故事会结束，魔法不会
+tc.research_text.gtnl.majo_wand.journeys_end.0=法杖已经陪你走过了许多地方。如今，它能容纳的魔力足够充裕，你的目光也从杖芯转向了周围始终流动的灵气。怎样才能让两者之间建立更温和、更持久的联系？<BR><BR>沿着此前留下的平衡纹路，你为六种元始要素分别引出了细小的通路。最终的注魔使这些通路与杖芯相连，让它能够缓缓积蓄魔力。即使只是安静地收在行囊中，其中的 Vis 也会一点点恢复。<BR><BR>你合上笔记，将最后一页题为“旅途终章”。窗外的风翻动着地图，桌上的法杖仍泛着微光。等休息好了，也许还会有新的地方值得出发。
+
+
 tc.research_name.gtnl.timeStopPocketWatch=岁月静滞怀表
 tc.research_text.gtnl.timeStopPocketWatch=掌握时间的秘密
 tc.research_text.gtnl.timeStopPocketWatch.0=在古老的时间学派手稿中，有关「岁月静滞怀表」的记载寥寥无几。据说，它最早是由一位厌倦战争与喧嚣的炼金术士打造，他渴望在流逝中捕捉永恒。怀表的构造并不复杂，真正的难点在于为其注入“停滞”的本质。传闻整个仪式必须在月相最黯淡之夜进行，四周环绕以安静的时空晶体与沉默的金属，施术者的每一缕意念都必须精确控制，否则整个注魔仪式会使时间本身反噬施法者。若仪式成功，便可暂时将世界之流冻结于此刻，但切记：时间从不会真正被掌控，它只是在等待反扑的时机。
+
+tc.research_name.gtnl.essentiaSmeltery=电动炼金炉
+tc.research_text.gtnl.essentiaSmeltery=以电生火，收获源质
+tc.research_text.gtnl.essentiaSmeltery.0=源质蒸馏需要稳定的炉火，而你总要为添置燃料放下手中的研究。既然电力能够持续产生热量，也许可以用它维持炼金炉中分解物质的过程。<BR><BR>你保留了炉膛中的炼金纹路，在外侧布置控热与导流的结构。热量沿着炉壁均匀传入，物质逐渐散作各自的要素，凝结的源质则顺着新的通路流出。<BR><BR>当炉火终于不再忽明忽暗，蒸馏也变得平稳起来。你可以把注意力重新放回那些尚未弄清本质的材料上。
+
+tc.research_name.gtnl.multiEssentiaTube=复合源质管道
+tc.research_text.gtnl.multiEssentiaTube=少些管道，多些秩序
+tc.research_text.gtnl.multiEssentiaTube.0=源质总会顺着吸力寻找去处，但当不同要素争用同一段管道时，流动便容易陷入僵局。源质缓存器却能让它们暂时共处，这个差别引起了你的兴趣。<BR><BR>你尝试将缓存器的约束纹路延伸到管道内部，使经过的要素各自保持完整，等候适合它们的吸力。流动的次序由接收端决定，管道因而不再轻易被一种暂时无处可去的源质占住。<BR><BR>新管道中的魔力时而安静，时而沿着某一条纹路亮起。你顺着它们看向工作间，开始重新整理那片纠缠已久的管网。
+
+tc.research_name.gtnl.multiEssentiaJar=复合源质罐
+tc.research_text.gtnl.multiEssentiaJar=瓶瓶罐罐，可以少一些了
+tc.research_text.gtnl.multiEssentiaJar.0=管道中能够共存的要素，让你重新看向架上排满的源质罐子。如果约束纹路能在流动时维持要素的边界，那么静置的容器中，也许可以采用同样的办法。<BR><BR>你沿着罐壁构筑彼此分隔的魔力纹路，使不同源质在同一只罐子里各有容身之处。来自管道的吸力仍能辨认它们，将所需的要素单独引出。<BR><BR>当最后一道纹路闭合，罐中几种不同的光泽安静地停留在各自的位置。你终于能腾出一块架子，放下那些原本挤在桌角的笔记。
+
+tc.research_name.gtnl.multiEssentiaInputHatch=复合源质输入仓
+tc.research_text.gtnl.multiEssentiaInputHatch=源质也该按需供应
+tc.research_text.gtnl.multiEssentiaInputHatch.0=管道与罐子已经能够妥善安置不同的源质，注魔时却仍需要你亲自协调供给。符文矩阵对要素的需求，会不会也能像吸力一样传达给管网？<BR><BR>你在源质仓中布置了用于辨认与传递的纹路，让仪式中尚缺的要素在其中留下相应的魔力变化。这些变化沿着管道传出，再将匹配的源质引回仓内，等待仪式取用。<BR><BR>观察这一过程时，你发现炼金制造也能借助相同的联系。源质终于能够跟随正在进行的魔法流动，工作间里的供给也有了清晰的次序。
+
+tc.research_name.gtnl.smallArcaneAssembler=小型奥术组装机
+tc.research_text.gtnl.smallArcaneAssembler=让机械臂接过法杖
+tc.research_text.gtnl.smallArcaneAssembler.0=奥术工作台上的许多操作，你已经做过不知多少次。手指摆放材料，法杖引导 Vis，熟悉的纹路随之闭合。你开始尝试将这些反复出现的动作记录在魔导结构中。<BR><BR>机械负责重现材料的位置，法杖维持魔力的流动，而你已经掌握的奥术知识则决定纹路怎样连接。经过不断校正，工作台终于能沿着记录下来的次序完成一次合成。<BR><BR>再次观察时，你只需确认法杖中仍有足够的 Vis，熟悉的过程便会继续。这让你有时间翻开旁边那本尚未读完的研究笔记。
+
+tc.research_name.gtnl.smallInfusionMatrix=小型注魔矩阵
+tc.research_text.gtnl.smallInfusionMatrix=不必再守着符文矩阵
+tc.research_text.gtnl.smallInfusionMatrix.0=符文矩阵在注魔时会依次索取源质与材料。你已经能让源质回应这样的需求，接下来便是把材料的供给也纳入同一套魔导结构。<BR><BR>你围绕缩小的矩阵梳理供给与导引的纹路，让机械动作与仪式中的魔力变化相互配合。研究中已经辨明的联系为矩阵指明次序，材料与源质则沿着各自的通路逐步汇入。<BR><BR>熟悉的注魔光芒再次亮起时，仪式终于能够自行延续。你站在一旁记录每次魔力流动的差别，开始思考还有哪些重复的工作可以这样交给符文。
+
+tc.research_name.gtnl.industrialCrucible=工业坩埚
+tc.research_text.gtnl.industrialCrucible=炼金术的流水作业
+tc.research_text.gtnl.industrialCrucible.0=坩埚中的变化总在催化剂触及源质的一刻发生。你熟悉这些变化，却仍需要一遍遍照看同样的投放与反应。炼金制造的经验让你相信，它们之间的联系能够被整理成稳定的次序。<BR><BR>你将供给源质的纹路引入炉体，再让机械控制催化剂进入的时机。每一种已经研究明白的转化，都在魔导结构中留下对应的联系，指引源质汇聚到恰当的位置。<BR><BR>炉中第一次连续出现预期的产物时，你终于放下了手里的催化剂。工作间仍回响着熟悉的沸腾声，而你的下一项研究已经可以开始了。
 
 tc.research_name.gtnl.largeEssentiaGenerator=奥术世界的内燃引擎
 tc.research_text.gtnl.largeEssentiaGenerator=它会造成咒波污染吗?
@@ -1124,6 +1201,7 @@ gtnl.machine.smelting_mixing_furnace.info.decay_blocking_enabled=§b已启用衰
 
 gtnl.machine.white_night_generator.name=白夜发电机
 gtnl.machine.white_night_generator.recipe_type=§d§l紫罗兰的洗礼
+
 gtnl.potion.awe=§r§f§l敬畏§r
 gtnl.effect.awe.cancel.0=§f§l不要害怕，我与你同在。除非我允许，否则你永远都不能离开。
 gtnl.effect.awe.cancel.1=§f§l不要否认我的存在，我就在你的眼前。
@@ -3656,6 +3734,101 @@ item.gtnl.celestweave.hud.duration_capped=>99h
 item.gtnl.celestweave.gui.multiplier=×%s
 death.attack.gtnl.celestweave.lightning=%1$s 被 %2$s 的闪电劈中
 
+item.gtnl.majo_armor.vis_discount=Vis 消耗减免：%s%%
+
+item.gtnl.majo_hat.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}魔女的帽子§r
+item.gtnl.majo_hat.lore.0=她把帽檐压低，任风吹过陌生城镇的屋顶。
+item.gtnl.majo_hat.lore.1=晴天时，它替她遮住刺眼的阳光；
+item.gtnl.majo_hat.lore.2=雨夜里，它陪她寻找远方的灯火。
+item.gtnl.majo_hat.lore.3=无论下一站在哪里，只要重新戴好这顶帽子，魔女便又能笑着启程。
+item.gtnl.majo_hat.worn=穿戴时：
+item.gtnl.majo_hat.tooltip.0=护甲值 +3
+item.gtnl.majo_hat.tooltip.1=夜视
+item.gtnl.majo_hat.tooltip.2=免疫失明与反胃
+item.gtnl.majo_hat.tooltip.3=无法损坏
+
+item.gtnl.majo_robe.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}魔女的长袍§r
+item.gtnl.majo_robe.lore.0=衣摆掠过山间小路、集市石阶与无数陌生的地方。
+item.gtnl.majo_robe.lore.1=它沾过旅途的尘埃，也记得每一次相遇和告别。
+item.gtnl.majo_robe.lore.2=夜色降临时，魔女裹紧长袍，把今天的故事留在心里，期待明天又会遇见什么。
+item.gtnl.majo_robe.worn=穿戴时：
+item.gtnl.majo_robe.armor=护甲值 +6
+item.gtnl.majo_robe.tooltip.0=无法破坏
+item.gtnl.majo_robe.tooltip.1=最大生命值 +10
+item.gtnl.majo_robe.tooltip.2=击退抗性 +50%
+item.gtnl.majo_robe.tooltip.3=获得扭曲守护
+item.gtnl.majo_robe.tooltip.4=生命值低于10时：
+item.gtnl.majo_robe.tooltip.5=获得10秒生命恢复III与抗性提升II
+item.gtnl.majo_robe.tooltip.6=冷却时间：60秒
+
+item.gtnl.majo_broom.name=§{starsilver_rarity}魔法扫帚§r
+entity.sciencenotleisure.MajoBroom.name=魔法扫帚
+item.gtnl.majo_broom.lore.0=成为魔女的第一步，就是先拥有一把扫帚。
+item.gtnl.majo_broom.lore.1=真正的魔女，会认真对待每一把属于自己的扫帚。
+item.gtnl.majo_broom.tooltip.0=可放置在世界中，骑乘扫帚飞行。
+item.gtnl.majo_broom.tooltip.1=可通过附魔强化扫帚。
+item.gtnl.majo_broom.view_control_hint=（可以在配置文件中关闭视角操控）
+
+enchantment.gtnl.land_skills=地之礼遇
+enchantment.gtnl.land_skills.desc=扫帚贴地飞行时，每级提升20%水平速度，最高3级；与风之礼遇互斥。
+enchantment.gtnl.air_skills=风之礼遇
+enchantment.gtnl.air_skills.desc=扫帚凌空飞行时，每级提升20%水平速度，最高3级；与地之礼遇互斥。
+enchantment.gtnl.hovering=凌空久驻
+enchantment.gtnl.hovering.desc=每级延长扫帚25%的最大飞行时间，最高4级。
+enchantment.gtnl.seabreeze=海风之佑
+enchantment.gtnl.seabreeze.desc=接触水面或岩浆表面时减缓下降并重置飞行时间，使扫帚能够沿液面连续飞行。
+
+item.gtnl.elaina_broom.name=§{infernum_spark_rarity}伊蕾娜的扫帚§r
+entity.sciencenotleisure.ElainaBroom.name=伊蕾娜的扫帚
+item.gtnl.elaina_broom.lore.0=陪伴了某位屑魔女旅行很久的扫帚小姐。
+item.gtnl.elaina_broom.lore.1=她和她曾越过云海，也曾在陌生城镇的屋檐上停留。
+item.gtnl.elaina_broom.lore.2=漫长的旅途里，风景与故事不断更替，她却始终陪着她。
+item.gtnl.elaina_broom.lore.3=只要她想，下一段旅程随时可以开始。
+item.gtnl.elaina_broom.tooltip.0=无限的飞行时间
+item.gtnl.elaina_broom.finite_flight=最大飞行时间：%s秒
+item.gtnl.elaina_broom.tooltip.1=无法被摧毁
+item.gtnl.elaina_broom.tooltip.2=骑乘时获得生命恢复II和抗性提升II
+item.gtnl.elaina_broom.tooltip.3=获得扫帚小姐的祝福！
+gtnl.potion.miss_broom_blessing=扫帚小姐的祝福
+
+item.gtnl.elaina_brooch.name=§{infernum_spark_rarity}伊蕾娜的徽章§r
+item.gtnl.elaina_brooch.lore.0=她将徽章别在胸前，带着初次启程时的期待走向远方。
+item.gtnl.elaina_brooch.lore.1=山路、集市与陌生城镇，都成了旅途中的故事。
+item.gtnl.elaina_brooch.lore.2=偶尔遇上风雨，她便低头看一眼那枚小小的徽章，
+item.gtnl.elaina_brooch.lore.3=然后抬起头，继续寻找下一处还未见过的风景。
+item.gtnl.elaina_brooch.worn=放置在饰品栏时，获得以下增益：
+item.gtnl.elaina_brooch.tooltip.0=星空旅图：获得创造飞行能力
+item.gtnl.elaina_brooch.tooltip.1=魔法回响：%s
+item.gtnl.elaina_brooch.tooltip.2=灰之奇迹：%s
+item.gtnl.elaina_brooch.disabled=服务端已禁用徽章增益
+item.gtnl.elaina_brooch.armor=护甲值设置为%s
+item.gtnl.elaina_brooch.max_health=最大生命值 +%s
+item.gtnl.elaina_brooch.restore_health=每%s秒恢复生命值至上限
+item.gtnl.elaina_brooch.food=饱食度设置为%s，饱和度设置为%s
+item.gtnl.elaina_brooch.cleanse=清除负面效果
+item.gtnl.elaina_brooch.prevent_death=阻止死亡
+item.gtnl.elaina_brooch.invulnerability=受伤后无敌时间延长至%s秒
+
+item.gtnl.majo_wand.name=§{infernum_spark_rarity}魔女的法杖§r
+item.gtnl.majo_wand.stage=旅途阶段：%s
+item.gtnl.majo_wand.stage.departure=启程
+item.gtnl.majo_wand.stage.resonance=共鸣
+item.gtnl.majo_wand.stage.starlight=星辉
+item.gtnl.majo_wand.stage.void=虚空
+item.gtnl.majo_wand.stage.ashen_legacy=灰之传承
+item.gtnl.majo_wand.stage.journeys_end=旅途终章
+item.gtnl.majo_wand.discount=法杖自身 Vis 消耗减免：%s%%
+item.gtnl.majo_wand.tooltip=兼容神秘时代核心、Vis 充能与奥术工作台。
+item.gtnl.majo_wand.refill=置于背包中时，每秒为六种元始要素各恢复 1 Vis。
+
+item.gtnl.majo_wand_core.departure.name=启程之芯
+item.gtnl.majo_wand_core.resonance.name=共鸣之芯
+item.gtnl.majo_wand_core.starlight.name=星辉之芯
+item.gtnl.majo_wand_core.void.name=虚空之芯
+item.gtnl.majo_wand_core.ashen_legacy.name=灰之传承核心
+item.gtnl.majo_wand_core.journeys_end.name=旅途核心
+item.gtnl.majo_wand_core.tooltip=用于魔女法杖的制作或对应阶段的注魔升级。
+
 item.gtnl.circuit_integrated_plus.name=突破编程电路
 
 item.gtnl.time_stop_pocket_watch.name=岁月静滞怀表
@@ -4513,4 +4686,9 @@ key.gtnl.highlight_recursive_patterns=高亮递归样板所在机器
 key.gtnl.celestweave_dash=苍穹织雷冲刺
 key.gtnl.equipment_settings=装备轮盘
 key.gtnl.celestweave_backpack=打开苍穹织雷背包
+key.gtnl.majo_broom.place=放置魔法扫帚
+key.gtnl.majo_broom.ride=放置并骑乘魔法扫帚
+key.gtnl.majo_broom.ascend=扫帚上升
+key.gtnl.majo_broom.descend=扫帚下降
+
 key.categories.gtnl=Science Not Leisure

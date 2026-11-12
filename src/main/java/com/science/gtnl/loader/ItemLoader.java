@@ -28,7 +28,12 @@ import com.science.gtnl.common.item.items.DireCraftPattern;
 import com.science.gtnl.common.item.items.ElectricProspectorTool;
 import com.science.gtnl.common.item.items.FakeItemSiren;
 import com.science.gtnl.common.item.items.GTNLItemBucket;
+import com.science.gtnl.common.item.items.ItemElainaBrooch;
+import com.science.gtnl.common.item.items.ItemElainaBroom;
 import com.science.gtnl.common.item.items.ItemMEMiniPortableTerminal;
+import com.science.gtnl.common.item.items.ItemMajoBroom;
+import com.science.gtnl.common.item.items.ItemMajoWand;
+import com.science.gtnl.common.item.items.ItemMajoWandCore;
 import com.science.gtnl.common.item.items.ItemPartActiveFormationPlane;
 import com.science.gtnl.common.item.items.ItemPartBeamFormer;
 import com.science.gtnl.common.item.items.ItemPartDenseEnergyCell;
@@ -57,6 +62,8 @@ import com.science.gtnl.common.item.items.VeinMiningPickaxe;
 import com.science.gtnl.common.item.items.WirelessFrequencyCard;
 import com.science.gtnl.common.item.items.WirelessUpgradeChip;
 import com.science.gtnl.common.item.items.armor.CelestweaveArmor;
+import com.science.gtnl.common.item.items.armor.MajoHat;
+import com.science.gtnl.common.item.items.armor.MajoRobe;
 import com.science.gtnl.common.item.items.armor.SoulCardboardArmor;
 import com.science.gtnl.common.item.items.bauble.DraconicArmorProjectionBauble;
 import com.science.gtnl.common.item.items.bauble.DraconicArmorProjectionType;
@@ -337,6 +344,28 @@ public class ItemLoader {
     public static ItemStack infinityDyeCell;
     public static ItemStack infinityDyeFluidCell;
     public static ItemStack infinityStoneCell;
+
+    public static MajoHat majoHat = ITEMS.item("majo_hat", new MajoHat())
+        .noTexture()
+        .register();
+    public static MajoRobe majoRobe = ITEMS.item("majo_robe", new MajoRobe())
+        .noTexture()
+        .register();
+    public static ItemMajoBroom majoBroom = ITEMS.item("majo_broom", new ItemMajoBroom())
+        .noTexture()
+        .register();
+    public static ItemElainaBroom elainaBroom = ITEMS.item("elaina_broom", new ItemElainaBroom())
+        .noTexture()
+        .register();
+    public static ItemElainaBrooch elainaBrooch = ITEMS.item("elaina_brooch", new ItemElainaBrooch())
+        .noTexture()
+        .register();
+    public static ItemMajoWand majoWand = ITEMS.item("majo_wand", new ItemMajoWand())
+        .noTexture()
+        .register();
+    public static ItemMajoWandCore majoWandCore = ITEMS.item("majo_wand_core", new ItemMajoWandCore())
+        .noTexture()
+        .register();
 
     public static void registryItems() {
         honeyBucket = GTNLItemBucket.create(BlockLoader.honeyFluid);
@@ -720,22 +749,15 @@ public class ItemLoader {
     }
 
     public static void registrySuspiciousStewFlower() {
-        // 蒲公英
         registerFlower(Blocks.yellow_flower, 0, new PotionEffect(Potion.field_76443_y.id, 7));
-        // 罂粟
         registerFlower(Blocks.red_flower, 0, new PotionEffect(Potion.nightVision.id, 100));
-        // 兰花
         registerFlower(Blocks.red_flower, 1, new PotionEffect(Potion.field_76443_y.id, 7));
-        // 绒球葱
         registerFlower(Blocks.red_flower, 2, new PotionEffect(Potion.fireResistance.id, 60));
-        // 蓝花美耳草
         registerFlower(Blocks.red_flower, 3, new PotionEffect(Potion.blindness.id, 220));
-        // 郁金香
         registerFlower(Blocks.red_flower, 4, new PotionEffect(Potion.weakness.id, 140));
         registerFlower(Blocks.red_flower, 5, new PotionEffect(Potion.weakness.id, 140));
         registerFlower(Blocks.red_flower, 6, new PotionEffect(Potion.weakness.id, 140));
         registerFlower(Blocks.red_flower, 7, new PotionEffect(Potion.weakness.id, 140));
-        // 滨菊
         registerFlower(Blocks.red_flower, 8, new PotionEffect(Potion.regeneration.id, 140));
     }
 

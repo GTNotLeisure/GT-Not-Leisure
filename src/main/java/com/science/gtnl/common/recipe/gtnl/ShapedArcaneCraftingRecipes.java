@@ -31,6 +31,7 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
         "craftingToolScrewdriver",
         "craftingToolHardHammer",
         "craftingToolSaw",
+        "craftingToolSoftHammer",
         "craftingSoftHammer",
         "craftingToolWrench",
         "craftingToolFile",
@@ -81,7 +82,6 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
         if (TCRecipeTools.shouldSkipThaumcraftItem(recipeOutput.getItem())) return;
 
         ItemStack output = recipeOutput.copy();
-        output.stackSize = 1;
 
         for (Object[] inputs : createInputVariants(inputItems)) {
             Object[] recipeInputs = Arrays.stream(inputs)
@@ -154,14 +154,13 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
 
         String oreName = findOreDictionaryName(input);
         if (oreName != null) {
-            if (BLACKLISTED_OREDICT_NAMES.contains(oreName)) return Collections.emptyList();
-            return Collections.singletonList(new OreDictItemStack(oreName, 1));
+            int amount = BLACKLISTED_OREDICT_NAMES.contains(oreName) ? 0 : 1;
+            return Collections.singletonList(new OreDictItemStack(oreName, amount));
         }
 
         List<Object> alternatives = new ObjectArrayList<>();
         for (Object candidate : candidates) {
             if (!(candidate instanceof ItemStack stack) || stack.getItem() == null) continue;
-            if (alternatives.isEmpty() && isOreDictBlacklisted(stack)) return Collections.emptyList();
             alternatives.add(normalizeInput(stack));
         }
         return alternatives.isEmpty() ? null : alternatives;
@@ -169,7 +168,7 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
 
     private ItemStack normalizeInput(ItemStack stack) {
         ItemStack copy = stack.copy();
-        copy.stackSize = 1;
+        copy.stackSize = isOreDictBlacklisted(stack) ? 0 : 1;
         return TCRecipeTools.checkInputSpecial(copy)[0];
     }
 

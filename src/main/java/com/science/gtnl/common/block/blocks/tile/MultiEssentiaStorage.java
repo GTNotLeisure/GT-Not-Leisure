@@ -2,14 +2,11 @@ package com.science.gtnl.common.block.blocks.tile;
 
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 
 import thaumcraft.api.aspects.Aspect;
 import thaumcraft.api.aspects.AspectList;
 
-// 多源质共享存储组件：围绕一个 AspectList + 容量，封装排序缓存与全部容器操作。
-// 供复合源质罐 / 复合源质输入仓 / 复合源质管道复用，消除三份重复实现。
-// 组件不拥有 AspectList 的所有权，直接操作 TE 传入的列表（罐/仓用各自
-// 的 storedAspects，管道复用父类 aspects 字段），因此序列化与渲染不受影响。
 public class MultiEssentiaStorage {
 
     private final AspectList storedAspects;
@@ -17,13 +14,13 @@ public class MultiEssentiaStorage {
     private Aspect[] cachedSortedAspects;
     private boolean sortedCacheDirty = true;
 
-    // 运行时总量缓存：所有修改走本组件方法或 reload()，保证与列表一致，
-    // 使每 tick 的 getTotalAmount() 免遍历、免触发排序。
     private int totalAmount;
 
     public MultiEssentiaStorage(AspectList storedAspects, int capacity) {
-        this.storedAspects = storedAspects;
+        if (capacity < 0) throw new IllegalArgumentException("Essentia capacity must not be negative");
+        this.storedAspects = Objects.requireNonNull(storedAspects, "storedAspects");
         this.capacity = capacity;
+        reload();
     }
 
     public int getCapacity() {
@@ -35,7 +32,7 @@ public class MultiEssentiaStorage {
     }
 
     public int getStoredTypeCount() {
-        return getStoredAspectsSorted().length;
+        return storedAspects.size();
     }
 
     public boolean isEmpty() {
@@ -59,6 +56,7 @@ public class MultiEssentiaStorage {
     }
 
     public void setAspects(AspectList aspects) {
+        if (aspects == storedAspects) aspects = copyAspects();
         storedAspects.aspects.clear();
         int remaining = capacity;
         if (aspects != null) {
@@ -104,8 +102,9 @@ public class MultiEssentiaStorage {
         if (!doesContainerContain(requestedAspects)) return false;
 
         for (Aspect requestedAspect : getSortedAspects(requestedAspects)) {
-            storedAspects.remove(requestedAspect, requestedAspects.getAmount(requestedAspect));
-            totalAmount -= requestedAspects.getAmount(requestedAspect);
+            int amount = requestedAspects.getAmount(requestedAspect);
+            storedAspects.remove(requestedAspect, amount);
+            totalAmount -= amount;
         }
         sortedCacheDirty = true;
         return true;
@@ -136,7 +135,6 @@ public class MultiEssentiaStorage {
         return clearedAmount;
     }
 
-    // 外部直接读入 storedAspects 后调用：重置缓存、清理无效项、裁剪到容量并重算总量。
     public void reload() {
         sortedCacheDirty = true;
         removeInvalidAspects();
@@ -144,7 +142,6 @@ public class MultiEssentiaStorage {
         recomputeTotalAmount();
     }
 
-    // 重算总量（供 reload 在外部直改列表后恢复一致性）。
     private void recomputeTotalAmount() {
         totalAmount = 0;
         for (Aspect storedAspect : storedAspects.aspects.keySet()) {
@@ -152,7 +149,6 @@ public class MultiEssentiaStorage {
         }
     }
 
-    // 使排序缓存失效（供 TE 在 markEssentiaChanged 里调用）。
     public void markDirty() {
         sortedCacheDirty = true;
     }
@@ -189,6 +185,7 @@ public class MultiEssentiaStorage {
         for (Aspect storedAspect : getSortedAspects(trimmed)) {
             storedAspects.add(storedAspect, trimmed.getAmount(storedAspect));
         }
+        sortedCacheDirty = true;
     }
 
     public static Aspect[] getSortedAspects(AspectList aspectList) {

@@ -33,7 +33,7 @@ import com.science.gtnl.common.recipe.thaumcraft.OwnerResearchCache;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLParallelHelper;
-import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.recipes.TransactionalProcessingLogic;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
@@ -519,7 +519,7 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
 
     @Override
     public ProcessingLogic createProcessingLogic() {
-        return new GTNLProcessingLogic() {
+        return new TransactionalProcessingLogic() {
 
             @NotNull
             @Override
@@ -592,6 +592,13 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
     private int getAffordableCrafts(AspectList requiredVis, int limit) {
         if (requiredVis == null || limit <= 0) return 0;
 
+        for (Aspect aspect : requiredVis.getAspects()) {
+            if (aspect == null) continue;
+            int amount = requiredVis.getAmount(aspect);
+            if (amount < 0) return 0;
+            if (amount > 0) limit = Math.min(limit, MAX_SCALED_VIS / amount);
+        }
+        if (limit <= 0) return 0;
         FakeThaumcraftPlayer player = getOwnerPlayer();
         if (player == null || !consumeVis(requiredVis, player, false)) return 0;
         if (consumeVis(scaleAspects(requiredVis, limit), player, false)) return limit;
@@ -614,7 +621,10 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         for (Aspect aspect : aspects.getAspects()) {
             if (aspect == null) continue;
             int amount = aspects.getAmount(aspect);
-            if (amount > 0) scaled.add(aspect, (int) Math.min(MAX_SCALED_VIS, (long) amount * multiplier));
+            if (amount <= 0) continue;
+            long required = (long) amount * multiplier;
+            if (required > MAX_SCALED_VIS || required < 0) return null;
+            scaled.add(aspect, (int) required);
         }
         return scaled;
     }
@@ -637,7 +647,8 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
 
     private boolean consumeVis(AspectList requiredVis, FakeThaumcraftPlayer player, boolean consume) {
         ItemStack wand = getArcaneWand();
-        if (wand == null || requiredVis.size() == 0) return false;
+        if (wand == null || requiredVis == null) return false;
+        if (requiredVis.size() == 0) return true;
 
         boolean successful = ((ItemWandCasting) wand.getItem())
             .consumeAllVisCrafting(wand, player, requiredVis, consume);

@@ -2,6 +2,8 @@ package com.science.gtnl.loader;
 
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.entity.EntityArrowCustom;
+import com.science.gtnl.common.entity.EntityElainaBroom;
+import com.science.gtnl.common.entity.EntityMajoBroom;
 import com.science.gtnl.common.entity.EntityPlayerLeashKnot;
 import com.science.gtnl.common.entity.EntityPortalGunOrb;
 import com.science.gtnl.common.entity.EntityPortalGunPortal;
@@ -34,6 +36,9 @@ public class EntityLoader implements IContentLoader {
             128,
             20,
             false);
+        EntityRegistry.registerModEntity(EntityMajoBroom.class, "MajoBroom", 5, ScienceNotLeisure.MODID, 80, 1, false);
+        EntityRegistry
+            .registerModEntity(EntityElainaBroom.class, "ElainaBroom", 6, ScienceNotLeisure.MODID, 80, 1, false);
     }
 
     @Override

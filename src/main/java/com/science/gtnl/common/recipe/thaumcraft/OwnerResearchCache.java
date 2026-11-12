@@ -29,12 +29,20 @@ public class OwnerResearchCache {
     }
 
     public void refresh(String ownerName) {
-        if (ownerName == null || ownerName.isEmpty()) return;
-        if (!owner.isEmpty() && !owner.equals(ownerName)) completedResearch.clear();
+        if (ownerName == null || ownerName.isEmpty()) {
+            owner = "";
+            completedResearch.clear();
+            return;
+        }
+        if (!owner.equals(ownerName)) completedResearch.clear();
         owner = ownerName;
 
         List<String> research = ResearchManager.getResearchForPlayer(ownerName);
-        if (research == null || research.isEmpty() || research.size() == completedResearch.size()) return;
+        if (research == null || research.isEmpty()) {
+            completedResearch.clear();
+            return;
+        }
+        if (research.size() == completedResearch.size() && completedResearch.containsAll(research)) return;
 
         completedResearch.clear();
         completedResearch.addAll(research);

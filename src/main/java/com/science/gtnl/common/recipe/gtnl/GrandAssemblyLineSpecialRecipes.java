@@ -18,12 +18,6 @@ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import tectech.thing.CustomItemList;
 
-/**
- * The grand assembly line ignores slot order, so assembly line recipes whose inputs cover another recipe's inputs
- * collide there. Circuits separating them are computed from the upstream recipe list without modifying it: the machine
- * appends them at match time, and fake recipes in {@link GTNLRecipeMaps#GrandAssemblyLineSpecialRecipes} show them in
- * NEI.
- */
 public class GrandAssemblyLineSpecialRecipes implements IRecipePool {
 
     // Circuits fixed by hand before automatic resolution existed; kept so encoded patterns stay valid.

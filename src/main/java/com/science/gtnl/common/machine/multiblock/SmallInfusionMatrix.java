@@ -31,7 +31,7 @@ import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLParallelHelper;
-import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.recipes.TransactionalProcessingLogic;
 import com.science.gtnl.utils.structure.GTNLStructureErrors;
 
 import goodgenerator.loader.Loaders;
@@ -195,7 +195,7 @@ public class SmallInfusionMatrix extends MultiMachineBase<SmallInfusionMatrix> i
 
     @Override
     public ProcessingLogic createProcessingLogic() {
-        return new GTNLProcessingLogic() {
+        return new TransactionalProcessingLogic() {
 
             @NotNull
             @Override

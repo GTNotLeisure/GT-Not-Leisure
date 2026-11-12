@@ -65,11 +65,15 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
     }
 
     private int getInputColumnCount() {
-        return uiProperties.maxItemInputs == 9 ? SHAPED_INPUT_COLUMNS : INFUSION_INPUT_COLUMNS;
+        return isArcaneLayout() ? SHAPED_INPUT_COLUMNS : INFUSION_INPUT_COLUMNS;
+    }
+
+    private boolean isArcaneLayout() {
+        return uiProperties.maxItemInputs == 9 || uiProperties.maxItemInputs == 10;
     }
 
     private boolean usesAdjustedLayout() {
-        return uiProperties.maxItemInputs == 9 || uiProperties.maxItemInputs == 25;
+        return isArcaneLayout() || uiProperties.maxItemInputs == 25;
     }
 
     private int getAspectTopPadding() {
@@ -85,7 +89,7 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
     }
 
     private int getAspectRowCount() {
-        return uiProperties.maxItemInputs == 9 ? 1 : 2;
+        return isArcaneLayout() ? 1 : 2;
     }
 
     private int getOutputYOrigin() {
