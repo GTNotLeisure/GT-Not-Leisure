@@ -31,7 +31,7 @@ public class MajoBroomModel {
     private int displayList = -1;
 
     public MajoBroomModel(String modelFile) {
-        String path = "/assets/sciencenotleisure/models/entity/" + modelFile;
+        String path = "/assets/sciencenotleisure/entity/" + modelFile;
         try (InputStream stream = MajoBroomModel.class.getResourceAsStream(path)) {
             if (stream == null) throw new IllegalStateException("Missing broom model: " + path);
             JsonObject root = new JsonParser().parse(new InputStreamReader(stream, StandardCharsets.UTF_8))
