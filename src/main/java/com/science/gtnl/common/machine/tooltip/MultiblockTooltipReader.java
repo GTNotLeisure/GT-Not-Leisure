@@ -660,7 +660,7 @@ public class MultiblockTooltipReader {
         List<String> problems) {
         IMultiblockTooltipRules rules = controller instanceof IMultiblockTooltipRules machineRules ? machineRules
             : null;
-        List<BlockGroup> groups = readGroups(controller, cells, materialTiers, rules, hatches, problems);
+        List<BlockGroup> groups = readGroups(controller, cells, materialTiers, rules, hatches, checks, problems);
         List<String> requirements;
         if (checks.failure() == null) {
             requirements = includeRequirements ? casingRequirements(groups, checks.casingMinimums(), rules)
@@ -670,7 +670,15 @@ public class MultiblockTooltipReader {
             requirements = List.of(StatCollector.translateToLocal("gtnl.structure.tooltip.requirements_unknown"));
         }
         Set<String> keys = new ObjectLinkedOpenHashSet<>();
-        for (HatchGroup hatch : hatches.values()) keys.addAll(hatch.keys);
+        for (HatchGroup hatch : hatches.values()) {
+            for (String hatchKey : hatch.keys) {
+                boolean exoticEnergy = HatchElement.ExoticEnergy.getDescriptionLangKey()
+                    .equals(hatchKey)
+                    || HatchElement.MultiAmpEnergy.getDescriptionLangKey()
+                        .equals(hatchKey);
+                if (checks.failure() == null || !exoticEnergy) keys.add(energyHatchKey(hatchKey, checks));
+            }
+        }
         return new TierRead(
             groups,
             requirements,
@@ -848,7 +856,7 @@ public class MultiblockTooltipReader {
     }
 
     private static <T> List<BlockGroup> readGroups(T controller, List<Cell<T>> cells, int materialTiers,
-        IMultiblockTooltipRules rules, Map<String, HatchGroup> hatches, List<String> problems) {
+        IMultiblockTooltipRules rules, Map<String, HatchGroup> hatches, CheckRecord checks, List<String> problems) {
         Map<IStructureElement<T>, Integer> counts = new Object2ObjectLinkedOpenHashMap<>();
         for (Cell<T> cell : cells) counts.merge(cell.element(), 1, Integer::sum);
         List<Map.Entry<IStructureElement<T>, Integer>> entries = new ObjectArrayList<>(counts.entrySet());
@@ -885,7 +893,8 @@ public class MultiblockTooltipReader {
 
             Set<String> countedLines = new ObjectOpenHashSet<>();
             for (String hatchKey : hatchKeys) {
-                String lineKey = rules == null ? hatchKey : rules.getStructureTooltipHatchLine(hatchKey);
+                String supportedKey = energyHatchKey(hatchKey, checks);
+                String lineKey = rules == null ? supportedKey : rules.getStructureTooltipHatchLine(supportedKey);
                 HatchGroup hatch = hatches.computeIfAbsent(lineKey, key -> new HatchGroup());
                 hatch.keys.add(hatchKey);
                 hatch.names.add(StatCollector.translateToLocal(lineKey));
@@ -903,6 +912,15 @@ public class MultiblockTooltipReader {
             }
         }
         return new ObjectArrayList<>(blocks.values());
+    }
+
+    private static String energyHatchKey(String hatchKey, CheckRecord checks) {
+        if (checks.failure() == null && !checks.allowsLaserEnergyHatches()
+            && HatchElement.ExoticEnergy.getDescriptionLangKey()
+                .equals(hatchKey)) {
+            return HatchElement.MultiAmpEnergy.getDescriptionLangKey();
+        }
+        return hatchKey;
     }
 
     private static <T> List<String> describe(T controller, IStructureElement<T> element, List<String> problems) {

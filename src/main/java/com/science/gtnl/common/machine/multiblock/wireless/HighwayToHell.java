@@ -196,18 +196,23 @@ public class HighwayToHell extends WirelessEnergyMultiMachineBase<HighwayToHell>
 
     @Override
     public void checkHatch(List<StructureError> errors) {
-        if (!hasAllTurbines()) {
-            errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+        int validTurbines = validTurbineCount();
+        if (validTurbines < mTurbineHatches.size()) {
+            errors.add(GTNLStructureErrors.missingTurbineRotors(validTurbines, mTurbineHatches.size()));
         }
         super.checkHatch(errors);
     }
 
     public boolean hasAllTurbines() {
-        if (mTurbineHatches.size() != 4) return false;
+        return mTurbineHatches.size() == 4 && validTurbineCount() == 4;
+    }
+
+    private int validTurbineCount() {
+        int count = 0;
         for (MTEHatchTurbine hatch : GTUtility.validMTEList(mTurbineHatches)) {
-            if (hatch == null || !MTELargerTurbineBaseLegacy.isValidTurbine(hatch.getTurbine())) return false;
+            if (MTELargerTurbineBaseLegacy.isValidTurbine(hatch.getTurbine())) count++;
         }
-        return true;
+        return count;
     }
 
     @Override

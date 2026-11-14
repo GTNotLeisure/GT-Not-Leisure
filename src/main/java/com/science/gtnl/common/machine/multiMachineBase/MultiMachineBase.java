@@ -80,7 +80,6 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.Getter;
 import lombok.Setter;
 import tectech.thing.metaTileEntity.hatch.MTEHatchDynamoMulti;
-import tectech.thing.metaTileEntity.hatch.MTEHatchEnergyTunnel;
 
 public abstract class MultiMachineBase<T extends MultiMachineBase<T>> extends MTEExtendedPowerMultiBlockBase<T>
     implements IConstructable, ISurvivalConstructable, IControllerInfo, IMultiblockTooltipRules {
@@ -374,18 +373,9 @@ public abstract class MultiMachineBase<T extends MultiMachineBase<T>> extends MT
         if (MachineConfig.enableLaserHatch) {
             return;
         }
-        boolean hasEnergyTunnel = false;
-        for (MTEHatch hatch : getExoticEnergyHatches()) {
-            if (hatch instanceof MTEHatchEnergyTunnel) {
-                hasEnergyTunnel = true;
-                break;
-            }
-        }
-        if (hasEnergyTunnel) {
-            errors.add(GTNLStructureErrors.laserEnergyTunnelDisabled());
-            return;
-        }
-        if (getRealMaxInputAmps() > 64) {
+        long maxAmperage = StructureTooltipHooks.MAX_NON_LASER_AMPERAGE;
+        if (StructureTooltipHooks.onCheckEnergyInputAmperage(this, maxAmperage)) return;
+        if (getRealMaxInputAmps() > maxAmperage) {
             errors.add(GTNLStructureErrors.energyInputAmperageTooHigh());
         }
     }

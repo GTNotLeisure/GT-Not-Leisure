@@ -14,7 +14,6 @@ import net.minecraftforge.common.util.ForgeDirection;
 import org.jetbrains.annotations.NotNull;
 
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
-import com.gtnewhorizon.structurelib.structure.IStructureElement;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
@@ -26,11 +25,11 @@ import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.gtnl.CrucibleCraftingRecipes;
 import com.science.gtnl.common.recipe.thaumcraft.EssentiaSupply;
 import com.science.gtnl.common.recipe.thaumcraft.OwnerResearchCache;
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLParallelHelper;
 import com.science.gtnl.utils.recipes.TransactionalProcessingLogic;
-import com.science.gtnl.utils.structure.GTNLStructureErrors;
 
 import goodgenerator.loader.Loaders;
 import gregtech.api.casing.Casings;
@@ -46,6 +45,7 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
+import gregtech.api.structure.error.TranslatableText;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
@@ -56,7 +56,7 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":multiblock/industrial_crucible";
-    private static IStructureDefinition<IndustrialCrucible> structureDefinition;
+    private static IStructureDefinition<IndustrialCrucible> STRUCTURE_DEFINITION;
 
     private static final int HORIZONTAL_OFFSET = 2;
     private static final int VERTICAL_OFFSET = 4;
@@ -77,33 +77,30 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
 
     @Override
     public IStructureDefinition<IndustrialCrucible> getStructureDefinition() {
-        if (structureDefinition != null) return structureDefinition;
-
-        IStructureElement<IndustrialCrucible> hatchAdder = GTStructureUtility.buildHatchAdder(IndustrialCrucible.class)
-            .atLeast(
-                HatchElement.InputBus,
-                HatchElement.OutputBus,
-                HatchElement.Energy.or(HatchElement.MultiAmpEnergy),
-                HatchElement.Maintenance)
-            .casingIndex(getCasingTextureID())
-            .hint(1)
-            .build();
-
-        structureDefinition = StructureDefinition.<IndustrialCrucible>builder()
+        if (STRUCTURE_DEFINITION != null) return STRUCTURE_DEFINITION;
+        STRUCTURE_DEFINITION = StructureDefinition.<IndustrialCrucible>builder()
             .addShape(
                 STRUCTURE_PIECE_MAIN,
                 StructureUtility.transpose(StructureUtils.readStructureFromFile(STRUCTURE_FILE_PATH)))
             .addElement(
                 'A',
                 StructureUtility.ofChain(
-                    hatchAdder,
+                    GTStructureUtility.buildHatchAdder(IndustrialCrucible.class)
+                        .atLeast(
+                            HatchElement.InputBus,
+                            HatchElement.OutputBus,
+                            HatchElement.Energy.or(HatchElement.MultiAmpEnergy),
+                            HatchElement.Maintenance)
+                        .casingIndex(getCasingTextureID())
+                        .hint(1)
+                        .build(),
                     StructureUtility.onElementPass(machine -> ++machine.mCountCasing, Casings.MagicCasing.asElement()),
                     EssentiaSupply.hatchElement(IndustrialCrucible::addEssentiaHatch, Loaders.magicCasing, 0),
                     EssentiaSupply.providerElement(IndustrialCrucible::addInfusionProvider, Loaders.magicCasing, 0)))
             .addElement('B', StructureUtility.ofBlock(blockCosmeticSolid, 7))
             .addElement('C', StructureUtility.ofBlock(blockCosmeticOpaque, 2))
             .build();
-        return structureDefinition;
+        return STRUCTURE_DEFINITION;
     }
 
     @Override
@@ -130,8 +127,19 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
     @Override
     public void checkHatch(List<StructureError> errors) {
         super.checkHatch(errors);
+        checkHatchMin(errors, HatchElement.InputBus, 1);
+        checkHatchMin(errors, HatchElement.OutputBus, 1);
+        checkHatchMin(errors, HatchElement.Energy.or(HatchElement.MultiAmpEnergy), 1);
+        if (shouldCheckMaintenance()) checkHatchMin(errors, HatchElement.Maintenance, 1);
         if (essentiaSupply.isEmpty()) {
-            errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+            TranslatableText inputName = TranslatableText.lang("gtnl.block.essentia_hatch.name");
+            if (InfusionProviders.isAvailable()) {
+                inputName = TranslatableText.lang(
+                    "gtnl.gui.structure_error.essentia_input_or_provider",
+                    inputName,
+                    TranslatableText.lang(InfusionProviders.INFUSION_PROVIDER_NAME_KEY));
+            }
+            checkHatchMin(errors, inputName, 0, 1);
         }
     }
 

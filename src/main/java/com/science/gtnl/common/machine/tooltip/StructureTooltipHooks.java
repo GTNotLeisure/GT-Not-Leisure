@@ -27,6 +27,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 public class StructureTooltipHooks {
 
     public static final int UNLIMITED = Integer.MAX_VALUE;
+    public static final long MAX_NON_LASER_AMPERAGE = 64;
     // StructureLib's ChannelDataAccessor keeps sub-channel values under this tag without exposing it.
     private static final String CHANNEL_TAG = "channels";
     private static final ThreadLocal<Recording> RECORDING = new ThreadLocal<>();
@@ -42,11 +43,20 @@ public class StructureTooltipHooks {
         }
     }
 
-    public record CheckRecord(List<Integer> casingMinimums, List<HatchRule> hatchRules, String failure) {
+    public record CheckRecord(List<Integer> casingMinimums, List<HatchRule> hatchRules, String failure,
+        long maxEnergyInputAmperage) {
+
+        public CheckRecord(List<Integer> casingMinimums, List<HatchRule> hatchRules, String failure) {
+            this(casingMinimums, hatchRules, failure, Long.MAX_VALUE);
+        }
 
         public CheckRecord {
             casingMinimums = failure == null ? List.copyOf(casingMinimums) : List.of();
             hatchRules = failure == null ? List.copyOf(hatchRules) : List.of();
+        }
+
+        public boolean allowsLaserEnergyHatches() {
+            return failure == null && maxEnergyInputAmperage > MAX_NON_LASER_AMPERAGE;
         }
     }
 
@@ -109,6 +119,13 @@ public class StructureTooltipHooks {
         Recording recording = activeFor(controller);
         if (recording == null) return false;
         recording.hatchRules.add(new HatchRule(hatchKeys, min, max, 0));
+        return true;
+    }
+
+    public static boolean onCheckEnergyInputAmperage(Object controller, long maxAmperage) {
+        Recording recording = activeFor(controller);
+        if (recording == null) return false;
+        recording.maxEnergyInputAmperage = Math.min(recording.maxEnergyInputAmperage, maxAmperage);
         return true;
     }
 
@@ -182,7 +199,8 @@ public class StructureTooltipHooks {
         return new CheckRecord(
             recording.casingMinimums,
             recording.hatchRules,
-            recording.failure == null ? null : recording.failure.toString());
+            recording.failure == null ? null : recording.failure.toString(),
+            recording.maxEnergyInputAmperage);
     }
 
     private static Recording activeFor(Object controller) {
@@ -238,6 +256,7 @@ public class StructureTooltipHooks {
         private final List<PieceCall> pieces = new ObjectArrayList<>();
         private final List<Integer> casingMinimums = new IntArrayList();
         private final List<HatchRule> hatchRules = new ObjectArrayList<>();
+        private long maxEnergyInputAmperage = Long.MAX_VALUE;
         private RuntimeException failure;
 
         private Recording(Object controller, Map<PieceCall, Boolean> pieceResults) {

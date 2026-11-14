@@ -113,7 +113,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         return BeeBreedingTiers.getVoltageTier(species);
     }
 
-    private IStructureDefinition<LargeBeeBreeder> structureDefinition;
+    private IStructureDefinition<LargeBeeBreeder> STRUCTURE_DEFINITION;
 
     @Getter
     private String targetBeeSpecies = "";
@@ -196,8 +196,8 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     @Override
     public IStructureDefinition<LargeBeeBreeder> getStructureDefinition() {
-        if (structureDefinition == null) {
-            structureDefinition = StructureDefinition.<LargeBeeBreeder>builder()
+        if (STRUCTURE_DEFINITION == null) {
+            STRUCTURE_DEFINITION = StructureDefinition.<LargeBeeBreeder>builder()
                 .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
                 .addElement('A', chainAllGlasses(-1, (te, t) -> te.mGlassTier = t, te -> te.mGlassTier))
                 .addElement('B', ofStructureBlock(ModsItemlist.ChiselYellowHempcrete))
@@ -221,7 +221,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 .addElement('J', ofStructureBlock(ModsItemlist.ExtraUtilitiesLightBlueLapisCaelestis))
                 .build();
         }
-        return structureDefinition;
+        return STRUCTURE_DEFINITION;
     }
 
     private IStructureElement<LargeBeeBreeder> ofStructureBlock(ModsItemlist material) {

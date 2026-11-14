@@ -29,11 +29,11 @@ import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.thaumcraft.EssentiaSupply;
 import com.science.gtnl.common.recipe.thaumcraft.OwnerResearchCache;
 import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLParallelHelper;
 import com.science.gtnl.utils.recipes.TransactionalProcessingLogic;
-import com.science.gtnl.utils.structure.GTNLStructureErrors;
 
 import goodgenerator.loader.Loaders;
 import gregtech.api.casing.Casings;
@@ -49,6 +49,7 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
+import gregtech.api.structure.error.TranslatableText;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
@@ -140,7 +141,14 @@ public class SmallInfusionMatrix extends MultiMachineBase<SmallInfusionMatrix> i
     public void checkHatch(List<StructureError> errors) {
         super.checkHatch(errors);
         if (essentiaSupply.isEmpty()) {
-            errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+            TranslatableText inputName = TranslatableText.lang("gtnl.block.essentia_hatch.name");
+            if (InfusionProviders.isAvailable()) {
+                inputName = TranslatableText.lang(
+                    "gtnl.gui.structure_error.essentia_input_or_provider",
+                    inputName,
+                    TranslatableText.lang(InfusionProviders.INFUSION_PROVIDER_NAME_KEY));
+            }
+            checkHatchMin(errors, inputName, 0, 1);
         }
     }
 

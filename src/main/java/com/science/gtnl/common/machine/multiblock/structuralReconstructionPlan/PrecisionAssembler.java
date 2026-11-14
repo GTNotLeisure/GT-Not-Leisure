@@ -239,13 +239,13 @@ public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> imp
     public void checkHatch(List<StructureError> errors) {
         for (MTEHatchEnergy mEnergyHatch : this.mEnergyHatches) {
             if (mMachineTier < VoltageIndex.UHV && mEnergyHatch.mTier > mMachineTier) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.energyHatchTierTooHigh(mEnergyHatch.mTier, mMachineTier));
             }
         }
 
         for (MTEHatch mExoEnergyHatch : this.mExoticEnergyHatches) {
             if (mMachineTier < VoltageIndex.UHV && mExoEnergyHatch.mTier > mMachineTier) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.energyHatchTierTooHigh(mExoEnergyHatch.mTier, mMachineTier));
             }
         }
         super.checkHatch(errors);

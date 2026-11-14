@@ -164,21 +164,21 @@ public class LargeEssentiaGenerator extends MultiMachineBase<LargeEssentiaGenera
         checkHatchExact(errors, HatchElement.Dynamo.or(ExoticDynamo), 1);
         for (MTEHatchInput tHatch : mInputHatches) {
             if (tHatch.mTier > mTierLimit) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.inputHatchTierTooHigh(tHatch.mTier, mTierLimit));
             }
         }
         for (MTEHatchDynamo tHatch : mDynamoHatches) {
             if (tHatch.mTier > mTierLimit) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.dynamoHatchTierTooHigh(tHatch.mTier, mTierLimit));
             }
         }
         for (MTEHatch tHatch : mExoticDynamoHatches) {
             if (tHatch.mTier > mTierLimit) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.dynamoHatchTierTooHigh(tHatch.mTier, mTierLimit));
             }
             int maxAmp = 64 << (Integer.bitCount(mUpgrade) + Math.max(0, GTUtility.getTier(tHatch.maxEUOutput()) - 7));
             if (tHatch.maxAmperesOut() > maxAmp) {
-                errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+                errors.add(GTNLStructureErrors.dynamoAmperageTooHigh(tHatch.maxAmperesOut(), maxAmp));
             }
         }
         super.checkHatch(errors);

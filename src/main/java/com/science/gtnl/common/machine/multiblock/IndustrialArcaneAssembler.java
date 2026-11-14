@@ -38,6 +38,7 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
+import gregtech.api.structure.error.TranslatableText;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
@@ -177,7 +178,9 @@ public class IndustrialArcaneAssembler extends MultiMachineBase<IndustrialArcane
                 9000,
                 "{cap:\"matrix\",rod:\"infinity\",aer:999999900,aqua:999999900,ignis:999999900,ordo:999999900,perditio:999999900,terra:999999900}",
                 null))) {
-            errors.add(GTNLStructureErrors.invalidHatchConfiguration());
+            errors.add(
+                GTNLStructureErrors
+                    .controllerItemRequired(TranslatableText.lang("gtnl.gui.structure_error.infinity_matrix_wand")));
         }
     }
 
