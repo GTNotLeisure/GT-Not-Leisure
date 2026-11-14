@@ -72,10 +72,8 @@ public class CrusherGui<M extends MTEMultiBlockBase & ICrusherGui> extends GTNLM
     }
 
     private IWidget createSelectionPanelButton(ModularPanel parent, PanelSyncManager syncManager) {
-        IPanelHandler selectionPanel = syncManager.syncedPanel(
-            SELECTION_PANEL_KEY,
-            true,
-            (_, _) -> createSelectionPanel(parent, syncManager));
+        IPanelHandler selectionPanel = syncManager
+            .syncedPanel(SELECTION_PANEL_KEY, true, (_, _) -> createSelectionPanel(parent, syncManager));
         return new ButtonWidget<>().size(18, 18)
             .overlay(new DrawableStack(GTGuiTextures.BUTTON_STANDARD, GTNLMui2Textures.OVERLAY_BUTTON_ARROW_GREEN_UP))
             .onMousePressed(_ -> {
