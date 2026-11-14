@@ -7,6 +7,7 @@ import net.minecraft.item.ItemStack;
 import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMaps;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,7 +16,8 @@ import lombok.Setter;
 @Setter
 public class CircuitNanitesRecipeData implements Comparable<CircuitNanitesRecipeData> {
 
-    public static Object2ObjectMap<ItemId, CircuitNanitesRecipeData> recipeDataMap = new Object2ObjectOpenHashMap<>();
+    public static Object2ObjectMap<ItemId, CircuitNanitesRecipeData> recipeDataMap = Object2ObjectMaps
+        .synchronize(new Object2ObjectOpenHashMap<>());
 
     public ItemId stack;
     public double speedBoost = 1.0, euModifier = 1.0, failedChance = 0, outputMultiplier = 1.0;
@@ -51,13 +53,13 @@ public class CircuitNanitesRecipeData implements Comparable<CircuitNanitesRecipe
         recipeDataMap.put(this.stack, this);
     }
 
-    public static CircuitNanitesRecipeData getOrCreate(ItemStack stack, long worldSeed, int nantiesTier,
+    public static synchronized CircuitNanitesRecipeData getOrCreate(ItemStack stack, long worldSeed, int nantiesTier,
         double speedBoostMin, double speedBoostMax, double euModifierMin, double euModifierMax, double failedChanceMin,
         double failedChanceMax, int parallelCountMin, int parallelCountMax, double outputMultiplierMin,
         double outputMultiplierMax) {
 
         CircuitNanitesRecipeData existing = recipeDataMap.get(ItemId.createWithoutNBT(stack));
-        if (existing != null) {
+        if (existing != null && existing.worldSeed == worldSeed) {
             return existing;
         }
 
@@ -82,6 +84,7 @@ public class CircuitNanitesRecipeData implements Comparable<CircuitNanitesRecipe
     }
 
     public void setDirectParams(long worldSeed) {
+        this.worldSeed = worldSeed;
         Random random = new Random(worldSeed);
         this.speedBoost = randomDoubleInRange(random, speedBoostMin, speedBoostMax);
         this.euModifier = randomDoubleInRange(random, euModifierMin, euModifierMax);

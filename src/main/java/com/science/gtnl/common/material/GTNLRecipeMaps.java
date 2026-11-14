@@ -2,18 +2,15 @@ package com.science.gtnl.common.material;
 
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
-
-import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.NotNull;
 
 import com.gtnewhorizons.modularui.api.drawable.UITexture;
 import com.gtnewhorizons.modularui.api.math.Alignment;
-import com.gtnewhorizons.modularui.api.math.Pos2d;
 import com.gtnewhorizons.modularui.common.widget.ProgressBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.recipe.BloodSoulFrontend;
+import com.science.gtnl.common.gui.recipe.CircuitNanitesDataFrontend;
 import com.science.gtnl.common.gui.recipe.EGTWUpgradeCostFrontend;
 import com.science.gtnl.common.gui.recipe.ElectrocellGeneratorFrontend;
 import com.science.gtnl.common.gui.recipe.ExtremeExtremeEntityCrusherFrontend;
@@ -25,6 +22,7 @@ import com.science.gtnl.common.gui.recipe.RocketAssemblerFrontend;
 import com.science.gtnl.common.gui.recipe.SpaceMinerFrontend;
 import com.science.gtnl.common.gui.recipe.SteamGateAssemblerBackend;
 import com.science.gtnl.common.gui.recipe.SteamGateAssemblerFrontend;
+import com.science.gtnl.common.gui.recipe.TreeDiagramRecipeFrontend;
 import com.science.gtnl.common.gui.recipe.format.NaquadahReactorFormat;
 import com.science.gtnl.common.gui.recipe.format.RealArtificialStarFormat;
 import com.science.gtnl.common.gui.recipe.format.SteamWeatherFormat;
@@ -41,9 +39,7 @@ import com.science.gtnl.utils.recipes.metadata.ResourceCollectionModuleMetadata;
 import com.science.gtnl.utils.recipes.metadata.SolorMuonCatalystMetadata;
 import com.science.gtnl.utils.recipes.metadata.SteamFusionMetadata;
 
-import goodgenerator.api.recipe.ComponentAssemblyLineFrontend;
 import goodgenerator.client.GUI.GGUITextures;
-import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Mods;
 import gregtech.api.gui.modularui.GTUITextures;
 import gregtech.api.recipe.RecipeMap;
@@ -375,16 +371,10 @@ public class GTNLRecipeMaps {
         .build();
 
     public static RecipeMap<RecipeMapBackend> TreeDiagramRecipes = RecipeMapBuilder.of("gtnl.recipe.tree_diagram")
-        .maxIO(12, 1, 12, 0)
-        .neiTransferRect(70, 15, 18, 54)
-        .neiSpecialInfoFormatter(
-            recipeInfo -> Collections.singletonList(
-                StatCollector.translateToLocalFormatted(
-                    "value.component_assembly_line",
-                    GTValues.VN[recipeInfo.recipe.mSpecialValue])))
+        .maxIO(32, 4, 32, 4)
+        .neiSpecialInfoFormatter(recipeInfo -> Collections.emptyList())
         .dontUseProgressBar()
-        .addSpecialTexture(70, 11, 72, 40, GGUITextures.PICTURE_COMPONENT_ASSLINE)
-        .frontend(ComponentAssemblyLineFrontend::new)
+        .frontend(TreeDiagramRecipeFrontend::new)
         .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1)))
         .build();
 
@@ -583,14 +573,7 @@ public class GTNLRecipeMaps {
                     recipe -> recipe
                         .getMetadataOrDefault(CircuitNanitesDataMetadata.INSTANCE, new CircuitNanitesRecipeData()))
                 .thenComparing(GTRecipe::compareTo))
-        .frontend((ui, nei) -> new GTNLRecipeFrontend(ui, nei) {
-
-            @Override
-            @NotNull
-            public List<Pos2d> getItemInputPositions(int itemInputCount) {
-                return Collections.singletonList(new Pos2d(9, 13));
-            }
-        })
+        .frontend(CircuitNanitesDataFrontend::new)
         .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1)))
         .build();
 

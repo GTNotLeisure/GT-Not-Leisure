@@ -199,22 +199,21 @@ public class RecipeLoader implements IContentLoader {
             new ElectricImplosionCompressorRecipes(), new DecayHastenerRecipes(), new PreciseAssemblerRecipes(),
             new FuelRefiningComplexRecipes(), new CrackingRecipes(), new DistillationTowerRecipes(),
             new SpaceMinerRecipes(), new SpaceDrillRecipes(), new SpaceAssemblerRecipes(), new PCBFactoryRecipes(),
-            new PlatinumBasedTreatmentRecipes(), new ShallowChemicalCouplingRecipes(), new TreeDiagramRecipes(),
-            new AssemblingLineRecipes(), new GasCollectorRecipes(), new EternalGregTechWorkshopUpgradeRecipes(),
-            new CannerRecipes(), new VacuumFreezerRecipes(), new CheatOreProcessingRecipes(),
-            new ShapedArcaneCraftingRecipes(), new InfusionCraftingRecipes(), new SteamManufacturerRecipes(),
-            new SteamCarpenterRecipe(), new LavaMakerRecipes(), new SteamWoodcutterRecipes(),
-            new SteamGateAssemblerRecipes(), new CactusWonderFakeRecipes(), new InfernalCokeRecipes(),
-            new SteamFusionReactorRecipes(), new SteamExtractinatorRecipes(), new RockBreakerRecipes(),
-            new PrimitiveBrickKilnRecipes(), new TargetChamberRecipes(), new ElectrocellGeneratorRecipes(),
-            new FluidSolidifierRecipes(), new FormingPressRecipes(), new HammerRecipes(), new CyclotronRecipes(),
-            new RuneAltarRecipes(), new IndustrialRockCrusherRecipes(), new PrecisionLaserEngraver(),
-            new NanitesIntegratedProcessingRecipes(), new NanoForgeRecipes(), new SteamWeatherModuleRecipes(),
-            new ElectricNeutronActivatorRecipes(), new ReactorProcessingUnitRecipes(),
-            new NuclearSaltProcessingPlantRecipes(), new MaceratorRecipes(), new QuantumForceTransformerRecipes(),
-            new MicroorganismMasterRecipes(), new SolarMuonCatalystRecipes(), new CircuitAssemblerRecipes(),
-            new CircuitAssemblyLineRecipes(), new WoodDistillationRecipes(), new CrucibleCraftingRecipes(),
-            new MajoWandRecipes() };
+            new PlatinumBasedTreatmentRecipes(), new ShallowChemicalCouplingRecipes(), new AssemblingLineRecipes(),
+            new GasCollectorRecipes(), new EternalGregTechWorkshopUpgradeRecipes(), new CannerRecipes(),
+            new VacuumFreezerRecipes(), new CheatOreProcessingRecipes(), new ShapedArcaneCraftingRecipes(),
+            new InfusionCraftingRecipes(), new SteamManufacturerRecipes(), new SteamCarpenterRecipe(),
+            new LavaMakerRecipes(), new SteamWoodcutterRecipes(), new SteamGateAssemblerRecipes(),
+            new CactusWonderFakeRecipes(), new InfernalCokeRecipes(), new SteamFusionReactorRecipes(),
+            new SteamExtractinatorRecipes(), new RockBreakerRecipes(), new PrimitiveBrickKilnRecipes(),
+            new TargetChamberRecipes(), new ElectrocellGeneratorRecipes(), new FluidSolidifierRecipes(),
+            new FormingPressRecipes(), new HammerRecipes(), new CyclotronRecipes(), new RuneAltarRecipes(),
+            new IndustrialRockCrusherRecipes(), new PrecisionLaserEngraver(), new NanitesIntegratedProcessingRecipes(),
+            new NanoForgeRecipes(), new SteamWeatherModuleRecipes(), new ElectricNeutronActivatorRecipes(),
+            new ReactorProcessingUnitRecipes(), new NuclearSaltProcessingPlantRecipes(), new MaceratorRecipes(),
+            new QuantumForceTransformerRecipes(), new MicroorganismMasterRecipes(), new SolarMuonCatalystRecipes(),
+            new CircuitAssemblerRecipes(), new CircuitAssemblyLineRecipes(), new WoodDistillationRecipes(),
+            new CrucibleCraftingRecipes(), new MajoWandRecipes() };
 
         for (IRecipePool recipePool : recipePools) {
             recipePool.loadRecipes();
@@ -247,6 +246,7 @@ public class RecipeLoader implements IContentLoader {
         }
 
         GrandAssemblyLineSpecialRecipes.resolveConflicts();
+        new TreeDiagramRecipes().loadRecipes();
     }
 
     public static void loadPlasmaCentrifugeRecipes() {

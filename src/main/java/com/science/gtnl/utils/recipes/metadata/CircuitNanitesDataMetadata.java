@@ -1,12 +1,13 @@
 package com.science.gtnl.utils.recipes.metadata;
 
+import java.util.Locale;
+
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.Nullable;
 
-import com.science.gtnl.mixins.early.gregtech.AccessorRecipeDisplayInfo;
 import com.science.gtnl.utils.recipes.data.CircuitNanitesRecipeData;
 
 import gregtech.api.recipe.RecipeMetadataKey;
@@ -26,26 +27,28 @@ public class CircuitNanitesDataMetadata extends RecipeMetadataKey<CircuitNanites
     @Override
     public void drawInfo(RecipeDisplayInfo recipeInfo, @Nullable Object value) {
         CircuitNanitesRecipeData data = cast(value, new CircuitNanitesRecipeData());
-        AccessorRecipeDisplayInfo displayInfo = (AccessorRecipeDisplayInfo) recipeInfo;
-        displayInfo.setYPos(displayInfo.getYPos() - 80);
         recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted("gtnl.machine.tree_diagram.metadata.eu_discount", data.euModifier),
+            StatCollector.translateToLocalFormatted(
+                "gtnl.machine.tree_diagram.metadata.eu_discount",
+                String.format(Locale.ROOT, "%.3f", data.euModifier)),
             28,
             10);
         recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted("gtnl.machine.tree_diagram.metadata.speed_bonus", data.speedBoost),
+            StatCollector.translateToLocalFormatted(
+                "gtnl.machine.tree_diagram.metadata.speed_bonus",
+                String.format(Locale.ROOT, "%.3f", data.speedBoost)),
             28,
             10);
         recipeInfo.drawText(
             StatCollector.translateToLocalFormatted(
                 "gtnl.machine.tree_diagram.metadata.failure_bonus",
-                data.failedChance * 100 + "%"),
+                String.format(Locale.ROOT, "%.1f", data.failedChance * 100)),
             28,
             10);
         recipeInfo.drawText(
             StatCollector.translateToLocalFormatted(
                 "gtnl.machine.tree_diagram.metadata.output_coefficient",
-                data.outputMultiplier * 100 + "%"),
+                String.format(Locale.ROOT, "%.1f", data.outputMultiplier * 100)),
             28,
             10);
         recipeInfo.drawText(

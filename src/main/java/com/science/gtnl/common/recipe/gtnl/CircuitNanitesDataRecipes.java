@@ -13,7 +13,7 @@ import gregtech.api.util.GTOreDictUnificator;
 
 public class CircuitNanitesDataRecipes implements IRecipePool {
 
-    public static Long loadedSeed;
+    public static volatile Long loadedSeed;
 
     public RecipeMap<?> CNDR = GTNLRecipeMaps.CircuitNanitesDataRecipes;
     public CircuitNanitesDataMetadata RECIPE_DATA = CircuitNanitesDataMetadata.INSTANCE;
@@ -23,7 +23,7 @@ public class CircuitNanitesDataRecipes implements IRecipePool {
         this.worldSeed = worldSeed;
     }
 
-    public static void loadForWorld(long worldSeed) {
+    public static synchronized void loadForWorld(long worldSeed) {
         if (Long.valueOf(worldSeed)
             .equals(loadedSeed)) return;
         clear();
@@ -31,7 +31,7 @@ public class CircuitNanitesDataRecipes implements IRecipePool {
         loadedSeed = worldSeed;
     }
 
-    public static void clear() {
+    public static synchronized void clear() {
         CircuitNanitesRecipeData.recipeDataMap.clear();
         GTNLRecipeMaps.CircuitNanitesDataRecipes.getBackend()
             .clearRecipes();
@@ -47,17 +47,17 @@ public class CircuitNanitesDataRecipes implements IRecipePool {
                 CircuitNanitesRecipeData.getOrCreate(
                     GTOreDictUnificator.get(OrePrefixes.nanite, Materials.Carbon, 1),
                     worldSeed,
-                    14,
-                    0.1,
-                    2.0,
-                    0.8,
-                    1.5,
-                    0.1,
-                    0.2,
-                    64,
-                    128,
-                    0.05,
-                    0.1))
+                    1,
+                    0.95,
+                    1.05,
+                    0.95,
+                    1.05,
+                    0.08,
+                    0.08,
+                    8,
+                    8,
+                    0,
+                    0))
             .duration(0)
             .eut(0)
             .addTo(CNDR);

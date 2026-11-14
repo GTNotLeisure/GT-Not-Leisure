@@ -48,8 +48,7 @@ public class GTNLMultiBlockBaseGui<T extends MTEMultiBlockBase> extends MTEMulti
             new GTNLGreenHouseGui(greenHouse).registerPanel(parent, syncManager, panelMap);
         }
         if (multiblock instanceof IControllerUpgrade controllerUpgrade) {
-            new GTNLControllerUpgradePanels(multiblock, controllerUpgrade, panelMap)
-                .registerPanels(parent, syncManager);
+            createUpgradePanels(controllerUpgrade).registerPanels(parent, syncManager);
         }
     }
 
@@ -60,7 +59,7 @@ public class GTNLMultiBlockBaseGui<T extends MTEMultiBlockBase> extends MTEMulti
             new GTNLGreenHouseGui(greenHouse).registerSyncValues(syncManager);
         }
         if (multiblock instanceof IControllerUpgrade controllerUpgrade) {
-            new GTNLControllerUpgradePanels(multiblock, controllerUpgrade, panelMap).registerSyncValues(syncManager);
+            createUpgradePanels(controllerUpgrade).registerSyncValues(syncManager);
         }
     }
 
@@ -95,7 +94,10 @@ public class GTNLMultiBlockBaseGui<T extends MTEMultiBlockBase> extends MTEMulti
         if (!(multiblock instanceof IControllerUpgrade controllerUpgrade)) {
             return Optional.empty();
         }
-        return Optional.of(
-            new GTNLControllerUpgradePanels(multiblock, controllerUpgrade, panelMap).createUpgradeButton(syncManager));
+        return Optional.of(createUpgradePanels(controllerUpgrade).createUpgradeButton(syncManager));
+    }
+
+    protected GTNLControllerUpgradePanels createUpgradePanels(IControllerUpgrade controllerUpgrade) {
+        return new GTNLControllerUpgradePanels(multiblock, controllerUpgrade, panelMap);
     }
 }

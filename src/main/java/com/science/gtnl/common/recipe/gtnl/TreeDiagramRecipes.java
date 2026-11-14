@@ -1,28 +1,41 @@
 package com.science.gtnl.common.recipe.gtnl;
 
-import net.minecraft.init.Blocks;
-import net.minecraft.item.ItemStack;
+import java.util.Arrays;
 
 import com.science.gtnl.api.IRecipePool;
+import com.science.gtnl.common.circuit.CircuitCatalog;
+import com.science.gtnl.common.circuit.computation.CircuitComputationPolicy;
+import com.science.gtnl.common.gui.recipe.TreeDiagramRecipeFrontend;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
-import com.science.gtnl.utils.recipes.RecipeBuilder;
+import com.science.gtnl.common.recipe.gtnl.treeDiagram.CircuitIngredientNormalizer;
+import com.science.gtnl.common.recipe.gtnl.treeDiagram.CircuitRecipeGenerationReport;
+import com.science.gtnl.common.recipe.gtnl.treeDiagram.NacCircuitRecipeSource;
+import com.science.gtnl.common.recipe.gtnl.treeDiagram.RecipeMapCircuitRecipeSource;
+import com.science.gtnl.common.recipe.gtnl.treeDiagram.TreeDiagramRecipeGenerator;
 
-import gregtech.api.enums.ItemList;
-import gregtech.api.enums.TierEU;
-import gregtech.api.recipe.RecipeMap;
+import bartworks.API.recipe.BartWorksRecipeMaps;
+import gregtech.api.recipe.RecipeMaps;
 
 public class TreeDiagramRecipes implements IRecipePool {
 
-    public RecipeMap<?> ACALR = GTNLRecipeMaps.TreeDiagramRecipes;
+    private static CircuitRecipeGenerationReport generationReport;
 
     @Override
     public void loadRecipes() {
-        RecipeBuilder.builder()
-            .itemInputs(new ItemStack(Blocks.dirt, 1))
-            .itemOutputs(ItemList.Circuit_Crystalprocessor.get(64))
-            .specialValue(14)
-            .duration(Integer.MAX_VALUE)
-            .eut(TierEU.RECIPE_MAX)
-            .addTo(ACALR);
+        if (generationReport != null) return;
+        CircuitComputationPolicy computation = new CircuitComputationPolicy();
+        TreeDiagramRecipeGenerator generator = new TreeDiagramRecipeGenerator(
+            Arrays.asList(
+                new NacCircuitRecipeSource(),
+                new RecipeMapCircuitRecipeSource("cal", BartWorksRecipeMaps.circuitAssemblyLineRecipes, 20),
+                new RecipeMapCircuitRecipeSource("ca", RecipeMaps.circuitAssemblerRecipes)),
+            CircuitCatalog.INSTANCE,
+            new CircuitIngredientNormalizer(computation));
+        generationReport = generator.generate(GTNLRecipeMaps.TreeDiagramRecipes);
+        ((TreeDiagramRecipeFrontend) GTNLRecipeMaps.TreeDiagramRecipes.getFrontend()).configure(generationReport);
+    }
+
+    public static CircuitRecipeGenerationReport generationReport() {
+        return generationReport;
     }
 }

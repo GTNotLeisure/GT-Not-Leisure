@@ -18,6 +18,7 @@ import com.gtnewhorizons.modularui.common.widget.SlotWidget;
 import com.science.gtnl.ScienceNotLeisure;
 
 import gregtech.api.enums.TieredVariant;
+import gregtech.api.recipe.BasicUIProperties;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
 import gregtech.api.recipe.NEIRecipePropertiesBuilder;
 import gregtech.api.recipe.RecipeMapFrontend;
@@ -123,8 +124,9 @@ public class GTNLRecipeFrontend extends RecipeMapFrontend {
     public ModularWindow.Builder createNEITemplate(GTNEIDefaultHandler.NEITemplateContext ctx) {
         if (!borderless()) return super.createNEITemplate(ctx);
 
+        BasicUIProperties uiProperties = getUIProperties();
         // Remove the regular background texture with the border.
-        ModularWindow.Builder builder = ModularWindow.builder(neiProperties.recipeBackgroundSize);
+        ModularWindow.Builder builder = ModularWindow.builder(getNEIProperties().recipeBackgroundSize);
 
         if (uiProperties.useProgressBar) {
             addProgressBar(builder, ctx);

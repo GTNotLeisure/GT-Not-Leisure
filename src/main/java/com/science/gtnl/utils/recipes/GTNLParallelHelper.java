@@ -488,6 +488,13 @@ public class GTNLParallelHelper extends ParallelHelper {
             .copyOfRange(recipe.mFluidOutputs, 0, Math.min(machine.getFluidOutputLimit(), recipe.mFluidOutputs.length))
             : GTValues.emptyFluidStackArray;
 
+        maxParallel = Math
+            .min(maxParallel, getOutputParallelLimit(maxParallel, truncatedItemOutputs, truncatedFluidOutputs));
+        if (maxParallel <= 0) {
+            result = CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
+            return;
+        }
+
         SingleRecipeCheck recipeCheck = null;
         SingleRecipeCheck.Builder tSingleRecipeCheckBuilder = null;
         if (isRecipeLocked && singleRecipeMachine != null) {
@@ -697,6 +704,10 @@ public class GTNLParallelHelper extends ParallelHelper {
         }
         itemInputs = itemInputsToUse;
         fluidInputs = fluidInputsToUse;
+    }
+
+    protected int getOutputParallelLimit(int candidate, ItemStack[] items, FluidStack[] fluids) {
+        return candidate;
     }
 
     @Override
