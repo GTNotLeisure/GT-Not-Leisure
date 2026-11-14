@@ -4,14 +4,10 @@ import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 
 import java.util.List;
 
-import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
@@ -19,10 +15,9 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
-import com.science.gtnl.loader.BlockLoader;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -35,7 +30,6 @@ import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.misc.GTStructureChannels;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class LargeSteamLathe extends SteamMultiMachineBase<LargeSteamLathe> implements ISurvivalConstructable {
@@ -59,97 +53,23 @@ public class LargeSteamLathe extends SteamMultiMachineBase<LargeSteamLathe> impl
     public IStructureDefinition<LargeSteamLathe> getStructureDefinition() {
         return StructureDefinition.<LargeSteamLathe>builder()
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
-            .addElement(
-                'A',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamLathe::getTierIndustrialCasing,
-                        ImmutableList.of(Pair.of(BlockLoader.metaCasing02, 1), Pair.of(BlockLoader.metaCasing02, 2)),
-                        -1,
-                        (t, m) -> t.tierIndustrialCasing = m,
-                        t -> t.tierIndustrialCasing)))
+            .addElement('A', MachineStructureElements.industrialCasing())
             .addElement(
                 'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofChain(
-                        buildSteamWirelessInput(LargeSteamLathe.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamBigInput(LargeSteamLathe.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamInput(LargeSteamLathe.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        GTStructureUtility.buildHatchAdder(LargeSteamLathe.class)
-                            .casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .atLeast(
-                                SteamHatchElement.InputBus_Steam,
-                                SteamHatchElement.OutputBus_Steam,
-                                HatchElement.InputBus,
-                                HatchElement.OutputBus,
-                                HatchElement.Maintenance)
-                            .buildAndChain(
-                                StructureUtility.onElementPass(
-                                    x -> ++x.mCountCasing,
-                                    StructureUtility.ofBlocksTiered(
-                                        LargeSteamLathe::getTierMachineCasing,
-                                        ImmutableList.of(
-                                            Pair.of(GregTechAPI.sBlockCasings1, 10),
-                                            Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                                        -1,
-                                        (t, m) -> t.tierMachineCasing = m,
-                                        t -> t.tierMachineCasing))))))
-            .addElement(
-                'C',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamFormingPress::getTierGearCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 2), Pair.of(GregTechAPI.sBlockCasings2, 3)),
-                        -1,
-                        (t, m) -> t.tierGearCasing = m,
-                        t -> t.tierGearCasing)))
-            .addElement(
-                'D',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamLathe::getTierPipeCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 12), Pair.of(GregTechAPI.sBlockCasings2, 13)),
-                        -1,
-                        (t, m) -> t.tierPipeCasing = m,
-                        t -> t.tierPipeCasing)))
-            .addElement(
-                'E',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamLathe::getTierFrameCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockFrames, 300), Pair.of(GregTechAPI.sBlockFrames, 305)),
-                        -1,
-                        (t, m) -> t.tierFrameCasing = m,
-                        t -> t.tierFrameCasing)))
-            .addElement(
-                'F',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCutting::getTierMachineFrame,
-                        ImmutableList
-                            .of(Pair.of(BlockLoader.metaBlockColumn, 4), Pair.of(BlockLoader.metaBlockColumn, 5)),
-                        -1,
-                        (t, m) -> t.tierMachineFrame = m,
-                        t -> t.tierMachineFrame)))
-            .addElement(
-                'G',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCutting::getTierMaterialBlockCasing,
-                        ImmutableList.of(Pair.of(Blocks.iron_block, 0), Pair.of(GregTechAPI.sBlockMetal6, 13)),
-                        -1,
-                        (t, m) -> t.tierMaterialBlock = m,
-                        t -> t.tierMaterialBlock)))
+                MachineStructureElements.machineCasingWithHatches(
+                    LargeSteamLathe.class,
+                    getCasingTextureID(),
+                    1,
+                    SteamHatchElement.InputBus_Steam,
+                    SteamHatchElement.OutputBus_Steam,
+                    HatchElement.InputBus,
+                    HatchElement.OutputBus,
+                    HatchElement.Maintenance))
+            .addElement('C', MachineStructureElements.gearCasing())
+            .addElement('D', MachineStructureElements.pipeCasing())
+            .addElement('E', MachineStructureElements.frameCasing())
+            .addElement('F', MachineStructureElements.machineFrame())
+            .addElement('G', MachineStructureElements.materialBlock())
             .addElement('H', GTStructureUtility.chainAllGlasses())
             .build();
     }

@@ -46,13 +46,13 @@ import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructa
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.gtnllib.utils.MathUtils;
 import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.gui.modularui.multiblock.SuperSpaceElevatorGui;
 import com.science.gtnl.common.machine.hatch.ParallelControllerHatch;
 import com.science.gtnl.common.machine.multiMachineBase.TTMultiMachineBase;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.TieredCasing;
 import com.science.gtnl.utils.world.teams.TeamNetworkManager;
 
 import bartworks.common.loaders.ItemRegistry;
@@ -95,6 +95,11 @@ import tectech.thing.metaTileEntity.multi.base.render.TTRenderedExtendedFacingTe
 @IMetaTileEntity.SkipGenerateDescription
 public class SuperSpaceElevator extends TTMultiMachineBase
     implements IConstructable, ISecondaryDescribable, ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> MOTOR_CASING = new TieredCasing<>(
+        ElevatorUtil.motorTierConverter(),
+        () -> ElevatorUtil.getMotorTiers(),
+        0);
 
     private static final int MODULE_CHARGE_INTERVAL = 20;
     private static final int INTERNAL_BUFFER_MULTIPLIER = 256;
@@ -272,13 +277,8 @@ public class SuperSpaceElevator extends TTMultiMachineBase
             .addElement('C', Casings.HighPowerCasing.asElement())
             .addElement(
                 'D',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        ElevatorUtil.motorTierConverter(),
-                        ElevatorUtil.getMotorTiers(),
-                        0,
-                        SuperSpaceElevator::setMotorTier,
-                        SuperSpaceElevator::getMotorTier)))
+                GTStructureChannels.TIER_MACHINE_CASING
+                    .use(MOTOR_CASING.create(SuperSpaceElevator::setMotorTier, SuperSpaceElevator::getMotorTier)))
             .addElement('E', ofFrame(Materials.Neutronium))
             .addElement(
                 'F',

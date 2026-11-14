@@ -1,8 +1,6 @@
 package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
-import static gtPlusPlus.core.block.ModBlocks.blockCustomMachineCasings;
 
 import java.util.List;
 
@@ -10,9 +8,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
@@ -22,8 +17,8 @@ import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -34,7 +29,6 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.misc.GTStructureChannels;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -71,57 +65,19 @@ public class SteamCracking extends SteamMultiMachineBase<SteamCracking> implemen
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
                 'A',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofChain(
-                        buildSteamWirelessInput(SteamCracking.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamBigInput(SteamCracking.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamInput(SteamCracking.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildHatchAdder(SteamCracking.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .atLeast(
-                                SteamHatchElement.InputBus_Steam,
-                                SteamHatchElement.OutputBus_Steam,
-                                HatchElement.InputBus,
-                                HatchElement.OutputBus,
-                                HatchElement.InputHatch,
-                                HatchElement.OutputHatch,
-                                HatchElement.Maintenance)
-                            .buildAndChain(
-                                StructureUtility.onElementPass(
-                                    x -> ++x.mCountCasing,
-                                    StructureUtility.ofBlocksTiered(
-                                        SteamCracking::getTierMachineCasing,
-                                        ImmutableList.of(
-                                            Pair.of(GregTechAPI.sBlockCasings1, 10),
-                                            Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                                        -1,
-                                        (t, m) -> t.tierMachineCasing = m,
-                                        t -> t.tierMachineCasing))))))
-            .addElement(
-                'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        SteamCracking::getTierFireboxCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings3, 13), Pair.of(GregTechAPI.sBlockCasings3, 14)),
-                        -1,
-                        (t, m) -> t.tierFireboxCasing = m,
-                        t -> t.tierFireboxCasing)))
-            .addElement(
-                'C',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        SteamCracking::getTierPlatedCasing,
-                        ImmutableList.of(Pair.of(blockCustomMachineCasings, 0), Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                        -1,
-                        (t, m) -> t.tierPlatedCasing = m,
-                        t -> t.tierPlatedCasing)))
+                MachineStructureElements.machineCasingWithHatches(
+                    SteamCracking.class,
+                    getCasingTextureID(),
+                    1,
+                    SteamHatchElement.InputBus_Steam,
+                    SteamHatchElement.OutputBus_Steam,
+                    HatchElement.InputBus,
+                    HatchElement.OutputBus,
+                    HatchElement.InputHatch,
+                    HatchElement.OutputHatch,
+                    HatchElement.Maintenance))
+            .addElement('B', MachineStructureElements.fireboxCasing())
+            .addElement('C', MachineStructureElements.platedCasing())
             .build();
     }
 

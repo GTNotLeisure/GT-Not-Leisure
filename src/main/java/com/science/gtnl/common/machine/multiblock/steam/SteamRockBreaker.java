@@ -10,9 +10,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.IAlignmentLimits;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
@@ -23,10 +20,10 @@ import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.SoundResource;
@@ -40,7 +37,6 @@ import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.misc.GTStructureChannels;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -87,49 +83,16 @@ public class SteamRockBreaker extends SteamMultiMachineBase<SteamRockBreaker> im
                     .toArray(String[][]::new))
             .addElement(
                 'A',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofChain(
-                        buildSteamWirelessInput(SteamRockBreaker.class)
-                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
-                            .hint(1)
-                            .build(),
-                        buildSteamBigInput(SteamRockBreaker.class)
-                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
-                            .hint(1)
-                            .build(),
-                        buildSteamInput(SteamRockBreaker.class).casingIndex(Casings.BronzePlatedBricks.getTextureId())
-                            .hint(1)
-                            .build(),
-                        GTStructureUtility.buildHatchAdder(SteamRockBreaker.class)
-                            .atLeast(
-                                SteamHatchElement.InputBus_Steam,
-                                HatchElement.InputBus,
-                                SteamHatchElement.OutputBus_Steam,
-                                HatchElement.OutputBus,
-                                HatchElement.Maintenance)
-                            .casingIndex(Casings.BronzePlatedBricks.getTextureId())
-                            .hint(1)
-                            .buildAndChain(
-                                StructureUtility.onElementPass(
-                                    x -> ++x.mCountCasing,
-                                    StructureUtility.ofBlocksTiered(
-                                        LargeSteamFurnace::getTierMachineCasing,
-                                        ImmutableList.of(
-                                            Pair.of(GregTechAPI.sBlockCasings1, 10),
-                                            Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                                        -1,
-                                        (t, m) -> t.tierMachineCasing = m,
-                                        t -> t.tierMachineCasing))))))
-            .addElement(
-                'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        SteamRockBreaker::getTierPipeCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 12), Pair.of(GregTechAPI.sBlockCasings2, 13)),
-                        -1,
-                        (t, m) -> t.tierPipeCasing = m,
-                        t -> t.tierPipeCasing)))
+                MachineStructureElements.machineCasingWithHatches(
+                    SteamRockBreaker.class,
+                    Casings.BronzePlatedBricks.getTextureId(),
+                    1,
+                    SteamHatchElement.InputBus_Steam,
+                    HatchElement.InputBus,
+                    SteamHatchElement.OutputBus_Steam,
+                    HatchElement.OutputBus,
+                    HatchElement.Maintenance))
+            .addElement('B', MachineStructureElements.pipeCasing())
             .addElement('C', Casings.Firebricks.asElement())
             .addElement('D', StructureUtility.ofBlock(Blocks.iron_block, 0))
             .addElement(

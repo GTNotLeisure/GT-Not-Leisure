@@ -1588,6 +1588,11 @@ public abstract class SteamMultiMachineBase<T extends SteamMultiMachineBase<T>> 
             .shouldReject(t -> !t.mSteamBigInputFluids.isEmpty());
     }
 
+    public static <T extends SteamMultiMachineBase<T>> HatchElementBuilder<T> buildStandardSteamInput(
+        Class<T> typeToken) {
+        return buildSteamInput(typeToken);
+    }
+
     public static <T extends SteamMultiMachineBase<T>> HatchElementBuilder<T> buildSteamWirelessInput(
         Class<T> typeToken) {
         return buildHatchAdder(typeToken).adder(SteamMultiMachineBase::addToMachineList)

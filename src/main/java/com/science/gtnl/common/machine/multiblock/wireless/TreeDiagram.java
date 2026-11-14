@@ -37,6 +37,7 @@ import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLParallelHelper;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 import com.science.gtnl.utils.recipes.data.CircuitNanitesRecipeData;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
@@ -62,6 +63,18 @@ import lombok.Getter;
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
 public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram> implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> CELESTIAL_TUNGSTEN_FRAME = new TieredCasing<>(
+        (block, meta) -> block == Block.getBlockFromItem(
+            MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN.getFrameBox(1)
+                .getItem()) ? 1 : null,
+        () -> ImmutableList.of(
+            Pair.of(
+                Block.getBlockFromItem(
+                    MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN.getFrameBox(1)
+                        .getItem()),
+                0)),
+        -1);
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String TD_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/tree_diagram";
@@ -132,21 +145,7 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram> imp
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
                 'A',
-                GTNLStructureChannels.STRUCTURE_RENDER.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block,
-                            meta) -> block == Block.getBlockFromItem(
-                                MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN.getFrameBox(1)
-                                    .getItem()) ? 1 : null,
-                        ImmutableList.of(
-                            Pair.of(
-                                Block.getBlockFromItem(
-                                    MaterialsElements.STANDALONE.CELESTIAL_TUNGSTEN.getFrameBox(1)
-                                        .getItem()),
-                                0)),
-                        -1,
-                        (t, m) -> {},
-                        t -> -1)))
+                GTNLStructureChannels.STRUCTURE_RENDER.use(CELESTIAL_TUNGSTEN_FRAME.create((t, m) -> {}, t -> -1)))
             .addElement('B', Casings.LuVMachineCasing.asElement())
             .addElement('C', Casings.DimensionalBridge.asElement())
             .addElement('D', Casings.ActiveNeutroniumCasing.asElement())

@@ -15,7 +15,6 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -33,9 +32,11 @@ import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 import com.science.gtnl.utils.structure.GTNLStructureErrors;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import goodgenerator.loader.Loaders;
+import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Materials;
@@ -69,6 +70,30 @@ import gtPlusPlus.xmod.gregtech.common.blocks.textures.TexturesGtBlock;
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
 public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> MACHINE_CASING = TieredCasing.ofCasings(
+        PrecisionAssembler::getMachineTier,
+        -1,
+        () -> ImmutableList.of(
+            Casings.ULVMachineCasing,
+            Casings.LVMachineCasing,
+            Casings.MVMachineCasing,
+            Casings.HVMachineCasing,
+            Casings.EVMachineCasing,
+            Casings.IVMachineCasing,
+            Casings.LuVMachineCasing,
+            Casings.ZPMMachineCasing,
+            Casings.UVMachineCasing,
+            Casings.UHVMachineCasing));
+    private static final TieredCasing<Integer> PRECISE_UNIT_CASING = TieredCasing.ofCasings(
+        PrecisionAssembler::getCasingTier,
+        -1,
+        () -> ImmutableList.of(
+            GTNLCasings.ImpreciseUnitCasing,
+            GTNLCasings.PreciseUnitCasing1,
+            GTNLCasings.PreciseUnitCasing2,
+            GTNLCasings.PreciseUnitCasing3,
+            GTNLCasings.PreciseUnitCasing4));
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     public static final String LPA_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/precise_assembler";
@@ -147,23 +172,8 @@ public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> imp
             .addElement('A', GTStructureUtility.chainAllGlasses(-1, (te, t) -> te.mGlassTier = t, te -> te.mGlassTier))
             .addElement(
                 'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        PrecisionAssembler::getMachineTier,
-                        ImmutableList.of(
-                            Pair.of(sBlockCasings1, 0),
-                            Pair.of(sBlockCasings1, 1),
-                            Pair.of(sBlockCasings1, 2),
-                            Pair.of(sBlockCasings1, 3),
-                            Pair.of(sBlockCasings1, 4),
-                            Pair.of(sBlockCasings1, 5),
-                            Pair.of(sBlockCasings1, 6),
-                            Pair.of(sBlockCasings1, 7),
-                            Pair.of(sBlockCasings1, 8),
-                            Pair.of(sBlockCasings1, 9)),
-                        -1,
-                        (t, m) -> t.mMachineTier = m,
-                        t -> t.mMachineTier)))
+                GTStructureChannels.TIER_MACHINE_CASING
+                    .use(MACHINE_CASING.create((t, m) -> t.mMachineTier = m, t -> t.mMachineTier)))
             .addElement('C', GTStructureUtility.ofFrame(Materials.TungstenSteel))
             .addElement(
                 'D',
@@ -182,17 +192,7 @@ public class PrecisionAssembler extends MultiMachineBase<PrecisionAssembler> imp
                             StructureUtility.onElementPass(
                                 x -> ++x.mCountCasing,
                                 GTStructureChannels.PRASS_UNIT_CASING.use(
-                                    StructureUtility.ofBlocksTiered(
-                                        PrecisionAssembler::getCasingTier,
-                                        ImmutableList.of(
-                                            Pair.of(Loaders.impreciseUnitCasing, 0),
-                                            Pair.of(Loaders.preciseUnitCasing, 0),
-                                            Pair.of(Loaders.preciseUnitCasing, 1),
-                                            Pair.of(Loaders.preciseUnitCasing, 2),
-                                            Pair.of(Loaders.preciseUnitCasing, 3)),
-                                        -1,
-                                        (t, m) -> t.mCasingTier = m,
-                                        t -> t.mCasingTier))))))
+                                    PRECISE_UNIT_CASING.create((t, m) -> t.mCasingTier = m, t -> t.mCasingTier))))))
             .build();
     }
 

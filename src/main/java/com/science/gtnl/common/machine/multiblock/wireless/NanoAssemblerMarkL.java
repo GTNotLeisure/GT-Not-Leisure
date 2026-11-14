@@ -20,9 +20,10 @@ import com.science.gtnl.api.casing.GTNLCasings;
 import com.science.gtnl.common.machine.multiMachineBase.WirelessEnergyMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
-import goodgenerator.loader.Loaders;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
@@ -40,10 +41,12 @@ import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.misc.GTStructureChannels;
 import gtPlusPlus.core.material.MaterialsAlloy;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class NanoAssemblerMarkL extends WirelessEnergyMultiMachineBase<NanoAssemblerMarkL> {
+
+    private static final TieredCasing<Integer> COMPONENT_ASSEMBLYLINE_CASING = MachineStructureElements
+        .componentAssemblylineCasing(() -> NanoAssemblerMarkL.COMPONENT_CASING_VARIANTS);
 
     public static final List<Pair<Block, Integer>> COMPONENT_CASING_VARIANTS = createComponentCasingVariants();
     private static final int HORIZONTAL_OFF_SET = 6;
@@ -54,11 +57,7 @@ public class NanoAssemblerMarkL extends WirelessEnergyMultiMachineBase<NanoAssem
     private static final String[][] shape = StructureUtils.readStructureFromFile(VMC_STRUCTURE_FILE_PATH);
 
     public static List<Pair<Block, Integer>> createComponentCasingVariants() {
-        List<Pair<Block, Integer>> casingVariants = new ObjectArrayList<>(13);
-        for (int tier = 0; tier < 13; tier++) {
-            casingVariants.add(Pair.of(Loaders.componentAssemblylineCasing, tier));
-        }
-        return casingVariants;
+        return MachineStructureElements.componentCasingVariants(13);
     }
 
     public NanoAssemblerMarkL(String aName) {
@@ -119,13 +118,8 @@ public class NanoAssemblerMarkL extends WirelessEnergyMultiMachineBase<NanoAssem
             .addElement('B', Casings.RadiantNaquadahAlloyCasing.asElement())
             .addElement(
                 'C',
-                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : -1,
-                        COMPONENT_CASING_VARIANTS,
-                        -2,
-                        (t, meta) -> t.mCasingTier = meta,
-                        t -> t.mCasingTier)))
+                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING
+                    .use(COMPONENT_ASSEMBLYLINE_CASING.create((t, meta) -> t.mCasingTier = meta, t -> t.mCasingTier)))
             .addElement('D', Casings.HeatResistantTriniumPlatedCasing.asElement())
             .addElement(
                 'E',

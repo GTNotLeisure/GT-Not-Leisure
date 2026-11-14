@@ -32,6 +32,7 @@ import com.science.gtnl.compat.newhorizons.NHCoreItem;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.enums.GTNLStructureChannels;
 import com.science.gtnl.utils.structure.GTNLStructureErrors;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import goodgenerator.loader.Loaders;
 import gregtech.api.GregTechAPI;
@@ -52,6 +53,11 @@ import gtnhlanth.common.register.LanthItemList;
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
 public class LibraryOfRuina extends GTMMultiMachineBase<LibraryOfRuina> implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> GRAVITY_STABILIZATION_CASING = new TieredCasing<>(
+        (block, meta) -> block == Loaders.gravityStabilizationCasing ? 1 : null,
+        () -> ImmutableList.of(Pair.of(Loaders.gravityStabilizationCasing, 0)),
+        -1);
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String LOR_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/library_of_ruina";
@@ -86,13 +92,7 @@ public class LibraryOfRuina extends GTMMultiMachineBase<LibraryOfRuina> implemen
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
                 'A',
-                GTNLStructureChannels.STRUCTURE_RENDER.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block, meta) -> block == Loaders.gravityStabilizationCasing ? 1 : null,
-                        ImmutableList.of(Pair.of(Loaders.gravityStabilizationCasing, 0)),
-                        -1,
-                        (t, m) -> {},
-                        t -> -1)))
+                GTNLStructureChannels.STRUCTURE_RENDER.use(GRAVITY_STABILIZATION_CASING.create((t, m) -> {}, t -> -1)))
             .addElement('B', GTNLCasings.DimensionallyStableCasing.asElement())
             .addElement('C', StructureUtility.ofBlock(GregTechAPI.sBlockCasingsSE, 1))
             .addElement(

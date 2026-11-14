@@ -1,7 +1,6 @@
 package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.util.List;
 
@@ -9,9 +8,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
@@ -19,10 +15,9 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
-import com.science.gtnl.loader.BlockLoader;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -34,7 +29,6 @@ import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.misc.GTStructureChannels;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -66,76 +60,19 @@ public class LargeSteamCrusher extends SteamMultiMachineBase<LargeSteamCrusher> 
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
                 'A',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofChain(
-                        buildSteamWirelessInput(LargeSteamCrusher.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamBigInput(LargeSteamCrusher.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildSteamInput(LargeSteamCrusher.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .build(),
-                        buildHatchAdder(LargeSteamCrusher.class).casingIndex(getCasingTextureID())
-                            .hint(1)
-                            .atLeast(
-                                SteamHatchElement.InputBus_Steam,
-                                SteamHatchElement.OutputBus_Steam,
-                                HatchElement.InputBus,
-                                HatchElement.OutputBus,
-                                HatchElement.Maintenance)
-                            .buildAndChain(
-                                StructureUtility.onElementPass(
-                                    x -> ++x.mCountCasing,
-                                    StructureUtility.ofBlocksTiered(
-                                        LargeSteamCrusher::getTierMachineCasing,
-                                        ImmutableList.of(
-                                            Pair.of(GregTechAPI.sBlockCasings1, 10),
-                                            Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                                        -1,
-                                        (t, m) -> t.tierMachineCasing = m,
-                                        t -> t.tierMachineCasing))))))
-            .addElement(
-                'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCrusher::getTierGearCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 2), Pair.of(GregTechAPI.sBlockCasings2, 3)),
-                        -1,
-                        (t, m) -> t.tierGearCasing = m,
-                        t -> t.tierGearCasing)))
-            .addElement(
-                'C',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCrusher::getTierPipeCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 12), Pair.of(GregTechAPI.sBlockCasings2, 13)),
-                        -1,
-                        (t, m) -> t.tierPipeCasing = m,
-                        t -> t.tierPipeCasing)))
-            .addElement(
-                'D',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCrusher::getTierFrameCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockFrames, 300), Pair.of(GregTechAPI.sBlockFrames, 305)),
-                        -1,
-                        (t, m) -> t.tierFrameCasing = m,
-                        t -> t.tierFrameCasing)))
-            .addElement(
-                'E',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeSteamCrusher::getTierBrickCasing,
-                        ImmutableList
-                            .of(Pair.of(BlockLoader.metaBlockColumn, 0), Pair.of(BlockLoader.metaBlockColumn, 1)),
-                        -1,
-                        (t, m) -> t.tierBrickCasing = m,
-                        t -> t.tierBrickCasing)))
+                MachineStructureElements.machineCasingWithHatches(
+                    LargeSteamCrusher.class,
+                    getCasingTextureID(),
+                    1,
+                    SteamHatchElement.InputBus_Steam,
+                    SteamHatchElement.OutputBus_Steam,
+                    HatchElement.InputBus,
+                    HatchElement.OutputBus,
+                    HatchElement.Maintenance))
+            .addElement('B', MachineStructureElements.gearCasing())
+            .addElement('C', MachineStructureElements.pipeCasing())
+            .addElement('D', MachineStructureElements.frameCasing())
+            .addElement('E', MachineStructureElements.brickCasing())
             .build();
     }
 

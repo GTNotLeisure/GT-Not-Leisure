@@ -23,9 +23,10 @@ import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.structure.MachineStructureElements;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
-import goodgenerator.loader.Loaders;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
@@ -49,11 +50,13 @@ import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.misc.GTStructureChannels;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
 public class ComponentAssembler extends MultiMachineBase<ComponentAssembler> implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> COMPONENT_ASSEMBLYLINE_CASING = MachineStructureElements
+        .componentAssemblylineCasing(() -> ComponentAssembler.COMPONENT_CASING_VARIANTS);
 
     private static final String CA_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":" + "multiblock/component_assembler";
     private static final String[][] shape = StructureUtils.readStructureFromFile(CA_STRUCTURE_FILE_PATH);
@@ -64,11 +67,7 @@ public class ComponentAssembler extends MultiMachineBase<ComponentAssembler> imp
     public static final List<Pair<Block, Integer>> COMPONENT_CASING_VARIANTS = createComponentCasingVariants();
 
     public static List<Pair<Block, Integer>> createComponentCasingVariants() {
-        List<Pair<Block, Integer>> casingVariants = new ObjectArrayList<>(8);
-        for (int tier = 0; tier < 8; tier++) {
-            casingVariants.add(Pair.of(Loaders.componentAssemblylineCasing, tier));
-        }
-        return casingVariants;
+        return MachineStructureElements.componentCasingVariants(8);
     }
 
     public ComponentAssembler(int aID, String aName, String aNameRegional) {
@@ -102,13 +101,8 @@ public class ComponentAssembler extends MultiMachineBase<ComponentAssembler> imp
             .addElement('A', GTStructureUtility.chainAllGlasses(-1, (te, t) -> te.mGlassTier = t, te -> te.mGlassTier))
             .addElement(
                 'B',
-                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : -1,
-                        COMPONENT_CASING_VARIANTS,
-                        -2,
-                        (t, meta) -> t.mCasingTier = meta,
-                        t -> t.mCasingTier)))
+                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING
+                    .use(COMPONENT_ASSEMBLYLINE_CASING.create((t, meta) -> t.mCasingTier = meta, t -> t.mCasingTier)))
             .addElement(
                 'C',
                 GTStructureUtility.buildHatchAdder(ComponentAssembler.class)

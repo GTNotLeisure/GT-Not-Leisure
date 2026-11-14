@@ -27,6 +27,7 @@ import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
@@ -51,6 +52,17 @@ import tectech.thing.casing.TTCasingsContainer;
 @IMetaTileEntity.SkipGenerateName
 public class DraconicFusionCrafting extends GTMMultiMachineBase<DraconicFusionCrafting>
     implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> FUSION_CASING = new TieredCasing<>(
+        DraconicFusionCrafting::getTierCasingFromBlock,
+        () -> ImmutableList.of(
+            Pair.of(defcCasingBlock, 8),
+            Pair.of(defcCasingBlock, 9),
+            Pair.of(defcCasingBlock, 10),
+            Pair.of(defcCasingBlock, 11),
+            Pair.of(defcCasingBlock, 12),
+            Pair.of(TTCasingsContainer.SpacetimeCompressionFieldGenerators, 2)),
+        -1);
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String DFC_STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":"
@@ -118,19 +130,8 @@ public class DraconicFusionCrafting extends GTMMultiMachineBase<DraconicFusionCr
                             Casings.BackgroundRadiationAbsorbentCasing.asElement())))
             .addElement(
                 'D',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        DraconicFusionCrafting::getTierCasingFromBlock,
-                        ImmutableList.of(
-                            Pair.of(defcCasingBlock, 8),
-                            Pair.of(defcCasingBlock, 9),
-                            Pair.of(defcCasingBlock, 10),
-                            Pair.of(defcCasingBlock, 11),
-                            Pair.of(defcCasingBlock, 12),
-                            Pair.of(TTCasingsContainer.SpacetimeCompressionFieldGenerators, 2)),
-                        -1,
-                        (t, m) -> t.tierCasing = m,
-                        t -> t.tierCasing)))
+                GTStructureChannels.TIER_MACHINE_CASING
+                    .use(FUSION_CASING.create((t, m) -> t.tierCasing = m, t -> t.tierCasing)))
             .addElement('E', Casings.ElectronPermeableNeutroniumCoatedGlass.asElement())
             .build();
     }

@@ -1,7 +1,6 @@
 package com.science.gtnl.common.machine.multiblock.steam;
 
 import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
-import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.util.List;
 
@@ -9,9 +8,6 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import org.apache.commons.lang3.tuple.Pair;
-
-import com.google.common.collect.ImmutableList;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
@@ -21,8 +17,8 @@ import com.science.gtnl.common.machine.multiMachineBase.SteamMultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
+import com.science.gtnl.utils.structure.MachineStructureElements;
 
-import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
@@ -33,7 +29,6 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.MultiblockTooltipBuilder;
-import gregtech.common.misc.GTStructureChannels;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class PrimitiveBrickKiln extends SteamMultiMachineBase<PrimitiveBrickKiln> implements ISurvivalConstructable {
@@ -92,57 +87,20 @@ public class PrimitiveBrickKiln extends SteamMultiMachineBase<PrimitiveBrickKiln
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
                 'A',
-                StructureUtility.ofChain(
-                    buildSteamWirelessInput(PrimitiveBrickKiln.class).casingIndex(getCasingTextureID())
-                        .hint(1)
-                        .build(),
-                    buildSteamBigInput(PrimitiveBrickKiln.class).casingIndex(getCasingTextureID())
-                        .hint(1)
-                        .build(),
-                    buildSteamInput(PrimitiveBrickKiln.class).casingIndex(getCasingTextureID())
-                        .hint(1)
-                        .build(),
-                    buildHatchAdder(PrimitiveBrickKiln.class).casingIndex(getCasingTextureID())
-                        .hint(1)
-                        .atLeast(
-                            SteamHatchElement.InputBus_Steam,
-                            SteamHatchElement.OutputBus_Steam,
-                            HatchElement.InputBus,
-                            HatchElement.OutputBus,
-                            HatchElement.InputHatch,
-                            HatchElement.Maintenance)
-                        .buildAndChain(
-                            StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.Firebricks.asElement()))))
-            .addElement(
-                'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        PrimitiveBrickKiln::getTierMachineCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings1, 10), Pair.of(GregTechAPI.sBlockCasings2, 0)),
-                        -1,
-                        (t, m) -> t.tierMachineCasing = m,
-                        t -> t.tierMachineCasing)))
-            .addElement(
-                'C',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        PrimitiveBrickKiln::getTierFireboxCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings3, 13), Pair.of(GregTechAPI.sBlockCasings3, 14)),
-                        -1,
-                        (t, m) -> t.tierFireboxCasing = m,
-                        t -> t.tierFireboxCasing)))
-            .addElement(
-                'D',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        PrimitiveBrickKiln::getTierPipeCasing,
-                        ImmutableList
-                            .of(Pair.of(GregTechAPI.sBlockCasings2, 12), Pair.of(GregTechAPI.sBlockCasings2, 13)),
-                        -1,
-                        (t, m) -> t.tierPipeCasing = m,
-                        t -> t.tierPipeCasing)))
+                MachineStructureElements.ofSteamHatches(
+                    PrimitiveBrickKiln.class,
+                    getCasingTextureID(),
+                    1,
+                    StructureUtility.onElementPass(x -> ++x.mCountCasing, Casings.Firebricks.asElement()),
+                    SteamHatchElement.InputBus_Steam,
+                    SteamHatchElement.OutputBus_Steam,
+                    HatchElement.InputBus,
+                    HatchElement.OutputBus,
+                    HatchElement.InputHatch,
+                    HatchElement.Maintenance))
+            .addElement('B', MachineStructureElements.machineCasing())
+            .addElement('C', MachineStructureElements.fireboxCasing())
+            .addElement('D', MachineStructureElements.pipeCasing())
             .build();
     }
 

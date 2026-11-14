@@ -30,6 +30,7 @@ import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 import com.science.gtnl.utils.recipes.metadata.FuelRefiningMetadata;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -62,6 +63,11 @@ import kubatech.loaders.BlockLoader;
 @IMetaTileEntity.SkipGenerateName
 public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnergyExcitationPlant>
     implements ISurvivalConstructable, IMTERenderer {
+
+    private static final TieredCasing<Integer> FIELD_COIL_CASING = new TieredCasing<>(
+        fieldCoilTierConverter(),
+        () -> getAllFieldCoilTiers(),
+        -1);
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String STRUCTURE_PIECE_SPHERE = "sphere";
@@ -242,12 +248,8 @@ public class AtomicEnergyExcitationPlant extends GTMMultiMachineBase<AtomicEnerg
             .addElement(
                 'B',
                 GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        fieldCoilTierConverter(),
-                        getAllFieldCoilTiers(),
-                        -1,
-                        AtomicEnergyExcitationPlant::setCoilTier,
-                        AtomicEnergyExcitationPlant::getCoilTier)))
+                    FIELD_COIL_CASING
+                        .create(AtomicEnergyExcitationPlant::setCoilTier, AtomicEnergyExcitationPlant::getCoilTier)))
             .addElement('C', StructureUtility.ofBlock(BlockLoader.defcCasingBlock, 7))
             .addElement(
                 'D',

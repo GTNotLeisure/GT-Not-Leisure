@@ -32,8 +32,9 @@ import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.structure.MachineStructureElements;
+import com.science.gtnl.utils.structure.TieredCasing;
 
-import goodgenerator.loader.Loaders;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
@@ -59,13 +60,15 @@ import gregtech.api.util.GTUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gregtech.common.misc.GTStructureChannels;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.Getter;
 import lombok.Setter;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class EngravingLaserPlant extends WirelessEnergyMultiMachineBase<EngravingLaserPlant>
     implements IControllerUpgrade {
+
+    private static final TieredCasing<Integer> COMPONENT_ASSEMBLYLINE_CASING = MachineStructureElements
+        .componentAssemblylineCasing(() -> EngravingLaserPlant.COMPONENT_CASING_VARIANTS);
 
     private static final int MACHINEMODE_LASER = 0;
     private static final int MACHINEMODE_PRECISION_LASER = 1;
@@ -105,11 +108,7 @@ public class EngravingLaserPlant extends WirelessEnergyMultiMachineBase<Engravin
     }
 
     public static List<Pair<Block, Integer>> createComponentCasingVariants() {
-        List<Pair<Block, Integer>> casingVariants = new ObjectArrayList<>(13);
-        for (int tier = 0; tier < 13; tier++) {
-            casingVariants.add(Pair.of(Loaders.componentAssemblylineCasing, tier));
-        }
-        return casingVariants;
+        return MachineStructureElements.componentCasingVariants(13);
     }
 
     @Override
@@ -155,13 +154,8 @@ public class EngravingLaserPlant extends WirelessEnergyMultiMachineBase<Engravin
             .addElement('I', StructureUtility.ofBlock(compactFusionCoil, 2))
             .addElement(
                 'J',
-                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : -1,
-                        COMPONENT_CASING_VARIANTS,
-                        -2,
-                        (t, meta) -> t.mCasingTier = meta,
-                        t -> t.mCasingTier)))
+                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING
+                    .use(COMPONENT_ASSEMBLYLINE_CASING.create((t, meta) -> t.mCasingTier = meta, t -> t.mCasingTier)))
             .addElement('K', Casings.ExtremeDensitySpaceBendingCasing.asElement())
             .addElement('L', GTStructureUtility.chainAllGlasses(-1, (te, t) -> te.mGlassTier = t, te -> te.mGlassTier))
             .addElement('M', GTStructureUtility.ofFrame(Materials.Neutronium))

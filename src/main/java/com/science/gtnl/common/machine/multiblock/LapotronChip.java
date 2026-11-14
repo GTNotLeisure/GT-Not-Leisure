@@ -27,6 +27,7 @@ import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.compat.extrautilities.ExtraUtilitiesContent;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.enums.GTNLStructureChannels;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
@@ -45,6 +46,19 @@ import gregtech.common.misc.GTStructureChannels;
 @IMetaTileEntity.SkipGenerateName
 public class LapotronChip extends MultiMachineBase<LapotronChip>
     implements ISurvivalConstructable, INEIPreviewModifier {
+
+    private static final TieredCasing<Integer> LAPIS_CAELESTIS_CASING = new TieredCasing<>(
+        LapotronChip::getLapisCaelestisTier,
+        () -> getGreenScreenVariants(),
+        -1);
+    private static final TieredCasing<Integer> FIRST_GLASS_CASING = new TieredCasing<>(
+        LapotronChip::getTierGlass1,
+        () -> getGlass(),
+        -1);
+    private static final TieredCasing<Integer> SECOND_GLASS_CASING = new TieredCasing<>(
+        LapotronChip::getTierGlass2,
+        () -> getGlass(),
+        -1);
 
     private static final int HORIZONTAL_OFF_SET = 88;
     private static final int VERTICAL_OFF_SET = 97;
@@ -83,13 +97,8 @@ public class LapotronChip extends MultiMachineBase<LapotronChip>
             .addElement('A', StructureUtility.ofBlockAnyMeta(Blocks.iron_block))
             .addElement(
                 'B',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LapotronChip::getLapisCaelestisTier,
-                        getGreenScreenVariants(),
-                        -1,
-                        (t, m) -> t.tierLapisCaelestis = m,
-                        t -> t.tierLapisCaelestis)))
+                GTStructureChannels.TIER_MACHINE_CASING
+                    .use(LAPIS_CAELESTIS_CASING.create((t, m) -> t.tierLapisCaelestis = m, t -> t.tierLapisCaelestis)))
             .addElement('C', Casings.StabilizedNaquadahWaterPlantCasing.asElement())
             .addElement('D', Casings.HeatProofMachineCasing.asElement())
             .addElement(
@@ -110,22 +119,12 @@ public class LapotronChip extends MultiMachineBase<LapotronChip>
             .addElement('F', GTNLCasings.FortifyGlowstone.asElement())
             .addElement(
                 'G',
-                GTStructureChannels.STRUCTURE_HEIGHT.use(
-                    StructureUtility.ofBlocksTiered(
-                        LapotronChip::getTierGlass1,
-                        getGlass(),
-                        -1,
-                        (t, m) -> t.tierGlass1 = m,
-                        t -> t.tierGlass1)))
+                GTStructureChannels.STRUCTURE_HEIGHT
+                    .use(FIRST_GLASS_CASING.create((t, m) -> t.tierGlass1 = m, t -> t.tierGlass1)))
             .addElement(
                 'H',
-                GTStructureChannels.STRUCTURE_LENGTH.use(
-                    StructureUtility.ofBlocksTiered(
-                        LapotronChip::getTierGlass2,
-                        getGlass(),
-                        -1,
-                        (t, m) -> t.tierGlass2 = m,
-                        t -> t.tierGlass2)))
+                GTStructureChannels.STRUCTURE_LENGTH
+                    .use(SECOND_GLASS_CASING.create((t, m) -> t.tierGlass2 = m, t -> t.tierGlass2)))
             .addElement('I', Casings.SuperconductingCoilBlock.asElement())
             .addElement('K', StructureUtility.ofBlockAnyMeta(Blocks.beacon))
             .build();

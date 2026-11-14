@@ -32,10 +32,11 @@ import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
+import com.science.gtnl.utils.structure.MachineStructureElements;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import goodgenerator.api.recipe.GoodGeneratorRecipeMaps;
 import goodgenerator.items.GGMaterial;
-import goodgenerator.loader.Loaders;
 import goodgenerator.util.ItemRefer;
 import gregtech.api.GregTechAPI;
 import gregtech.api.casing.Casings;
@@ -66,7 +67,6 @@ import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gregtech.common.misc.GTStructureChannels;
 import gtnhlanth.common.register.LanthItemList;
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -74,6 +74,9 @@ import lombok.Setter;
 @IMetaTileEntity.SkipGenerateName
 public class IntegratedAssemblyFacility extends WirelessEnergyMultiMachineBase<IntegratedAssemblyFacility>
     implements IControllerUpgrade {
+
+    private static final TieredCasing<Integer> COMPONENT_ASSEMBLYLINE_CASING = MachineStructureElements
+        .componentAssemblylineCasing(() -> IntegratedAssemblyFacility.COMPONENT_CASING_VARIANTS);
 
     private static final int HORIZONTAL_OFF_SET = 8;
     private static final int VERTICAL_OFF_SET = 10;
@@ -88,11 +91,7 @@ public class IntegratedAssemblyFacility extends WirelessEnergyMultiMachineBase<I
     private static final int MACHINEMODE_COMPO = 1;
 
     public static List<Pair<Block, Integer>> createComponentCasingVariants() {
-        List<Pair<Block, Integer>> casingVariants = new ObjectArrayList<>(13);
-        for (int tier = 0; tier < 13; tier++) {
-            casingVariants.add(Pair.of(Loaders.componentAssemblylineCasing, tier));
-        }
-        return casingVariants;
+        return MachineStructureElements.componentCasingVariants(13);
     }
 
     public static final ItemStack[] REQUIRED_ITEMS = new ItemStack[] { ItemRefer.Component_Assembly_Line.get(64),
@@ -154,13 +153,8 @@ public class IntegratedAssemblyFacility extends WirelessEnergyMultiMachineBase<I
             .addElement('A', GTNLCasings.NeutroniumPipeCasing.asElement())
             .addElement(
                 'B',
-                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : -1,
-                        COMPONENT_CASING_VARIANTS,
-                        -2,
-                        (t, meta) -> t.mCasingTier = meta,
-                        t -> t.mCasingTier)))
+                GTStructureChannels.COMPONENT_ASSEMBLYLINE_CASING
+                    .use(COMPONENT_ASSEMBLYLINE_CASING.create((t, meta) -> t.mCasingTier = meta, t -> t.mCasingTier)))
             .addElement(
                 'C',
                 GTStructureUtility.buildHatchAdder(IntegratedAssemblyFacility.class)

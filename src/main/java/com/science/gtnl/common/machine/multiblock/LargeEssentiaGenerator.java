@@ -32,6 +32,7 @@ import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.recipe.thaumcraft.EssentiaSupply;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.structure.GTNLStructureErrors;
+import com.science.gtnl.utils.structure.TieredCasing;
 
 import bartworks.system.material.WerkstoffLoader;
 import goodgenerator.items.GGMaterial;
@@ -65,6 +66,15 @@ import thaumcraft.common.config.ConfigBlocks;
 
 @IMetaTileEntity.SkipGenerateDescription
 public class LargeEssentiaGenerator extends MultiMachineBase<LargeEssentiaGenerator> implements ISurvivalConstructable {
+
+    private static final TieredCasing<Integer> ESSENTIA_CELL_CASING = new TieredCasing<>(
+        LargeEssentiaGenerator::getTierCasing,
+        () -> ImmutableList.of(
+            Pair.of(Loaders.essentiaCell, 0),
+            Pair.of(Loaders.essentiaCell, 1),
+            Pair.of(Loaders.essentiaCell, 2),
+            Pair.of(Loaders.essentiaCell, 3)),
+        -1);
 
     private static final int HORIZONTAL_OFF_SET = 4;
     private static final int VERTICAL_OFF_SET = 0;
@@ -192,17 +202,8 @@ public class LargeEssentiaGenerator extends MultiMachineBase<LargeEssentiaGenera
             .addElement('C', Casings.MagicCasing.asElement())
             .addElement(
                 'E',
-                GTStructureChannels.TIER_MACHINE_CASING.use(
-                    StructureUtility.ofBlocksTiered(
-                        LargeEssentiaGenerator::getTierCasing,
-                        ImmutableList.of(
-                            Pair.of(Loaders.essentiaCell, 0),
-                            Pair.of(Loaders.essentiaCell, 1),
-                            Pair.of(Loaders.essentiaCell, 2),
-                            Pair.of(Loaders.essentiaCell, 3)),
-                        -1,
-                        (t, m) -> t.tierMachine = m,
-                        t -> t.tierMachine)))
+                GTStructureChannels.TIER_MACHINE_CASING
+                    .use(ESSENTIA_CELL_CASING.create((t, m) -> t.tierMachine = m, t -> t.tierMachine)))
             .addElement(
                 'X',
                 StructureUtility.ofChain(
