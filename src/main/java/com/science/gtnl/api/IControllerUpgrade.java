@@ -12,8 +12,6 @@ import gregtech.api.util.GTUtility;
 
 public interface IControllerUpgrade {
 
-    int UPGRADE_WINDOW_ID = 11;
-
     ItemStack[] getUpgradeRequiredItems();
 
     ItemStack[] getStoredUpgradeWindowItems();
@@ -124,18 +122,6 @@ public interface IControllerUpgrade {
     int getGUIHeight();
 
     int getGUIColorization();
-
-    default int getUpgradeWindowId() {
-        return UPGRADE_WINDOW_ID;
-    }
-
-    default int getPreviewUpgradeWindowId() {
-        return getPreviewUpgradeWindowId(1);
-    }
-
-    default int getPreviewUpgradeWindowId(int previewLevel) {
-        return UPGRADE_WINDOW_ID + previewLevel;
-    }
 
     String getUpgradeButtonTooltip();
 
