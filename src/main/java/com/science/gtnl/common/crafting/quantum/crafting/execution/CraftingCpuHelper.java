@@ -25,6 +25,7 @@ import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.ICraftingInventory;
 
 import appeng.api.config.Actionable;
@@ -34,6 +35,12 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
  * Helper functions used by the CPU.
  */
 public class CraftingCpuHelper {
+
+    public static void reinjectPatternInputs(ICraftingInventory inventory, KeyCounter[] inputs) {
+        for (var slot : inputs) {
+            if (slot != null) slot.forEach((key, amount) -> inventory.insert(key, amount, Actionable.MODULATE));
+        }
+    }
 
     /**
      * Get all potential input templates that count as "1" ingredient according to the given inputs for a pattern slot,

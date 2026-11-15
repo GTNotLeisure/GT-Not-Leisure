@@ -1,7 +1,9 @@
 package com.science.gtnl.utils;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.inventory.InventoryCrafting;
 import net.minecraft.nbt.NBTTagCompound;
@@ -10,7 +12,11 @@ import net.minecraftforge.common.util.Constants;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.science.gtnl.common.crafting.quantum.ae2.QuantumAssemblerInputs;
+import com.science.gtnl.common.crafting.quantum.ae2.QuantumDispatchOrder;
+import com.science.gtnl.common.crafting.quantum.crafting.CraftingPlan;
 import com.science.gtnl.common.machine.multiblock.QuantumComputer;
+import com.science.gtnl.mixins.late.appliedEnergistics.AccessorTaskProgress;
 import com.science.gtnl.utils.crafting.VariantBudgets;
 
 import appeng.api.AEApi;
@@ -41,6 +47,7 @@ import appeng.tile.crafting.TileCraftingTile;
 public class ECraftingCPUCluster extends CraftingCPUCluster {
 
     private static final String NBT_VARIANT_BUDGETS = "gtnl:variantBudgets";
+    private static final String NBT_DISPATCH_ORDER = "gtnl:dispatchOrder";
 
     @Nullable
     private QuantumComputer virtualCPUOwner = null;
@@ -48,6 +55,8 @@ public class ECraftingCPUCluster extends CraftingCPUCluster {
     // AE2 takes the first variant covering an input, which may starve another input planned with that variant
     private final VariantBudgets variantBudgets = new VariantBudgets();
     private final VariantBudgets stagedVariantBudgets = new VariantBudgets();
+    private final QuantumDispatchOrder dispatchOrder = new QuantumDispatchOrder();
+    private final QuantumAssemblerInputs assemblerInputs = new QuantumAssemblerInputs();
 
     public ECraftingCPUCluster(final WorldCoord min, final WorldCoord max) {
         super(min, max);
@@ -88,17 +97,62 @@ public class ECraftingCPUCluster extends CraftingCPUCluster {
     public ICraftingLink submitJob(final IGrid g, final ICraftingJob job, final BaseActionSource src,
         final ICraftingRequester requestingMachine) {
         final boolean idle = this.tasks.isEmpty() && this.waitingFor.isEmpty();
-        final ICraftingLink link = super.submitJob(g, job, src, requestingMachine);
-        if (link != null) {
-            // A merged job adds its budgets to those of the running one
-            if (idle) this.variantBudgets.clear();
-            this.variantBudgets.addAll(this.stagedVariantBudgets);
+        final Map<ICraftingPatternDetails, Long> previousTasks = taskCounts();
+        try {
+            final ICraftingLink link = super.submitJob(g, job, src, requestingMachine);
+            if (link != null) {
+                // A merged job adds its budgets and an independent dispatch batch to the running job.
+                if (idle) this.variantBudgets.clear();
+                this.variantBudgets.addAll(this.stagedVariantBudgets);
+                this.dispatchOrder.commit(previousTasks, taskCounts());
+            }
+            if (link != null && this.virtualCPUOwner != null && this.virtualCPUOwner.isVirtualCPU(this)) {
+                this.virtualCPUOwner.onVirtualCPUSubmitJob(job.getByteTotal());
+            }
+            return link;
+        } finally {
+            this.stagedVariantBudgets.clear();
+            this.dispatchOrder.discardStaged();
         }
-        this.stagedVariantBudgets.clear();
-        if (link != null && this.virtualCPUOwner != null && this.virtualCPUOwner.isVirtualCPU(this)) {
-            this.virtualCPUOwner.onVirtualCPUSubmitJob(job.getByteTotal());
-        }
-        return link;
+    }
+
+    private Map<ICraftingPatternDetails, Long> taskCounts() {
+        var counts = new HashMap<ICraftingPatternDetails, Long>();
+        this.tasks.forEach((pattern, progress) -> {
+            long remaining = ((AccessorTaskProgress) progress).getValue();
+            if (remaining > 0) counts.put(pattern, remaining);
+        });
+        return counts;
+    }
+
+    public void stageDispatchOrder(CraftingPlan plan) {
+        this.dispatchOrder.stage(plan);
+    }
+
+    public boolean canDispatchPattern(ICraftingPatternDetails pattern) {
+        return this.dispatchOrder.canDispatch(pattern);
+    }
+
+    public long limitDispatchPattern(ICraftingPatternDetails pattern, long maximum) {
+        if (this.assemblerInputs.returnsContainers(pattern)) maximum = Math.min(maximum, 1);
+        return this.dispatchOrder.limit(pattern, maximum);
+    }
+
+    public ArrayList<IAEStack<?>> getAssemblerExtractItems(ICraftingPatternDetails pattern, int slot) {
+        return this.assemblerInputs.extractSlot(pattern, slot, this.inventory);
+    }
+
+    public void dispatchPatternAccepted(ICraftingPatternDetails pattern, long crafts) {
+        this.dispatchOrder.accepted(pattern, crafts);
+    }
+
+    @Override
+    protected boolean canCraft(ICraftingPatternDetails details, List<IAEStack<?>> condensedInputs) {
+        if (!canDispatchPattern(details)) return false;
+        return details.isCraftable()
+            ? this.assemblerInputs
+                .select(details, this.inventory, getWorld(), input -> this.variantBudgets.get(details, input))
+            : super.canCraft(details, condensedInputs);
     }
 
     public void stageVariantBudget(final ICraftingPatternDetails details, final IAEStack<?> input,
@@ -195,25 +249,36 @@ public class ECraftingCPUCluster extends CraftingCPUCluster {
     @Override
     protected void completeJob() {
         super.completeJob();
-        if (this.isComplete) this.variantBudgets.clear();
+        if (this.isComplete) {
+            this.variantBudgets.clear();
+            this.dispatchOrder.clear();
+            this.assemblerInputs.clear();
+        }
     }
 
     @Override
     public void writeToNBT(final NBTTagCompound data) {
         super.writeToNBT(data);
         if (!this.variantBudgets.isEmpty()) data.setTag(NBT_VARIANT_BUDGETS, this.variantBudgets.writeToNBT());
+        else data.removeTag(NBT_VARIANT_BUDGETS);
+        if (this.dispatchOrder.isActive()) data.setTag(NBT_DISPATCH_ORDER, this.dispatchOrder.writeToNBT());
+        else data.removeTag(NBT_DISPATCH_ORDER);
     }
 
     @Override
     public void readFromNBT(final NBTTagCompound data) {
         super.readFromNBT(data);
         this.variantBudgets.readFromNBT(data.getTagList(NBT_VARIANT_BUDGETS, Constants.NBT.TAG_COMPOUND));
+        this.dispatchOrder.readFromNBT(data.getCompoundTag(NBT_DISPATCH_ORDER), taskCounts());
+        this.assemblerInputs.clear();
     }
 
     @Override
     public void cancel() {
         super.cancel();
         this.variantBudgets.clear();
+        this.dispatchOrder.clear();
+        this.assemblerInputs.clear();
         if (this.virtualCPUOwner == null) return;
         if (isInventoryEmpty()) destroy();
     }

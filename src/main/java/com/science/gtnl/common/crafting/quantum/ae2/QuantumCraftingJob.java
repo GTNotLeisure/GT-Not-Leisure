@@ -249,6 +249,9 @@ public class QuantumCraftingJob<StackType extends IAEStack<StackType>>
         }
 
         final CraftingCPUCluster cluster = (CraftingCPUCluster) craftingCPUCluster;
+        if (cluster instanceof ECraftingCPUCluster quantumCluster) {
+            quantumCluster.stageDispatchOrder(result);
+        }
         for (Object2LongMap.Entry<IPatternDetails> entry : result.patternTimes()
             .object2LongEntrySet()) {
             cluster.addCrafting(((QuantumPattern) entry.getKey()).getDetails(), entry.getLongValue());

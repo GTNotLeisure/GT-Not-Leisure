@@ -16,6 +16,7 @@
 package com.science.gtnl.common.crafting.quantum.crafting;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 import org.jetbrains.annotations.Nullable;
@@ -28,7 +29,7 @@ import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
-public final class CraftingPlan {
+public class CraftingPlan {
 
     private final GenericStack finalOutput;
     private final long bytes;
@@ -42,6 +43,7 @@ public final class CraftingPlan {
     private Map<IPatternDetails, KeyCounter> inputAllocations = Map.of();
     private Map<IPatternDetails, KeyCounter> remainderAllocations = Map.of();
     private @Nullable KeyCounter requiredItems;
+    private List<CraftingDispatchOrder.Batch<IPatternDetails>> dispatchOrder = List.of();
 
     public CraftingPlan(GenericStack finalOutput, long bytes, boolean simulation, KeyCounter usedItems,
         KeyCounter emittedItems, KeyCounter missingItems, Object2LongMap<IPatternDetails> patternTimes,
@@ -84,33 +86,40 @@ public final class CraftingPlan {
         return this.patternTimes;
     }
 
+    public void recordDispatchOrder(List<CraftingDispatchOrder.Batch<IPatternDetails>> order) {
+        this.dispatchOrder = List.copyOf(order);
+    }
+
+    public List<CraftingDispatchOrder.Batch<IPatternDetails>> dispatchOrder() {
+        return this.dispatchOrder;
+    }
+
     @Nullable
     public Map<IPatternDetails, Map<AEKey, KeyCounter>> variantBudgets() {
         return this.variantBudgets;
     }
 
-    void recordRequiredItems(KeyCounter required) {
+    public void recordRequiredItems(KeyCounter required) {
         this.requiredItems = required;
     }
 
-    @Nullable
-    KeyCounter requiredItems() {
+    public @Nullable KeyCounter requiredItems() {
         return this.requiredItems;
     }
 
-    void recordRemainderAllocations(Map<IPatternDetails, KeyCounter> allocations) {
+    public void recordRemainderAllocations(Map<IPatternDetails, KeyCounter> allocations) {
         this.remainderAllocations = allocations;
     }
 
-    Map<IPatternDetails, KeyCounter> remainderAllocations() {
+    public Map<IPatternDetails, KeyCounter> remainderAllocations() {
         return Collections.unmodifiableMap(this.remainderAllocations);
     }
 
-    void recordInputAllocations(Map<IPatternDetails, KeyCounter> allocations) {
+    public void recordInputAllocations(Map<IPatternDetails, KeyCounter> allocations) {
         this.inputAllocations = allocations;
     }
 
-    Map<IPatternDetails, KeyCounter> inputAllocations() {
+    public Map<IPatternDetails, KeyCounter> inputAllocations() {
         return this.inputAllocations;
     }
 
@@ -127,13 +136,14 @@ public final class CraftingPlan {
         result.inputAllocations = this.inputAllocations;
         result.remainderAllocations = this.remainderAllocations;
         result.requiredItems = this.requiredItems;
+        result.dispatchOrder = this.dispatchOrder;
         return result;
     }
 
     /**
      * The same plan with repaired contents.
      */
-    CraftingPlan withContents(KeyCounter usedItems, KeyCounter emittedItems, KeyCounter missingItems,
+    public CraftingPlan withContents(KeyCounter usedItems, KeyCounter emittedItems, KeyCounter missingItems,
         Object2LongMap<IPatternDetails> patternTimes) {
         return withContents(
             usedItems,
@@ -143,7 +153,7 @@ public final class CraftingPlan {
             patternTimes.equals(this.patternTimes) ? this.variantBudgets : null);
     }
 
-    CraftingPlan withContents(KeyCounter usedItems, KeyCounter emittedItems, KeyCounter missingItems,
+    public CraftingPlan withContents(KeyCounter usedItems, KeyCounter emittedItems, KeyCounter missingItems,
         Object2LongMap<IPatternDetails> patternTimes,
         @Nullable Map<IPatternDetails, Map<AEKey, KeyCounter>> variantBudgets) {
         // Additional crafts also need storage; retain the original bound when a repair only reduces crafts.
@@ -178,6 +188,7 @@ public final class CraftingPlan {
         if (samePatterns) {
             result.inputAllocations = this.inputAllocations;
             result.remainderAllocations = this.remainderAllocations;
+            result.dispatchOrder = this.dispatchOrder;
         }
         return result;
     }

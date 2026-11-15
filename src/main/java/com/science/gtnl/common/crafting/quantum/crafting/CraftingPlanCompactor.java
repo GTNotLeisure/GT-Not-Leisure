@@ -35,7 +35,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectLinkedOpenHashMap;
 
-public final class CraftingPlanCompactor {
+public class CraftingPlanCompactor {
 
     private static final int MAX_STEPS = 1_000_000;
     private static final int MAX_REPLAY_ROUNDS = 100_000;
@@ -77,6 +77,11 @@ public final class CraftingPlanCompactor {
      */
     public static CraftingPlan repair(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
         var repaired = repairContents(plan, calculation);
+        if (!repaired.missingItems()
+            .isEmpty()) {
+            var converted = CraftingStockConversion.tryPlan(repaired, calculation);
+            if (converted != null) repaired = converted;
+        }
         var minimized = removeReturnedShortages(repaired, calculation);
         return removeUnusedReturningStock(minimized, calculation);
     }
@@ -234,7 +239,7 @@ public final class CraftingPlanCompactor {
         return plan;
     }
 
-    static CraftingPlan compact(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
+    public static CraftingPlan compact(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
         if (plan.patternTimes()
             .isEmpty()) {
             // The request is never taken from storage, so without crafts only an emitter makes it, or it is missing
@@ -1328,7 +1333,7 @@ public final class CraftingPlanCompactor {
         return dividend % divisor == 0 ? quotient : quotient + 1;
     }
 
-    private static final class Slot {
+    private static class Slot {
 
         private final IPatternDetails.IInput input;
         private final long amount;
@@ -1349,7 +1354,7 @@ public final class CraftingPlanCompactor {
             this.remaining.defaultReturnValue(UNKNOWN);
         }
 
-        boolean isFixed(int variant) {
+        private boolean isFixed(int variant) {
             for (int key : this.fixed) {
                 if (key == variant) return true;
             }
@@ -1357,7 +1362,7 @@ public final class CraftingPlanCompactor {
         }
     }
 
-    private static final class Batch {
+    private static class Batch {
 
         private int[] keys = new int[8];
         private long[] in = new long[8];
@@ -1365,7 +1370,7 @@ public final class CraftingPlanCompactor {
         private int size;
         private int[] variants = new int[0];
 
-        void reset(Recipe recipe) {
+        private void reset(Recipe recipe) {
             this.size = 0;
             if (this.variants.length < recipe.slots.length) {
                 this.variants = new int[recipe.slots.length];
@@ -1375,7 +1380,7 @@ public final class CraftingPlanCompactor {
             }
         }
 
-        void add(int key, long in, long out) {
+        private void add(int key, long in, long out) {
             for (int i = 0; i < this.size; i++) {
                 if (this.keys[i] == key) {
                     this.in[i] = Math.addExact(this.in[i], in);
@@ -1394,18 +1399,18 @@ public final class CraftingPlanCompactor {
             this.size++;
         }
 
-        long inputOf(int key) {
+        private long inputOf(int key) {
             for (int i = 0; i < this.size; i++) {
                 if (this.keys[i] == key) return this.in[i];
             }
             return 0;
         }
 
-        long runnable(long[] inventory, long wanted) {
+        private long runnable(long[] inventory, long wanted) {
             return Recipe.runnable(this.keys, this.in, this.out, this.size, inventory, wanted);
         }
 
-        void run(long[] inventory, long[] lowest, long crafts) {
+        private void run(long[] inventory, long[] lowest, long crafts) {
             Recipe.run(this.keys, this.in, this.out, this.size, inventory, lowest, crafts);
         }
     }
@@ -1413,8 +1418,7 @@ public final class CraftingPlanCompactor {
     private record Recipe(IPatternDetails pattern, int index, long limit, int[] keys, long[] in, long[] out,
         Slot[] slots) {
 
-        @Nullable
-        static Recipe of(IPatternDetails pattern, long limit, CraftingPlanCompactor compactor) {
+        private @Nullable static Recipe of(IPatternDetails pattern, long limit, CraftingPlanCompactor compactor) {
             final boolean substitutes = pattern.canSubstitute();
             final AEKey2LongMap inputs = new AEKey2LongMap.CheckedOpenHashMap();
             final AEKey2LongMap outputs = new AEKey2LongMap.CheckedOpenHashMap();
@@ -1488,43 +1492,43 @@ public final class CraftingPlanCompactor {
             return recipe;
         }
 
-        int firstOutput() {
+        private int firstOutput() {
             for (int i = 0; i < this.keys.length; i++) {
                 if (this.out[i] > this.in[i]) return this.keys[i];
             }
             return this.keys.length == 0 ? 0 : this.keys[0];
         }
 
-        boolean makesFirst(AEKey key) {
+        private boolean makesFirst(AEKey key) {
             final List<GenericStack> outputs = this.pattern.getOutputs();
             return !outputs.isEmpty() && outputs.getFirst()
                 .what()
                 .equals(key);
         }
 
-        long net(int key) {
+        private long net(int key) {
             for (int i = 0; i < this.keys.length; i++) {
                 if (this.keys[i] == key) return this.out[i] - this.in[i];
             }
             return 0;
         }
 
-        void apply(long[] balance, long crafts) {
+        private void apply(long[] balance, long crafts) {
             for (int i = 0; i < this.keys.length; i++) {
                 final long delta = Math.multiplyExact(this.out[i] - this.in[i], crafts);
                 balance[this.keys[i]] = Math.addExact(balance[this.keys[i]], delta);
             }
         }
 
-        long runnable(long[] inventory, long wanted) {
+        private long runnable(long[] inventory, long wanted) {
             return runnable(this.keys, this.in, this.out, this.keys.length, inventory, wanted);
         }
 
-        void run(long[] inventory, long[] lowest, long crafts) {
+        private void run(long[] inventory, long[] lowest, long crafts) {
             run(this.keys, this.in, this.out, this.keys.length, inventory, lowest, crafts);
         }
 
-        static long runnable(int[] keys, long[] in, long[] out, int size, long[] inventory, long wanted) {
+        private static long runnable(int[] keys, long[] in, long[] out, int size, long[] inventory, long wanted) {
             long crafts = wanted;
             for (int i = 0; i < size && crafts > 0; i++) {
                 if (in[i] == 0) continue;
@@ -1538,7 +1542,8 @@ public final class CraftingPlanCompactor {
             return crafts;
         }
 
-        static void run(int[] keys, long[] in, long[] out, int size, long[] inventory, long[] lowest, long crafts) {
+        private static void run(int[] keys, long[] in, long[] out, int size, long[] inventory, long[] lowest,
+            long crafts) {
             for (int i = 0; i < size; i++) {
                 final int key = keys[i];
                 if (in[i] > 0) {

@@ -8,6 +8,7 @@ import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectList;
@@ -37,6 +38,8 @@ public class CraftingGraphNode {
     private int ordinal = -1;
     private long demandAmount = 0;
     private long craftTimes = 0;
+    private int localComponentId = -1;
+    private @Nullable KeyCounter plannedBoundaryDemands;
 
     public CraftingGraphNode(AEKey what, @Nullable IPatternDetails pattern, List<GenericStack> outputs,
         long outputPerCraft) {
@@ -100,7 +103,7 @@ public class CraftingGraphNode {
         return ordinal;
     }
 
-    void assignOrdinal(int ordinal) {
+    public void assignOrdinal(int ordinal) {
         if (this.ordinal != -1) {
             throw new IllegalStateException("Crafting graph node already has an ordinal");
         }
@@ -162,6 +165,27 @@ public class CraftingGraphNode {
 
     public long getDemandAmount() {
         return demandAmount;
+    }
+
+    public int getLocalComponentId() {
+        return this.localComponentId;
+    }
+
+    public void setLocalComponentId(int componentId) {
+        this.localComponentId = componentId;
+    }
+
+    public void setPlannedBoundaryDemands(KeyCounter demands) {
+        this.plannedBoundaryDemands = demands;
+    }
+
+    public @Nullable KeyCounter getPlannedBoundaryDemands() {
+        return this.plannedBoundaryDemands;
+    }
+
+    public void clearLocalPlanning() {
+        this.localComponentId = -1;
+        this.plannedBoundaryDemands = null;
     }
 
     public void setDemandAmount(long demandAmount) {

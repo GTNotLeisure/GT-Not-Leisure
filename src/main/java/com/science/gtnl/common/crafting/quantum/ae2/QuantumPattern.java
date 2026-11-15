@@ -19,6 +19,7 @@ import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
+import com.science.gtnl.common.crafting.quantum.crafting.CraftingEventSimulation;
 
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
@@ -26,7 +27,6 @@ import appeng.api.storage.data.IAEStack;
 import appeng.container.ContainerNull;
 import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
-import cpw.mods.fml.common.FMLCommonHandler;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -37,7 +37,7 @@ public class QuantumPattern implements IPatternDetails {
     private final Shape shape;
     private final IInput[] inputs;
 
-    private QuantumPattern(Shape shape, @Nullable StackKey[][] variants) {
+    protected QuantumPattern(Shape shape, @Nullable StackKey[][] variants) {
         this.shape = shape;
         this.inputs = new IInput[shape.encoded.length];
         for (int i = 0; i < this.inputs.length; i++) {
@@ -54,6 +54,16 @@ public class QuantumPattern implements IPatternDetails {
 
     public ICraftingPatternDetails getDetails() {
         return this.shape.details;
+    }
+
+    public int getInputSlot(int index) {
+        return this.shape.slots[index];
+    }
+
+    protected @Nullable GenericStack keyOf(@Nullable ItemStack stack) {
+        if (stack == null || stack.stackSize <= 0) return null;
+        var key = this.shape.keys.of(AEItemStack.create(stack));
+        return key == null ? null : key.toGeneric(stack.stackSize);
     }
 
     @Override
@@ -99,7 +109,7 @@ public class QuantumPattern implements IPatternDetails {
         private QuantumPattern plain;
         private final List<QuantumPattern> variantInstances = new ObjectArrayList<>(1);
 
-        Shape(ICraftingPatternDetails details, @Nullable IAEStack<?>[] processingInputs, StackKeyFactory keys,
+        public Shape(ICraftingPatternDetails details, @Nullable IAEStack<?>[] processingInputs, StackKeyFactory keys,
             World world) {
             this.details = details;
             this.keys = keys;
@@ -154,22 +164,23 @@ public class QuantumPattern implements IPatternDetails {
             this.substitutes = substitutes;
         }
 
-        boolean isUsable() {
+        public boolean isUsable() {
             return this.usable;
         }
 
-        boolean substitutes() {
+        public boolean substitutes() {
             return this.substitutes;
         }
 
-        StackKey[] getEncodedInputs() {
+        public StackKey[] getEncodedInputs() {
             return this.encoded;
         }
 
-        synchronized QuantumPattern instanceFor(@Nullable StackKey[][] variants) {
+        public synchronized QuantumPattern instanceFor(@Nullable StackKey[][] variants) {
             if (!this.substitutes) {
                 if (this.plain == null) {
-                    this.plain = new QuantumPattern(this, null);
+                    this.plain = this.details.isCraftable() ? new QuantumAssemblerPattern(this, null)
+                        : new QuantumPattern(this, null);
                 }
                 return this.plain;
             }
@@ -178,7 +189,8 @@ public class QuantumPattern implements IPatternDetails {
                     return instance;
                 }
             }
-            final QuantumPattern created = new QuantumPattern(this, variants);
+            final QuantumPattern created = this.details.isCraftable() ? new QuantumAssemblerPattern(this, variants)
+                : new QuantumPattern(this, variants);
             if (this.variantInstances.size() >= MAX_VARIANT_INSTANCES) {
                 this.variantInstances.remove(0);
             }
@@ -200,8 +212,7 @@ public class QuantumPattern implements IPatternDetails {
             return true;
         }
 
-        @Nullable
-        StackKey remainingKey(int input, StackKey template) {
+        public @Nullable StackKey remainingKey(int input, StackKey template) {
             if (!(template.getStack() instanceof IAEItemStack itemStack)) {
                 return null;
             }
@@ -236,8 +247,9 @@ public class QuantumPattern implements IPatternDetails {
                 final ItemStack input = template.getItemStack();
                 input.stackSize = 1;
                 grid.setInventorySlotContents(slot, input);
-                FMLCommonHandler.instance()
-                    .firePlayerCraftingEvent(Platform.getPlayer(server), this.details.getOutput(grid, server), grid);
+                var output = this.details.getOutput(grid, server);
+                if (output == null) return plainContainer(template);
+                CraftingEventSimulation.processCraftingResult(output.copy(), grid, server);
                 final ItemStack left = grid.getStackInSlot(slot);
                 return left == null ? null : Platform.getContainerItem(left);
             } catch (RuntimeException e) {
