@@ -2120,6 +2120,38 @@ public class AssemblerRecipes implements IRecipePool {
 
         RecipeBuilder.builder()
             .itemInputs(
+                GTNLItemList.OredictInputBusME.get(1),
+                aeBlocks.chest()
+                    .maybeStack(1)
+                    .orNull(),
+                ItemList.Conveyor_Module_ZPM.get(2),
+                aeMaterials.cardSuperSpeed()
+                    .maybeStack(4)
+                    .orNull())
+            .itemOutputs(GTNLItemList.SuperOredictInputBusME.get(1))
+            .fluidInputs(MaterialsAlloy.INDALLOY_140.getFluidStack(1296))
+            .duration(300)
+            .eut(TierEU.RECIPE_ZPM)
+            .addTo(As);
+
+        RecipeBuilder.builder()
+            .itemInputs(
+                GTNLItemList.TypeFilteredInputBusME.get(1),
+                aeBlocks.chest()
+                    .maybeStack(1)
+                    .orNull(),
+                ItemList.Conveyor_Module_ZPM.get(2),
+                aeMaterials.cardSuperSpeed()
+                    .maybeStack(4)
+                    .orNull())
+            .itemOutputs(GTNLItemList.SuperTypeFilteredInputBusME.get(1))
+            .fluidInputs(MaterialsAlloy.INDALLOY_140.getFluidStack(1296))
+            .duration(300)
+            .eut(TierEU.RECIPE_ZPM)
+            .addTo(As);
+
+        RecipeBuilder.builder()
+            .itemInputs(
                 ItemList.Hatch_Input_HV.get(1),
                 ModsItemlist.AE2FluidCraftBlockFluidInterface.get(1),
                 aeMaterials.cardSpeed()
