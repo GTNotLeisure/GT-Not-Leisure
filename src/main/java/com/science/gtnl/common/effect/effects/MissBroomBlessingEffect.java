@@ -150,7 +150,7 @@ public class MissBroomBlessingEffect extends EffectBase {
             int potionId = effect.getPotionID();
             if (potionId < 0 || potionId >= Potion.potionTypes.length) continue;
             Potion potion = Potion.potionTypes[potionId];
-            if (potion != null && potion.isBadEffect()) player.removePotionEffect(potionId);
+            if (potion != null && potion.isBadEffect) player.removePotionEffect(potionId);
         }
     }
 

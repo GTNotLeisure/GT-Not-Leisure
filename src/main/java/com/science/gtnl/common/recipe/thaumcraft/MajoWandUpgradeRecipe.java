@@ -2,13 +2,14 @@ package com.science.gtnl.common.recipe.thaumcraft;
 
 import net.minecraft.item.ItemStack;
 
+import com.science.gtnl.api.IMachineInfusionRecipe;
 import com.science.gtnl.common.item.wand.MajoWandStage;
 import com.science.gtnl.loader.ItemLoader;
 
 import thaumcraft.api.aspects.AspectList;
 import thaumcraft.api.crafting.InfusionRecipe;
 
-public class MajoWandUpgradeRecipe extends InfusionRecipe {
+public class MajoWandUpgradeRecipe extends InfusionRecipe implements IMachineInfusionRecipe {
 
     private final MajoWandStage target;
 

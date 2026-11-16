@@ -2,7 +2,7 @@ package com.reavaritia.common.items;
 
 import static com.reavaritia.ReAvaritia.RESOURCE_ROOT_ID;
 
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.creativetab.CreativeTabs;
@@ -61,10 +61,9 @@ public class CrystalShovel extends ItemSpade {
     }
 
     private void clearDebuffs(EntityPlayer player) {
-        Collection<PotionEffect> activeEffects = player.getActivePotionEffects();
-        for (PotionEffect effect : activeEffects) {
+        for (PotionEffect effect : new ArrayList<>(player.getActivePotionEffects())) {
             Potion potion = Potion.potionTypes[effect.getPotionID()];
-            if (potion != null && potion.isBadEffect()) {
+            if (potion != null && potion.isBadEffect) {
                 player.removePotionEffect(effect.getPotionID());
             }
         }

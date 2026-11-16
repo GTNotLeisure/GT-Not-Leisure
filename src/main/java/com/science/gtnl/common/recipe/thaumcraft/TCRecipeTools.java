@@ -14,11 +14,13 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
 import com.gtnewhorizon.gtnhlib.util.data.ItemId;
+import com.science.gtnl.api.IMachineInfusionRecipe;
 import com.science.gtnl.compat.avaritia.AvaritiaRecipes;
 import com.science.gtnl.utils.AspectTooltipUtils;
 import com.science.gtnl.utils.enums.ModsItemlist;
 import com.science.gtnl.utils.recipes.GTNLProcessingLogic;
 import com.science.gtnl.utils.recipes.RecipeBuilder;
+import com.science.gtnl.utils.recipes.RecipeItemTransformer;
 
 import cpw.mods.fml.common.registry.GameRegistry;
 import gregtech.api.enums.Mods;
@@ -421,18 +423,22 @@ public class TCRecipeTools {
             if (!(r instanceof InfusionRecipe recipe)) {
                 continue;
             }
-            // Fixed-output recipe maps cannot preserve input-dependent output data.
-            if (dynamicOutputs.computeIfAbsent(recipe.getClass(), TCRecipeTools::hasDynamicOutput)) continue;
+            // Dynamic recipes must explicitly support machine conversion to preserve their input data.
+            if (!(recipe instanceof IMachineInfusionRecipe)
+                && dynamicOutputs.computeIfAbsent(recipe.getClass(), TCRecipeTools::hasDynamicOutput)) continue;
 
-            if ((recipe.getRecipeOutput() instanceof ItemStack
-                && ((ItemStack) recipe.getRecipeOutput()).getItem() != null
-                && recipe.getRecipeInput() != null)) {
+            if (recipe.getRecipeOutput() instanceof ItemStack output && output.getItem() != null
+                && recipe.getRecipeInput() != null) {
+                RecipeItemTransformer transformer = recipe instanceof IMachineInfusionRecipe machineRecipe
+                    ? new RecipeItemTransformer(recipe.getRecipeInput(), machineRecipe::getRecipeOutput)
+                    : null;
                 InfusionCraftingRecipe y = new InfusionCraftingRecipe(
                     recipe.getRecipeInput(),
-                    recipe.getRecipeOutput(),
+                    output,
                     recipe.getComponents(),
                     recipe.getAspects(),
-                    recipe.getResearch());
+                    recipe.getResearch(),
+                    transformer);
                 ICR.add(y);
             }
         }
@@ -535,15 +541,21 @@ public class TCRecipeTools {
         private final ItemStack[] Components;
         private final AspectList InputAspects;
         private final String Research;
+        private final RecipeItemTransformer outputTransformer;
 
         public InfusionCraftingRecipe(ItemStack inputItem, Object outputItem, ItemStack[] components,
             AspectList inputAspects, String research) {
+            this(inputItem, outputItem, components, inputAspects, research, null);
+        }
 
+        public InfusionCraftingRecipe(ItemStack inputItem, Object outputItem, ItemStack[] components,
+            AspectList inputAspects, String research, RecipeItemTransformer outputTransformer) {
             this.InputItem = inputItem;
             this.OutputItem = (ItemStack) outputItem;
             this.Components = components;
             this.InputAspects = copyAspectList(inputAspects);
             this.Research = research == null ? "" : research;
+            this.outputTransformer = outputTransformer;
         }
 
         public ItemStack[] getInputItem() {
@@ -563,6 +575,10 @@ public class TCRecipeTools {
 
         public ItemStack[] getComponents() {
             return Components;
+        }
+
+        public RecipeItemTransformer getOutputTransformer() {
+            return outputTransformer;
         }
 
         public AspectList getInputAspects() {
