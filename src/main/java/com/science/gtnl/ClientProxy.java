@@ -25,13 +25,13 @@ public class ClientProxy extends CommonProxy {
         ConfigRegistry.registerClient();
         super.preInit(event);
         ContentLoaders.clientPreInit();
+        UpdateNotifier.init(event.getModConfigurationDirectory());
     }
 
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
         ContentLoaders.clientInit();
-        UpdateNotifier.init();
     }
 
     @Override

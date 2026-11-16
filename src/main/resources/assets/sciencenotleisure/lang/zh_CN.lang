@@ -4,6 +4,10 @@ itemGroup.gtnl.block=GT不再业余：方块
 itemGroup.gtnl.player_doll=GT不再业余：玩偶
 gtnl.feature.structural_reconstruction_plan=结构代替计划
 
+gtnl.update.available=GTNL 有新版本：%s -> %s。点击打开下载页面。
+gtnl.update.server_available=服务器 GTNL 有新版本：%s -> %s。点击打开下载页面。
+gtnl.update.compatibility=更新前请确认整合包兼容性及所需的 GTNLLib 版本。
+
 gtnl.message.welcome.0=欢迎来到GT Not Leisure！
 gtnl.message.welcome.1=如果你是第一次安装这个模组，请仔细检查配置文件
 gtnl.message.welcome.2=本模组添加了大量的机器和新的配方
@@ -83,6 +87,9 @@ gtnl.gui.config.wireless.tooltip=无线频率卡的相关限制
 gtnl.gui.config.debug.enabledebugmode=调试模式
 gtnl.gui.config.debug.enabledebugmode.tooltip=启用调试日志输出
 
+
+gtnl.gui.config.client.enable_update_check=检查 GTNL 更新
+gtnl.gui.config.client.enable_update_check.tooltip=每次启动在后台检查 GitHub，成功结果缓存 24 小时。检查失败不影响游戏。
 
 gtnl.gui.config.client.enable_railgun_shake=电磁炮镜头震动
 gtnl.gui.config.client.enable_railgun_shake.tooltip=蓄力与发射电磁炮时震动镜头和第一人称模型
@@ -463,6 +470,9 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=关闭后，将把精�
 
 gtnl.gui.config.message.enableshowaddmods=显示加载模组
 gtnl.gui.config.message.enableshowaddmods.tooltip=启用向玩家显示已加载模组列表
+gtnl.gui.config.message.enableserverupdatecheck=检查服务端更新
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=专用服务器在后台检查 GitHub，并提醒控制台和管理员。单人游戏使用客户端设置。
+
 gtnl.gui.config.message.enableshowjoinmessage=加入欢迎消息
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=启用玩家加入世界时的欢迎信息
 
@@ -4699,7 +4709,3 @@ key.gtnl.majo_broom.ascend=扫帚上升
 key.gtnl.majo_broom.descend=扫帚下降
 
 key.categories.gtnl=Science Not Leisure
-
-gtnl.gui.config.client.enable_update_check=检查 GTNL 更新
-gtnl.update.available=GTNL 有新版本：%s -> %s。点击打开下载页面。
-gtnl.update.compatibility=更新前请确认整合包兼容性及所需的 GTNLLib 版本。

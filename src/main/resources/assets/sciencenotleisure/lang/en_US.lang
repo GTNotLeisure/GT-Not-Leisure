@@ -4,6 +4,10 @@ itemGroup.gtnl.block=GT Not Leisure: Blocks
 itemGroup.gtnl.player_doll=GT Not Leisure: Player Doll
 gtnl.feature.structural_reconstruction_plan=Structural Replacement Plan
 
+gtnl.update.available=GTNL update available: %s -> %s. Click to open the download page.
+gtnl.update.server_available=Server GTNL update available: %s -> %s. Click to open the download page.
+gtnl.update.compatibility=Check modpack compatibility and required GTNLLib version before updating.
+
 gtnl.message.welcome.0=Welcome to GT: Science Not Leisure!
 gtnl.message.welcome.1=If this is your first time installing the mod, please check the config files carefully.
 gtnl.message.welcome.2=This mod adds a large number of machines and new recipes.
@@ -83,6 +87,9 @@ gtnl.gui.config.wireless.tooltip=Limits of the wireless frequency cards.
 gtnl.gui.config.debug.enabledebugmode=Debug Mode
 gtnl.gui.config.debug.enabledebugmode.tooltip=Enable debug print log output.
 
+
+gtnl.gui.config.client.enable_update_check=Check for GTNL updates
+gtnl.gui.config.client.enable_update_check.tooltip=Check GitHub in the background once per launch; successful results are cached for 24 hours. Failures do not affect gameplay.
 
 gtnl.gui.config.client.enable_railgun_shake=Railgun Camera Shake
 gtnl.gui.config.client.enable_railgun_shake.tooltip=Shake the camera and the first person model while charging and firing the railgun.
@@ -463,6 +470,9 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=If disabled, reduces t
 
 gtnl.gui.config.message.enableshowaddmods=Show Loaded Mods
 gtnl.gui.config.message.enableshowaddmods.tooltip=Enable showing the list of loaded mods to the player.
+gtnl.gui.config.message.enableserverupdatecheck=Check for server updates
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=On dedicated servers, check GitHub in the background and notify the console and operators. Integrated servers use the client setting.
+
 gtnl.gui.config.message.enableshowjoinmessage=Show Join Message
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Enable the welcome message when a player joins the world.
 
@@ -4699,7 +4709,3 @@ key.gtnl.majo_broom.ascend=Ascend on Broom
 key.gtnl.majo_broom.descend=Descend on Broom
 
 key.categories.gtnl=Science Not Leisure
-
-gtnl.gui.config.client.enable_update_check=Check for GTNL updates
-gtnl.update.available=GTNL update available: %s -> %s. Click to open the download page.
-gtnl.update.compatibility=Check modpack compatibility and required GTNLLib version before updating.

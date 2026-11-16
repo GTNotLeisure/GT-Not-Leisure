@@ -14,6 +14,10 @@ import com.science.gtnl.ScienceNotLeisure;
 @Comment("Message section")
 public class MessageConfig {
 
+    @Comment("Check for GTNL updates on dedicated servers; notify the console and operators only")
+    @DefaultBoolean(true)
+    public static boolean enableServerUpdateCheck = true;
+
     @Comment("Enable showing loaded mods info to player")
     @DefaultBoolean(true)
     public static boolean enableShowAddMods = true;
