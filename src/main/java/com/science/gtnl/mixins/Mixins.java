@@ -2,6 +2,7 @@ package com.science.gtnl.mixins;
 
 import com.gtnewhorizon.gtnhmixins.builders.IMixins;
 import com.gtnewhorizon.gtnhmixins.builders.MixinBuilder;
+import com.gtnewhorizon.gtnhmixins.builders.TargetModBuilder;
 import com.gtnllib.mod.ModList;
 import com.science.gtnl.asm.GTNLEarlyCoreMod;
 import com.science.gtnl.config.ItemConfig;
@@ -400,6 +401,13 @@ public enum Mixins implements IMixins {
             "structureLib.MixinLazyStructureElement",
             "gregtech.MixinMTEEnhancedMultiBlockBaseStructureTooltip")
         .setPhase(Phase.LATE)),
+
+    BLOCK_RENDERER_STRUCTURE_SCAN(new MixinBuilder("Multiblock structure scan optimizations")
+        .addClientMixins(
+            "blockRenderer6343.MixinGTConstructableScan",
+            "blockRenderer6343.MixinBWMetaGeneratedBlocksCasing")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(new TargetModBuilder().setModId("blockrenderer6343"))),
 
     ET_FUTURUM_ELYTRA(
         new MixinBuilder("InfinityElytra EtFuturum Mixin").addCommonMixins("etFuturum.MixinStartElytraFlyingHandler")
