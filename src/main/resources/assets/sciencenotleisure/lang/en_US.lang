@@ -471,7 +471,7 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=If disabled, reduces t
 gtnl.gui.config.message.enableshowaddmods=Show Loaded Mods
 gtnl.gui.config.message.enableshowaddmods.tooltip=Enable showing the list of loaded mods to the player.
 gtnl.gui.config.message.enableserverupdatecheck=Check for server updates
-gtnl.gui.config.message.enableserverupdatecheck.tooltip=On dedicated servers, check GitHub in the background and notify the console and operators. Integrated servers use the client setting.
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=On dedicated servers, check GitHub in the background and notify the console and operators. Integrated servers use the client setting. Requires a server restart.
 
 gtnl.gui.config.message.enableshowjoinmessage=Show Join Message
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Enable the welcome message when a player joins the world.

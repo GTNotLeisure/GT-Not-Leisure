@@ -29,6 +29,7 @@ public final class ServerUpdateNotifier {
     private final CompletableFuture<UpdateChecker.Result> check;
     private final Set<UUID> notified = new HashSet<>();
     private UpdateChecker.Result result;
+    private boolean finished;
     private int ticks;
 
     private ServerUpdateNotifier(MinecraftServer server) {
@@ -37,8 +38,8 @@ public final class ServerUpdateNotifier {
     }
 
     public static void start(MinecraftServer server) {
-        if (!server.isDedicatedServer() || !MessageConfig.enableServerUpdateCheck) return;
         stop();
+        if (!server.isDedicatedServer() || !MessageConfig.enableServerUpdateCheck) return;
         instance = new ServerUpdateNotifier(server);
         FMLCommonHandler.instance()
             .bus()
@@ -56,15 +57,21 @@ public final class ServerUpdateNotifier {
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || result != null || ++ticks % 20 != 0) return;
-        if (!MessageConfig.enableServerUpdateCheck) {
-            stop();
+        if (event.phase != TickEvent.Phase.END) {
             return;
         }
+        if (finished) {
+            return;
+        }
+        ticks++;
+        if (ticks < 20) {
+            return;
+        }
+        ticks = 0;
         result = check.getNow(null);
         if (result == null) return;
+        finished = true;
         if (!result.hasUpdate()) {
-            stop();
             return;
         }
         ScienceNotLeisure.LOG.info(
@@ -83,10 +90,15 @@ public final class ServerUpdateNotifier {
     }
 
     private void notifyOperator(EntityPlayerMP player) {
-        if (!MessageConfig.enableServerUpdateCheck || result == null
-            || !result.hasUpdate()
-            || !player.canCommandSenderUseCommand(2, "")
-            || !notified.add(player.getUniqueID())) return;
+        if (result == null || !result.hasUpdate()) {
+            return;
+        }
+        if (!player.canCommandSenderUseCommand(2, "")) {
+            return;
+        }
+        if (!notified.add(player.getUniqueID())) {
+            return;
+        }
         player.addChatMessage(
             new ChatComponentTranslation("gtnl.update.server_available", Tags.VERSION, result.version).setChatStyle(
                 new ChatStyle().setColor(EnumChatFormatting.YELLOW)

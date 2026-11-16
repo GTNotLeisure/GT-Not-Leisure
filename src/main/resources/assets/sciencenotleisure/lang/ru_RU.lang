@@ -471,7 +471,7 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=Если отключ�
 gtnl.gui.config.message.enableshowaddmods=Показать загруженные моды
 gtnl.gui.config.message.enableshowaddmods.tooltip=Включить показ списка загруженных модов игроку.
 gtnl.gui.config.message.enableserverupdatecheck=Проверять обновления сервера
-gtnl.gui.config.message.enableserverupdatecheck.tooltip=На выделенном сервере проверять GitHub в фоне и уведомлять консоль и операторов. В одиночной игре используется настройка клиента.
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=На выделенном сервере проверять GitHub в фоне и уведомлять консоль и операторов. В одиночной игре используется настройка клиента. Требуется перезапуск сервера.
 
 gtnl.gui.config.message.enableshowjoinmessage=Показать сообщение о присоединении
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Включите приветственное сообщение, когда игрок присоединяется к миру.

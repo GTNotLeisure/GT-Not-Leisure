@@ -471,7 +471,7 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=关闭后，将把精�
 gtnl.gui.config.message.enableshowaddmods=显示加载模组
 gtnl.gui.config.message.enableshowaddmods.tooltip=启用向玩家显示已加载模组列表
 gtnl.gui.config.message.enableserverupdatecheck=检查服务端更新
-gtnl.gui.config.message.enableserverupdatecheck.tooltip=专用服务器在后台检查 GitHub，并提醒控制台和管理员。单人游戏使用客户端设置。
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=专用服务器在后台检查 GitHub，并提醒控制台和管理员。单人游戏使用客户端设置。 需要重启服务器生效。
 
 gtnl.gui.config.message.enableshowjoinmessage=加入欢迎消息
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=启用玩家加入世界时的欢迎信息
