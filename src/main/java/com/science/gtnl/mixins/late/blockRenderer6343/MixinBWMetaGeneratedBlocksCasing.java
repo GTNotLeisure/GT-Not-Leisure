@@ -12,6 +12,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import bartworks.system.material.BWMetaGeneratedBlocksCasing;
 import blockrenderer6343.client.world.ObserverWorld;
 
+@Deprecated
 @Mixin(value = BWMetaGeneratedBlocksCasing.class, remap = false)
 public abstract class MixinBWMetaGeneratedBlocksCasing {
 
