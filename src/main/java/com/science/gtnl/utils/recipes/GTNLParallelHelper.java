@@ -13,6 +13,7 @@ import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 
 import com.science.gtnl.compat.overpowered.RecipeOutputChance;
+import com.science.gtnl.utils.recipes.RecipeItemTransformer.Binding;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.tileentity.IRecipeLockable;
@@ -418,6 +419,7 @@ public class GTNLParallelHelper extends ParallelHelper {
      */
     @Override
     public void determineParallel() {
+        GTRecipe recipeToLock = recipe;
         if (RecipeOutputChance.enabled()) {
             // Compute optional bonus based on machine and current EU/t
             OptionalDouble bonusOptional = ChanceBonusManager
@@ -461,6 +463,25 @@ public class GTNLParallelHelper extends ParallelHelper {
             return;
         }
 
+        SingleRecipeCheck recipeCheck = isRecipeLocked && singleRecipeMachine != null
+            ? singleRecipeMachine.getSingleRecipeCheck()
+            : null;
+        RecipeItemTransformer transformer = recipe.getMetadata(RecipeItemTransformer.METADATA_KEY);
+        if (transformer != null) {
+            Binding binding = transformer.bind(
+                recipe,
+                itemInputs,
+                inputs -> recipeCheck == null ? recipeToLock.maxParallelCalculatedByInputs(1, fluidInputs, inputs) >= 1
+                    : recipeCheck.checkRecipeInputs(false, 1, inputs, fluidInputs) > 0);
+            if (binding == null) {
+                result = CheckRecipeResultRegistry.NO_RECIPE;
+                return;
+            }
+            // Bind before output protection and consumption; the shared recipe remains a display template.
+            recipe = binding.recipe();
+            itemInputs = binding.inputs();
+        }
+
         // Save the original max parallel before calculating our overclocking under 1 tick
         int originalMaxParallel = maxParallel;
         calculator.setParallel(originalMaxParallel);
@@ -488,18 +509,14 @@ public class GTNLParallelHelper extends ParallelHelper {
             .copyOfRange(recipe.mFluidOutputs, 0, Math.min(machine.getFluidOutputLimit(), recipe.mFluidOutputs.length))
             : GTValues.emptyFluidStackArray;
 
-        SingleRecipeCheck recipeCheck = null;
         SingleRecipeCheck.Builder tSingleRecipeCheckBuilder = null;
-        if (isRecipeLocked && singleRecipeMachine != null) {
-            recipeCheck = singleRecipeMachine.getSingleRecipeCheck();
-            if (recipeCheck == null) {
-                // Machine is configured to lock to a single recipe, but haven't built the recipe checker yet.
-                // Build the checker on next successful recipe.
-                RecipeMap<?> recipeMap = singleRecipeMachine.getRecipeMap();
-                if (recipeMap != null) {
-                    tSingleRecipeCheckBuilder = SingleRecipeCheck.builder(recipeMap)
-                        .setBefore(itemInputs, fluidInputs);
-                }
+        if (isRecipeLocked && singleRecipeMachine != null && recipeCheck == null) {
+            // Machine is configured to lock to a single recipe, but has not built the recipe checker yet.
+            // Build the checker on the next successful recipe.
+            RecipeMap<?> recipeMap = singleRecipeMachine.getRecipeMap();
+            if (recipeMap != null) {
+                tSingleRecipeCheckBuilder = SingleRecipeCheck.builder(recipeMap)
+                    .setBefore(itemInputs, fluidInputs);
             }
         }
 
@@ -638,7 +655,7 @@ public class GTNLParallelHelper extends ParallelHelper {
                     // If recipe checker is not built yet, build and set it
                     inputConsumer.consume(recipe, 1, fluidInputs, itemInputs);
                     SingleRecipeCheck builtCheck = tSingleRecipeCheckBuilder.setAfter(itemInputs, fluidInputs)
-                        .setRecipe(recipe)
+                        .setRecipe(transformer == null ? recipe : recipeToLock)
                         .build();
                     singleRecipeMachine.setSingleRecipeCheck(builtCheck);
                     inputConsumer.consume(recipe, currentParallel - 1, fluidInputs, itemInputs);
