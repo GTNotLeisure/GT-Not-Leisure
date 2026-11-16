@@ -44,7 +44,7 @@ import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
         + "after:miscutils;"
         + "before:neicustomdiagram;"
         + "after:dreamcraft;"
-        + "required-after:structurelib;"
+        + "required-after:structurelib@[1.4.46,);"
         + "required-after:Thaumcraft;"
         + "before:TwistSpaceTechnology;",
     acceptedMinecraftVersions = "1.7.10",
