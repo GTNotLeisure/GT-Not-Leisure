@@ -5,8 +5,6 @@ itemGroup.gtnl.player_doll=GT Not Leisure: Кукла-игрок
 gtnl.feature.structural_reconstruction_plan=План структурной замены
 
 gtnl.update.available=Доступно обновление GTNL: %s -> %s. Нажмите, чтобы открыть страницу загрузки.
-gtnl.update.server_available=Доступно обновление GTNL на сервере: %s -> %s. Нажмите, чтобы открыть страницу загрузки.
-gtnl.update.compatibility=Перед обновлением проверьте совместимость со сборкой и требуемую версию GTNLLib.
 
 gtnl.message.welcome.0=Добро пожаловать в GT: Science Not Leisure!
 gtnl.message.welcome.1=Если вы устанавливаете мод впервые, внимательно проверьте файлы конфигурации.
@@ -471,7 +469,7 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=Если отключ�
 gtnl.gui.config.message.enableshowaddmods=Показать загруженные моды
 gtnl.gui.config.message.enableshowaddmods.tooltip=Включить показ списка загруженных модов игроку.
 gtnl.gui.config.message.enableserverupdatecheck=Проверять обновления сервера
-gtnl.gui.config.message.enableserverupdatecheck.tooltip=На выделенном сервере проверять GitHub в фоне и уведомлять консоль и операторов. В одиночной игре используется настройка клиента. Требуется перезапуск сервера.
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=Проверять обновления в фоне и уведомлять консоль и операторов. Требуется перезапуск сервера.
 
 gtnl.gui.config.message.enableshowjoinmessage=Показать сообщение о присоединении
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Включите приветственное сообщение, когда игрок присоединяется к миру.

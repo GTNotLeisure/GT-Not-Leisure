@@ -17,8 +17,10 @@ val generateDependencyVersions = tasks.register("generateDependencyVersions") {
             package com.science.gtnl;
 
             public final class DependencyVersions {
-                private DependencyVersions() {}
+
                 public static final String GTNLLIB = "required-after:gtnllib@[$version,);";
+
+                private DependencyVersions() {}
             }
             """.trimIndent() + "\n"
         )

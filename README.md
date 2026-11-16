@@ -146,6 +146,19 @@ GTNL provides industrial-grade automation for your favorite magic mods.
 |  **2.8.0+**  |   `0.2.2`   | ✅ **Recommended** | [![v0.2.1](https://img.shields.io/badge/Download-v0.2.2-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.2.2)       |
 |  **2.7.x**   |  `0.1.9.1`  |       ❌ EOL       | [![v0.1.9.1](https://img.shields.io/badge/Download-v0.1.9.1-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.1.9.1) |
 
+The in-game update notifier only recommends stable hotfixes of the installed numeric
+GTNL version (for example, `0.2.6` to `0.2.6-hotfix1`). It does not recommend a
+different numeric version, because the table above maps releases to different GTNH
+environments. This restriction is not a guarantee of compatibility: release tags do
+not provide a machine-readable dependency manifest. Development and RC builds skip
+the check. Cross-version upgrades must be selected manually using this table and
+the target release requirements. Download links in notifications open the selected
+release directly.
+
+For this branch, Forge enforces GTNLLib's generated minimum version, GregTech
+`5.09.54.265+`, and StructureLib `1.4.46+` at startup. These are mod version checks,
+not detection of the GTNH modpack version.
+
 ## 🧩 Quest Loading
 
 GTNL uses **BetterQuesting** and **[BetterQuestingAPI](https://github.com/ABKQPO/BetterQuestingAPI)** to import built-in quest lines from resources during startup.

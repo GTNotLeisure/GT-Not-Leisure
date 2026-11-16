@@ -17,7 +17,6 @@ import com.science.gtnl.Tags;
 
 import cpw.mods.fml.common.versioning.ComparableVersion;
 
-/** Shared lookup. Network and cache I/O run exclusively on a daemon worker. */
 public final class UpdateChecker {
 
     public static final String RELEASES = "https://github.com/GTNotLeisure/GT-Not-Leisure/releases";
@@ -51,7 +50,7 @@ public final class UpdateChecker {
                 if (age >= 0 && age < TimeUnit.HOURS.toMillis(24)) {
                     String version = saved.get("version")
                         .getAsString();
-                    if (isStableVersion(version)) return new Result(version, null);
+                    if (isCompatibleCandidate(version)) return new Result(version, null);
                 }
             }
         } catch (Exception e) {
@@ -82,7 +81,8 @@ public final class UpdateChecker {
                         continue;
                     String version = release.get("tag_name")
                         .getAsString();
-                    if (isStableVersion(version) && (latest == null || compare(version, latest) > 0)) latest = version;
+                    if (isCompatibleCandidate(version) && (latest == null || compare(version, latest) > 0))
+                        latest = version;
                 }
             }
             if (latest == null) throw new java.io.IOException("No stable numeric release in the latest 100 releases");
@@ -116,6 +116,17 @@ public final class UpdateChecker {
         return version.matches("[vV]?[0-9]+(\\.[0-9]+)*(?:-hotfix[0-9]+)?");
     }
 
+    private static boolean isCompatibleCandidate(String version) {
+        if (!isStableVersion(version)) return false;
+        // README maps different GTNL patch lines to different GTNH releases. Without target
+        // compatibility metadata, only recommend hotfixes within the installed numeric version.
+        return version.replaceFirst("^[vV]", "")
+            .replaceFirst("-hotfix[0-9]+$", "")
+            .equals(
+                Tags.VERSION.replaceFirst("^[vV]", "")
+                    .replaceFirst("-hotfix[0-9]+$", ""));
+    }
+
     private static int compare(String left, String right) {
         return new ComparableVersion(left.replaceFirst("^[vV]", ""))
             .compareTo(new ComparableVersion(right.replaceFirst("^[vV]", "")));
@@ -132,7 +143,11 @@ public final class UpdateChecker {
         }
 
         public boolean hasUpdate() {
-            return version != null && compare(version, Tags.VERSION) > 0;
+            return version != null && isCompatibleCandidate(version) && compare(version, Tags.VERSION) > 0;
+        }
+
+        public String downloadUrl() {
+            return RELEASES + "/tag/" + version;
         }
     }
 }

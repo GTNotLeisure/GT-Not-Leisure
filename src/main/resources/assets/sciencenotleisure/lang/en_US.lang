@@ -5,8 +5,6 @@ itemGroup.gtnl.player_doll=GT Not Leisure: Player Doll
 gtnl.feature.structural_reconstruction_plan=Structural Replacement Plan
 
 gtnl.update.available=GTNL update available: %s -> %s. Click to open the download page.
-gtnl.update.server_available=Server GTNL update available: %s -> %s. Click to open the download page.
-gtnl.update.compatibility=Check modpack compatibility and required GTNLLib version before updating.
 
 gtnl.message.welcome.0=Welcome to GT: Science Not Leisure!
 gtnl.message.welcome.1=If this is your first time installing the mod, please check the config files carefully.
@@ -471,7 +469,7 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=If disabled, reduces t
 gtnl.gui.config.message.enableshowaddmods=Show Loaded Mods
 gtnl.gui.config.message.enableshowaddmods.tooltip=Enable showing the list of loaded mods to the player.
 gtnl.gui.config.message.enableserverupdatecheck=Check for server updates
-gtnl.gui.config.message.enableserverupdatecheck.tooltip=On dedicated servers, check GitHub in the background and notify the console and operators. Integrated servers use the client setting. Requires a server restart.
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=Check for updates in the background and notify the console and operators. Requires a server restart.
 
 gtnl.gui.config.message.enableshowjoinmessage=Show Join Message
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Enable the welcome message when a player joins the world.

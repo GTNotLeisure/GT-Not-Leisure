@@ -21,7 +21,6 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 
-/** Server-thread notifications for dedicated servers; integrated servers use the client notifier. */
 public final class ServerUpdateNotifier {
 
     private static ServerUpdateNotifier instance;
@@ -74,11 +73,8 @@ public final class ServerUpdateNotifier {
         if (!result.hasUpdate()) {
             return;
         }
-        ScienceNotLeisure.LOG.info(
-            "GTNL server update available: {} -> {}. Check modpack compatibility and GTNLLib requirements. {}",
-            Tags.VERSION,
-            result.version,
-            UpdateChecker.RELEASES);
+        ScienceNotLeisure.LOG
+            .info("GTNL server update available: {} -> {}. {}", Tags.VERSION, result.version, result.downloadUrl());
         for (Object player : server.getConfigurationManager().playerEntityList) {
             notifyOperator((EntityPlayerMP) player);
         }
@@ -100,9 +96,8 @@ public final class ServerUpdateNotifier {
             return;
         }
         player.addChatMessage(
-            new ChatComponentTranslation("gtnl.update.server_available", Tags.VERSION, result.version).setChatStyle(
+            new ChatComponentTranslation("gtnl.update.available", Tags.VERSION, result.version).setChatStyle(
                 new ChatStyle().setColor(EnumChatFormatting.YELLOW)
-                    .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, UpdateChecker.RELEASES))));
-        player.addChatMessage(new ChatComponentTranslation("gtnl.update.compatibility"));
+                    .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, result.downloadUrl()))));
     }
 }

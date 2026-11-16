@@ -19,7 +19,6 @@ import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 
-/** Consumes completed results without waiting for network or disk I/O on the client thread. */
 public final class UpdateNotifier {
 
     private final File configDirectory;
@@ -76,8 +75,7 @@ public final class UpdateNotifier {
             minecraft.thePlayer.addChatMessage(
                 new ChatComponentTranslation("gtnl.update.available", Tags.VERSION, result.version).setChatStyle(
                     new ChatStyle().setColor(EnumChatFormatting.YELLOW)
-                        .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, UpdateChecker.RELEASES))));
-            minecraft.thePlayer.addChatMessage(new ChatComponentTranslation("gtnl.update.compatibility"));
+                        .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, result.downloadUrl()))));
         }
         // Keep the config listener, but stop consuming results for this launch.
         finished = true;
