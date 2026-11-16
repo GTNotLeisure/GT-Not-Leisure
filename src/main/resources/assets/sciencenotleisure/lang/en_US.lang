@@ -4699,3 +4699,7 @@ key.gtnl.majo_broom.ascend=Ascend on Broom
 key.gtnl.majo_broom.descend=Descend on Broom
 
 key.categories.gtnl=Science Not Leisure
+
+gtnl.gui.config.client.enable_update_check=Check for GTNL updates
+gtnl.update.available=GTNL update available: %s -> %s. Click to open the download page.
+gtnl.update.compatibility=Check modpack compatibility and required GTNLLib version before updating.

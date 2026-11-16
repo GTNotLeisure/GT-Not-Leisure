@@ -4699,3 +4699,7 @@ key.gtnl.majo_broom.ascend=扫帚上升
 key.gtnl.majo_broom.descend=扫帚下降
 
 key.categories.gtnl=Science Not Leisure
+
+gtnl.gui.config.client.enable_update_check=检查 GTNL 更新
+gtnl.update.available=GTNL 有新版本：%s -> %s。点击打开下载页面。
+gtnl.update.compatibility=更新前请确认整合包兼容性及所需的 GTNLLib 版本。

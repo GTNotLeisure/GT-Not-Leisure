@@ -2,6 +2,30 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
+val gtnllibVersion = providers.gradleProperty("gtnllibVersion")
+val dependencySources = layout.buildDirectory.dir("generated/sources/gtnlDependencies/java")
+val generateDependencyVersions = tasks.register("generateDependencyVersions") {
+    inputs.property("gtnllibVersion", gtnllibVersion)
+    outputs.dir(dependencySources)
+    doLast {
+        val version = inputs.properties.getValue("gtnllibVersion").toString()
+        require(version.matches(Regex("[0-9]+(\\.[0-9]+)*"))) { "Invalid GTNLLib version: $version" }
+        val output = outputs.files.singleFile.resolve("com/science/gtnl/DependencyVersions.java")
+        output.parentFile.mkdirs()
+        output.writeText(
+            """
+            package com.science.gtnl;
+
+            public final class DependencyVersions {
+                private DependencyVersions() {}
+                public static final String GTNLLIB = "required-after:gtnllib@[$version,);";
+            }
+            """.trimIndent() + "\n"
+        )
+    }
+}
+sourceSets.main { java.srcDir(generateDependencyVersions) }
+
 minecraft {
     extraRunJvmArguments.addAll("-Xmx8G", "-Xms8G", "-Dgtnhlib.dumpkeys=true")
 }
