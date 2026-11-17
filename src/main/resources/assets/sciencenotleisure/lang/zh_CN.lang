@@ -321,8 +321,8 @@ gtnl.gui.config.item.portal_gun.dimensionblacklist.tooltip=这些维度既不能
 gtnl.gui.config.item.player_doll=玩家玩偶
 gtnl.gui.config.item.player_doll.enablecustomskin=自定义玩家皮肤
 gtnl.gui.config.item.player_doll.enablecustomskin.tooltip=启用玩偶的自定义皮肤
-gtnl.gui.config.item.player_doll.enableregistermaxtierglass=注册玩偶为MAX玻璃
-gtnl.gui.config.item.player_doll.enableregistermaxtierglass.tooltip=使玩偶可作为MAX等级玻璃使用
+gtnl.gui.config.item.player_doll.enableregistermaxtierglass=注册玩偶为UXV玻璃
+gtnl.gui.config.item.player_doll.enableregistermaxtierglass.tooltip=使玩偶可作为UXV等级玻璃使用
 
 # Pigmee Fumo（移植自 AE2 Lightning Tech Reborn；模型作者 TedXenon）
 gtnl.block.pigmee_fumo.name=猪咪

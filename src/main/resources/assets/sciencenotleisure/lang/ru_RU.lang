@@ -322,7 +322,7 @@ gtnl.gui.config.item.player_doll=Игровая кукла
 gtnl.gui.config.item.player_doll.enablecustomskin=Пользовательский скин игрока
 gtnl.gui.config.item.player_doll.enablecustomskin.tooltip=Включите собственный скин игрока для куклы-игрока.
 gtnl.gui.config.item.player_doll.enableregistermaxtierglass=Регистрация стекла куклы игрока
-gtnl.gui.config.item.player_doll.enableregistermaxtierglass.tooltip=Сделайте куклу игрока пригодной для использования в качестве MAX Tier Glass.
+gtnl.gui.config.item.player_doll.enableregistermaxtierglass.tooltip=Сделайте куклу игрока пригодной для использования в качестве UXV Tier Glass.
 
 # Pigmee Fumo (ported from AE2 Lightning Tech Reborn; model by TedXenon)
 gtnl.block.pigmee_fumo.name=Пигми Фумо

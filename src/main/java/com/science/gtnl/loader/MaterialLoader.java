@@ -66,12 +66,12 @@ public class MaterialLoader implements IContentLoader {
             .registerOre("blockGlass" + GTValues.VN[13], GTNLItemList.ShirabonReinforcedBoronSilicateGlass.get(1));
 
         if (ItemConfig.player_doll.enableRegisterMAXTierGlass) {
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 1, 14, 1);
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 2, 14, 1);
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 3, 14, 1);
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 4, 14, 1);
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 5, 14, 1);
-            GlassTier.addCustomGlass(BlockLoader.playerDoll, 0, 14, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 1, 13, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 2, 13, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 3, 13, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 4, 13, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 5, 13, 1);
+            GlassTier.addCustomGlass(BlockLoader.playerDoll, 0, 13, 1);
             GTOreDictUnificator.registerOre("blockGlass" + GTValues.VN[14], GTNLItemList.PlayerDoll.get(1));
         }
 
