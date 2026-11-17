@@ -10,6 +10,7 @@ import com.gtnewhorizons.modularui.api.math.Alignment;
 import com.gtnewhorizons.modularui.common.widget.ProgressBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.recipe.BloodSoulFrontend;
+import com.science.gtnl.common.gui.recipe.CircuitNanitesDataBoard;
 import com.science.gtnl.common.gui.recipe.CircuitNanitesDataFrontend;
 import com.science.gtnl.common.gui.recipe.EGTWUpgradeCostFrontend;
 import com.science.gtnl.common.gui.recipe.ElectrocellGeneratorFrontend;
@@ -581,7 +582,11 @@ public class GTNLRecipeMaps {
                     .getMetadataOrDefault(CircuitNanitesDataMetadata.INSTANCE, new CircuitNanitesRecipeData()))
             .thenComparing(GTRecipe::compareTo))
         .frontend(CircuitNanitesDataFrontend::new)
-        .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1)))
+        .neiHandlerInfo(
+            builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1))
+                .setWidth(CircuitNanitesDataBoard.WIDTH + CircuitNanitesDataFrontend.TEMPLATE_X)
+                .setHeight(CircuitNanitesDataBoard.HEIGHT + CircuitNanitesDataFrontend.GAP)
+                .setMultipleWidgetsAllowed(true))
         .build();
 
     public static final RecipeMap<RecipeMapBackend> IndustrialRockCrusherRecipes = RecipeMapBuilder

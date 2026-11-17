@@ -93,6 +93,7 @@ import gregtech.api.util.IGTHatchAdder;
 import gregtech.api.util.ItemEjectionHelper;
 import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.ShutDownReason;
+import gregtech.api.util.shutdown.ShutDownReasonRegistry;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gregtech.common.misc.WirelessNetworkManager;
 import gtPlusPlus.core.material.MaterialsElements;
@@ -405,6 +406,11 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     }
 
     @Override
+    public boolean filtersFluid() {
+        return false;
+    }
+
+    @Override
     public int getCasingTextureID() {
         return Casings.MiningNeutroniumCasing.getTextureId();
     }
@@ -496,6 +502,7 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
         super.onFirstTick(tile);
         naniteRegistry = new CircuitNaniteRegistry(
             tile.getWorld()
+                .getWorldInfo()
                 .getSeed());
         maintenancePolicy = new NaniteMaintenancePolicy();
         computationPosition = new Vec3Impl(tile.getXCoord(), tile.getYCoord(), tile.getZCoord());
@@ -553,14 +560,13 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
         preparedWork = null;
         mEfficiency = 10000 - (getIdealStatus() - getRepairStatus()) * 1000;
         mEfficiencyIncrease = 10000;
-        mProgresstime = 0;
-        mMaxProgresstime = (int) Math.ceil(activeWork.getTotalWork());
         mOutputItems = activeWork.getItemOutputs();
         mOutputFluids = activeWork.getFluidOutputs();
         costingEU = BigInteger.ZERO;
         costingEUText = "0";
         lEUt = 0;
         currentComputationEffects = computationFor(activeWork);
+        updateWorkProgress();
         workStatus = CircuitWorkStatus.RUNNING;
         markCircuitDirty();
         return result;
@@ -589,6 +595,10 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
             return;
         }
         mEfficiency = 10000 - (getIdealStatus() - getRepairStatus()) * 1000;
+        if (activeWork != null && !activeWork.isLegacy() && !computationSource.isReady()) {
+            workStatus = CircuitWorkStatus.COMPUTATION_WARMUP;
+            return;
+        }
         if (activeWork == null
             && (workStatus == CircuitWorkStatus.DISABLED || workStatus == CircuitWorkStatus.STRUCTURE_INCOMPLETE
                 || workStatus == CircuitWorkStatus.NO_REPAIR))
@@ -617,11 +627,22 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
             currentComputationEffects = computationFor(activeWork);
             double rate = activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier();
             double timeToFinish = activeWork.remainingWork() / rate;
-            double elapsed = Math.min(remainingTick, timeToFinish);
+            double requestedElapsed = Math.min(remainingTick, timeToFinish);
+            double elapsed;
+            try {
+                elapsed = affordableWorkDuration(activeWork, currentComputationEffects, requestedElapsed);
+            } catch (ArithmeticException e) {
+                workStatus = CircuitWorkStatus.CAPACITY_EXCEEDED;
+                return;
+            }
+            if (elapsed <= 0) {
+                workStatus = CircuitWorkStatus.NO_POWER;
+                return;
+            }
             if (!payForWork(activeWork, currentComputationEffects, elapsed)) return;
             activeWork.advance(elapsed >= timeToFinish ? activeWork.remainingWork() : rate * elapsed);
-            remainingTick = Math.max(0, remainingTick - elapsed);
-            mProgresstime = (int) Math.min(mMaxProgresstime - 1, activeWork.getCompletedWork());
+            remainingTick = Math.max(0, remainingTick - requestedElapsed);
+            updateWorkProgress();
             workStatus = activeWork.isLegacy() ? CircuitWorkStatus.LEGACY_BATCH
                 : currentComputationEffects.supplyRatio() < 1 ? CircuitWorkStatus.LOW_COMPUTATION
                     : CircuitWorkStatus.RUNNING;
@@ -654,14 +675,32 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     }
 
     private Charge quoteWork(CircuitWorkState work, ComputationEffects computation, double elapsed) {
-        double maintenanceSeconds = elapsed / 20
-            * Math.max(1, work.getBaseWorkRate())
-            * Math.max(1, computation.speedMultiplier());
+        double maintenanceSeconds = elapsed / 20 * work.getBaseWorkRate() * computation.speedMultiplier();
+        return resourceLedger
+            .quote(energyPerTick(work, computation) * elapsed, work.getMaintenance(), maintenanceSeconds);
+    }
+
+    private double energyPerTick(CircuitWorkState work, ComputationEffects computation) {
         int efficiency = work == activeWork ? mEfficiency : 10000 - (getIdealStatus() - getRepairStatus()) * 1000;
-        double energy = elapsed * work.getBaseEu()
-            * computation.euMultiplier()
-            * (10000.0 / Math.max(1000, efficiency));
-        return resourceLedger.quote(energy, work.getMaintenance(), maintenanceSeconds);
+        return work.getBaseEu() * computation.euMultiplier() * (10000.0 / Math.max(1000, efficiency));
+    }
+
+    private double affordableWorkDuration(CircuitWorkState work, ComputationEffects computation, double elapsed) {
+        return wirelessMode ? elapsed
+            : resourceLedger.affordableDuration(energyPerTick(work, computation), elapsed, storedEnergy());
+    }
+
+    private long storedEnergy() {
+        long stored = 0;
+        for (MTEHatch hatch : getExoticAndNormalEnergyHatchList()) {
+            if (hatch.isValid()) stored = GTUtility.addSafe(
+                stored,
+                Math.max(
+                    0,
+                    hatch.getBaseMetaTileEntity()
+                        .getStoredEU()));
+        }
+        return stored;
     }
 
     private boolean payForWork(CircuitWorkState work, ComputationEffects computation, double elapsed) {
@@ -746,9 +785,14 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
 
     @Override
     public void updateRuntimeIndicators(IGregTechTileEntity tile) {
+        if (activeWork != null) updateWorkProgress();
         super.updateRuntimeIndicators(tile);
-        tile.setActive(actualEnergyThisTick > 0);
-        setMufflers(tile.isActive() && mPollution > 0);
+    }
+
+    @Override
+    public void onDisableWorking() {
+        super.onDisableWorking();
+        if (unreadableWork != null) stopMachine(ShutDownReasonRegistry.NONE);
     }
 
     @Override
@@ -757,8 +801,8 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
         int previousEfficiencyIncrease = mEfficiencyIncrease;
         if (reason.wasCritical()) {
             activeWork = null;
-            unreadableWork = null;
         }
+        unreadableWork = null;
         preparedWork = null;
         super.stopMachine(reason);
         actualEnergyThisTick = 0;
@@ -923,10 +967,18 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     }
 
     private void restoreWorkProgress() {
-        mMaxProgresstime = (int) Math.ceil(activeWork.getTotalWork());
-        mProgresstime = (int) Math.min(mMaxProgresstime - 1, activeWork.getCompletedWork());
+        currentComputationEffects = computationFor(activeWork);
+        updateWorkProgress();
         mOutputItems = activeWork.getItemOutputs();
         mOutputFluids = activeWork.getFluidOutputs();
+    }
+
+    private void updateWorkProgress() {
+        double rate = activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier();
+        mMaxProgresstime = (int) Math
+            .min(Integer.MAX_VALUE, Math.max(1, Math.ceil(activeWork.getTotalWork() / Math.max(0.000001, rate))));
+        mProgresstime = (int) Math
+            .min(mMaxProgresstime - 1, mMaxProgresstime * activeWork.getCompletedWork() / activeWork.getTotalWork());
     }
 
     public NBTTagCompound getCircuitDisplayData() {
@@ -1007,8 +1059,8 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
         if (maintenancePolicy == null) return;
         List<NaniteMaintenanceRequirement> needed = activeWork != null ? activeWork.getMaintenance()
             : available == null ? List.of() : maintenancePolicy.requirements(available);
-        double multiplier = activeWork == null ? 0
-            : Math.max(1, activeWork.getBaseWorkRate()) * Math.max(1, currentComputationEffects.speedMultiplier());
+        double multiplier = activeWork == null || workStatus == CircuitWorkStatus.COMPUTATION_WARMUP ? 0
+            : activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier();
         List<String> fluids = maintenancePolicy.fluids();
         for (int row = 0; row < fluids.size(); row++) {
             String name = fluids.get(row);
@@ -1124,6 +1176,10 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
 
         @Override
         public CheckRecipeResult onRecipeStart(@NotNull GTRecipe recipe) {
+            if (!computationSource.isReady()) {
+                workStatus = CircuitWorkStatus.COMPUTATION_WARMUP;
+                return SimpleCheckRecipeResult.ofFailure("tree_diagram_computation_warmup");
+            }
             CircuitRecipeRequirement requirement = recipe.getMetadata(TreeDiagramCircuitMetadata.INSTANCE);
             NaniteEffects participation = nanitePolicy
                 .select(naniteProfiles, requirement.requiredNaniteTier(), calculatedParallels);
@@ -1142,10 +1198,15 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
                     helper.getItemOutputs(),
                     helper.getFluidOutputs());
                 ComputationEffects computation = computationPolicy.evaluate(availableComputation, work.getRequiredCu());
-                Charge charge = quoteWork(
+                double elapsed = affordableWorkDuration(
                     work,
                     computation,
                     Math.min(1, exactDuration / computation.speedMultiplier()));
+                if (elapsed <= 0) {
+                    workStatus = CircuitWorkStatus.NO_POWER;
+                    return CheckRecipeResultRegistry.insufficientPower(1);
+                }
+                Charge charge = quoteWork(work, computation, elapsed);
                 if (!canPayMaintenance(charge)) {
                     workStatus = CircuitWorkStatus.NO_MAINTENANCE;
                     return SimpleCheckRecipeResult.ofFailure("tree_diagram_maintenance");

@@ -20,6 +20,7 @@ import java.awt.Rectangle;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.UnaryOperator;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -46,6 +47,7 @@ import com.science.gtnl.utils.recipes.data.CircuitRecipeRequirement;
 import com.science.gtnl.utils.recipes.metadata.TreeDiagramCircuitMetadata;
 
 import codechicken.nei.recipe.GuiCraftingRecipe;
+import codechicken.nei.recipe.HandlerInfo;
 import gregtech.api.enums.GTValues;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
 import gregtech.api.recipe.NEIRecipePropertiesBuilder;
@@ -60,12 +62,16 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     public static final int TABLE_ROW = 11, TABLE_ROWS = 4, TABLE_LEFT = 3 + OFFSET_X, TABLE_RIGHT = 95 + OFFSET_X;
     public static final int TABLE_TOP = HEIGHT + 4;
     public static final int RECIPE_WIDTH = WIDTH + OFFSET_X;
+    public static final int OUTPUT_TOP = TABLE_TOP + TABLE_ROWS * TABLE_ROW + 4;
+    public static final int OUTPUT_COLUMNS = 8;
     public static final int RECIPE_HEIGHT = TABLE_TOP + TABLE_ROWS * TABLE_ROW + 12;
     public static final int KEY_COLOR = 0xFF6A6A6A, VALUE_COLOR = 0xFF101010, COMPUTATION_COLOR = 0xFF136B86,
         NANITE_COLOR = 0xFF9A6400, UNLOCK_COLOR = 0xFF6A3FB8;
 
     // GT shifts NEI slot templates eleven pixels upward.
     private static final int TEMPLATE_Y_OFFSET = 11;
+    private int additionalItemRows;
+    private int fluidOutputRows;
 
     public TreeDiagramRecipeFrontend(BasicUIPropertiesBuilder ui, NEIRecipePropertiesBuilder nei) {
         super(
@@ -81,18 +87,25 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
 
     @Override
     protected @NotNull NEIRecipePropertiesBuilder modifyNEIProperties(NEIRecipePropertiesBuilder nei) {
+        UnaryOperator<HandlerInfo.Builder> handler = nei.build().handlerInfoCreator;
         return nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
             .recipeBackgroundOffset(position(OFFSET_X, TEMPLATE_Y_OFFSET))
+            .handlerInfoCreator(builder -> {
+                HandlerInfo.Builder configured = handler == null ? builder : handler.apply(builder);
+                return configured.setHeight(
+                    Math.max(RECIPE_HEIGHT, OUTPUT_TOP + (additionalItemRows + fluidOutputRows) * SLOT_SIZE + 4));
+            })
             .unificateOutput(false);
     }
 
     public void configure(CircuitRecipeGenerationReport report) {
-        if (report.itemInputs() > SLOTS || report.fluidInputs() > SLOTS || report.itemOutputs() > 1) {
+        additionalItemRows = (Math.max(0, report.itemOutputs() - 1) + OUTPUT_COLUMNS - 1) / OUTPUT_COLUMNS;
+        fluidOutputRows = (report.fluidOutputs() + OUTPUT_COLUMNS - 1) / OUTPUT_COLUMNS;
+        if (report.itemInputs() > SLOTS || report.fluidInputs() > SLOTS) {
             ScienceNotLeisure.LOG.warn(
-                "Tree Diagram recipes need {} items, {} fluids and {} outputs; the NEI page shows {}, {} and 1",
+                "Tree Diagram recipes need {} item and {} fluid inputs; the NEI page shows {} and {}",
                 report.itemInputs(),
                 report.fluidInputs(),
-                report.itemOutputs(),
                 SLOTS,
                 SLOTS);
         }
@@ -100,33 +113,36 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
 
     @Override
     protected @NotNull List<Slot> itemInputSlots(int count) {
-        return inputSlots(count, ITEM_Y);
+        return layoutSlots(count, ITEM_Y, COLUMNS);
     }
 
     @Override
     protected @NotNull List<Slot> fluidInputSlots(int count) {
-        return inputSlots(count, FLUID_Y);
+        return layoutSlots(count, FLUID_Y, COLUMNS);
     }
 
-    private static List<Slot> inputSlots(int count, int top) {
+    private static List<Slot> layoutSlots(int count, int top, int columns) {
         List<Slot> slots = new ObjectArrayList<>(count);
         for (int i = 0; i < count; i++) {
             slots.add(
                 new Slot(
-                    GRID_X + OFFSET_X + i % COLUMNS * SLOT_PITCH,
-                    top + TEMPLATE_Y_OFFSET + i / COLUMNS * SLOT_PITCH));
+                    GRID_X + OFFSET_X + i % columns * SLOT_PITCH,
+                    top + TEMPLATE_Y_OFFSET + i / columns * SLOT_PITCH));
         }
         return slots;
     }
 
     @Override
     protected @NotNull List<Slot> itemOutputSlots(int count) {
-        return slots(CORE_X - SLOT_SIZE / 2 + OFFSET_X, CORE_Y - SLOT_SIZE / 2 + TEMPLATE_Y_OFFSET);
+        if (count == 0) return Collections.emptyList();
+        List<Slot> outputs = slots(CORE_X - SLOT_SIZE / 2 + OFFSET_X, CORE_Y - SLOT_SIZE / 2 + TEMPLATE_Y_OFFSET);
+        outputs.addAll(layoutSlots(count - 1, OUTPUT_TOP, OUTPUT_COLUMNS));
+        return outputs;
     }
 
     @Override
     protected @NotNull List<Slot> fluidOutputSlots(int count) {
-        return Collections.emptyList();
+        return layoutSlots(count, OUTPUT_TOP + additionalItemRows * SLOT_SIZE, OUTPUT_COLUMNS);
     }
 
     @Override

@@ -19,6 +19,20 @@ public class CircuitResourceLedger {
     private double energyCredit;
     private long revision;
 
+    public double affordableDuration(double energyPerTick, double elapsed, long availableEnergy) {
+        if (!Double.isFinite(energyPerTick) || energyPerTick < 0
+            || !Double.isFinite(elapsed)
+            || elapsed < 0
+            || availableEnergy < 0) throw new ArithmeticException("Invalid circuit energy budget");
+        if (energyPerTick == 0) return elapsed;
+        double budget = Math.min(energyCredit + availableEnergy, Math.nextDown((double) Long.MAX_VALUE));
+        double affordable = Math.min(elapsed, budget / energyPerTick);
+        // Rounding must never quote more whole EU than the hatches can actually pay.
+        while (affordable > 0 && charge(energyPerTick * affordable, energyCredit) > availableEnergy)
+            affordable = Math.nextDown(affordable);
+        return affordable;
+    }
+
     public Charge quote(double energy, List<NaniteMaintenanceRequirement> maintenance, double maintenanceSeconds) {
         if (!Double.isFinite(maintenanceSeconds) || maintenanceSeconds < 0)
             throw new ArithmeticException("Invalid maintenance interval");

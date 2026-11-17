@@ -24,7 +24,7 @@ import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.RecipeMaps;
 import gregtech.api.util.GTRecipe;
 import gregtech.common.tileentities.machines.multi.nanochip.util.CircuitComponent;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Object2LongLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -421,7 +421,7 @@ public class NacCircuitRecipeSource implements CircuitRecipeSource {
     private static class Expansion {
 
         private final CircuitRecipeDraft draft;
-        private final Object2LongOpenHashMap<ItemId> available;
+        private final Object2LongLinkedOpenHashMap<ItemId> available;
         private final Set<ItemId> path;
         private final Set<GTRecipe> nodes;
         private final int grade;
@@ -429,7 +429,7 @@ public class NacCircuitRecipeSource implements CircuitRecipeSource {
         private Expansion(int grade) {
             this.grade = grade;
             draft = new CircuitRecipeDraft();
-            available = new Object2LongOpenHashMap<>();
+            available = new Object2LongLinkedOpenHashMap<>();
             path = new ObjectOpenHashSet<>();
             nodes = new ReferenceOpenHashSet<>();
         }
@@ -437,7 +437,7 @@ public class NacCircuitRecipeSource implements CircuitRecipeSource {
         private Expansion(Expansion original) {
             grade = original.grade;
             draft = new CircuitRecipeDraft(original.draft);
-            available = new Object2LongOpenHashMap<>(original.available);
+            available = new Object2LongLinkedOpenHashMap<>(original.available);
             path = new ObjectOpenHashSet<>(original.path);
             nodes = new ReferenceOpenHashSet<>(original.nodes);
         }

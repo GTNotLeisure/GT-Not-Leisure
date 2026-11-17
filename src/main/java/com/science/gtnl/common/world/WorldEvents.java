@@ -4,7 +4,7 @@ import net.minecraft.block.Block;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.world.World;
 import net.minecraftforge.event.world.BlockEvent;
-import net.minecraftforge.event.world.ExplosionEvent;
+import net.minecraftforge.event.world.ExplosionEvent.Start;
 import net.minecraftforge.event.world.WorldEvent;
 
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
@@ -17,6 +17,7 @@ import com.science.gtnl.common.render.PlayerDollRenderManager;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.metatileentity.BaseMetaTileEntity;
+import ic2.api.event.ExplosionEvent;
 import tectech.thing.casing.TTCasingsContainer;
 
 @EventBusSubscriber
@@ -44,8 +45,10 @@ public class WorldEvents {
     @SubscribeEvent
     public static void onWorldLoad(WorldEvent.Load event) {
         World world = event.world;
-        if (world.isRemote) return;
-        CircuitNanitesDataRecipes.loadForWorld(world.getSeed());
+        if (world.isRemote || world.provider.dimensionId != 0) return;
+        CircuitNanitesDataRecipes.loadForWorld(
+            world.getWorldInfo()
+                .getSeed());
     }
 
     @SubscribeEvent
@@ -66,7 +69,7 @@ public class WorldEvents {
     }
 
     @SubscribeEvent
-    public static void onExplosionEvent(ExplosionEvent event) {
+    public static void onExplosionEvent(Start event) {
         if (tryAbsorbExplosion(
             event.world,
             event.explosion.explosionX,
@@ -78,7 +81,7 @@ public class WorldEvents {
     }
 
     @SubscribeEvent
-    public static void onIC2ExplosionEvent(ic2.api.event.ExplosionEvent event) {
+    public static void onIC2ExplosionEvent(ExplosionEvent event) {
         if (tryAbsorbExplosion(event.world, event.x, event.y, event.z, (float) event.power)) {
             event.setCanceled(true);
         }

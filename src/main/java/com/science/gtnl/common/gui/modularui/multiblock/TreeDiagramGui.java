@@ -22,6 +22,7 @@ import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.drawable.DynamicDrawable;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.ModularPanel;
+import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.screen.viewport.GuiContext;
 import com.cleanroommc.modularui.theme.WidgetTheme;
 import com.cleanroommc.modularui.utils.Alignment;
@@ -32,7 +33,7 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
-import com.cleanroommc.modularui.widgets.slot.ItemSlot;
+import com.cleanroommc.modularui.widgets.ToggleButton;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
@@ -47,6 +48,7 @@ import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Palette;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Trace;
 import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 import com.science.gtnl.common.gui.modularui.TreeDiagramUpgradePanels;
+import com.science.gtnl.common.gui.modularui.widget.DescribedItemSlot;
 import com.science.gtnl.common.machine.multiblock.wireless.TreeDiagram;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -176,46 +178,62 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
         for (int slot = 0; slot < NANITE_SLOTS.length; slot++) {
             int index = slot;
             panel.child(
-                new ItemSlot().slot(
-                    new ModularSlot(handler, slot).filter(multiblock::isValidNaniteStack)
-                        .slotGroup(NANITE_SLOT_GROUP))
+                new DescribedItemSlot(tooltip -> addNaniteTooltip(tooltip, index, data))
+                    .slot(
+                        new ModularSlot(handler, slot).filter(multiblock::isValidNaniteStack)
+                            .slotGroup(NANITE_SLOT_GROUP))
                     .background(IDrawable.EMPTY)
                     .overlay(naniteOverlay(index, data))
                     .pos(NANITE_SLOTS[slot][0], NANITE_SLOTS[slot][1])
-                    .tooltipBuilder(tooltip -> {
-                        NBTTagCompound state = data.get();
-                        NBTTagCompound profile = state.getCompoundTag("nanite" + index);
-                        if (profile.getInteger("tier") == 0) {
-                            tooltip.addLine(IKey.lang("gtnl.tree_diagram.gui.nanite_pending"));
-                        } else {
-                            tooltip.addLine(
-                                tr("nanite_profile", profile.getInteger("tier"), profile.getInteger("parallel")));
-                            tooltip.addLine(
-                                tr(
-                                    "nanite_efficiency",
-                                    decimal(profile.getDouble("eu"), 2),
-                                    decimal(profile.getDouble("duration"), 2)));
-                            tooltip.addLine(
-                                tr(
-                                    "nanite_cancellation",
-                                    decimal(profile.getDouble("rawLoss") * 100, 1),
-                                    decimal(profile.getDouble("cancellation") * 100, 1)));
-                            tooltip.addLine(
-                                tr(
-                                    "nanite_risk",
-                                    decimal(profile.getDouble("loss") * 100, 1),
-                                    decimal(profile.getDouble("bonus") * 100, 1)));
-                        }
-                        tooltip.addLine(
-                            tr(
-                                (state.getInteger("lockedSlots") & 1 << index) != 0 ? "slot_locked"
-                                    : index == 0 ? "main_hint" : "support_hint"));
-                    })
                     .tooltipAutoUpdate(true));
         }
         addParallelControls(panel, sync);
+        addPowerfailControl(panel, sync);
         addMaintenanceTooltips(panel, data);
         return panel;
+    }
+
+    private static void addNaniteTooltip(RichTooltip tooltip, int index, Supplier<NBTTagCompound> data) {
+        NBTTagCompound state = data.get();
+        NBTTagCompound profile = state.getCompoundTag("nanite" + index);
+        if (profile.getInteger("tier") == 0) {
+            tooltip.addLine(IKey.lang("gtnl.tree_diagram.gui.nanite_pending"));
+        } else {
+            tooltip.addLine(tr("nanite_profile", profile.getInteger("tier"), profile.getInteger("parallel")));
+            tooltip.addLine(
+                tr(
+                    "nanite_efficiency",
+                    decimal(profile.getDouble("eu"), 2),
+                    decimal(profile.getDouble("duration"), 2)));
+            tooltip.addLine(
+                tr(
+                    "nanite_cancellation",
+                    decimal(profile.getDouble("rawLoss") * 100, 1),
+                    decimal(profile.getDouble("cancellation") * 100, 1)));
+            tooltip.addLine(
+                tr(
+                    "nanite_risk",
+                    decimal(profile.getDouble("loss") * 100, 1),
+                    decimal(profile.getDouble("bonus") * 100, 1)));
+        }
+        tooltip.addLine(
+            tr(
+                (state.getInteger("lockedSlots") & 1 << index) != 0 ? "slot_locked"
+                    : index == 0 ? "main_hint" : "support_hint"));
+    }
+
+    private void addPowerfailControl(Dialog<?> panel, PanelSyncManager sync) {
+        BooleanSyncValue value = new BooleanSyncValue(
+            multiblock::makesPowerfailEvents,
+            multiblock::setPowerfailEventCreationStatus).allowC2S();
+        sync.syncValue("powerfailEvents", value);
+        panel.child(
+            new ToggleButton().value(value)
+                .overlay(true, GTGuiTextures.OVERLAY_BUTTON_CHECKMARK)
+                .overlay(false, GTGuiTextures.OVERLAY_BUTTON_CROSS)
+                .pos(122, 157)
+                .size(18)
+                .tooltipBuilder(tooltip -> tooltip.addLine(IKey.lang("GT5U.gui.text.powerfail_events"))));
     }
 
     @Override
@@ -408,7 +426,7 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             int color = switch (status) {
                 case "running" -> p.ok();
                 case "idle", "disabled" -> p.muted();
-                case "low_computation", "legacy_batch", "output_full" -> p.warn();
+                case "low_computation", "computation_warmup", "legacy_batch", "output_full" -> p.warn();
                 default -> p.bad();
             };
             int right = width - 20;

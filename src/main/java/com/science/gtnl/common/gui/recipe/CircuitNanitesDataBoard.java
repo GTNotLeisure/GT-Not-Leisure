@@ -22,6 +22,7 @@ import com.science.gtnl.common.circuit.nanite.NaniteMaintenanceRequirement;
 import com.science.gtnl.common.circuit.nanite.NaniteParticipation;
 import com.science.gtnl.common.circuit.nanite.NaniteProfile;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard;
+import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 import com.science.gtnl.common.recipe.gtnl.CircuitNanitesDataRecipes;
 
 import gregtech.api.enums.GTValues;
@@ -139,39 +140,44 @@ public class CircuitNanitesDataBoard implements IDrawable {
         if (sheet == null) return;
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
         TreeDiagramBoard quads = new TreeDiagramBoard(x, y);
-        quads.rect(0, HEADER, WIDTH, STRIP_HEIGHT, 0xFF8B8B8B);
-        quads.rect(1, HEADER + 1, WIDTH - 1, STRIP_HEIGHT - 1, 0xFFFFFFFF);
-        quads.rect(1, HEADER + 1, WIDTH - 2, STRIP_HEIGHT - 2, 0xFFDADADA);
+        boolean dark = TreeDiagramTheme.dark();
+        quads.rect(0, HEADER, WIDTH, STRIP_HEIGHT, dark ? 0xFF12161C : 0xFF8B8B8B);
+        quads.rect(1, HEADER + 1, WIDTH - 1, STRIP_HEIGHT - 1, dark ? 0xFF596473 : 0xFFFFFFFF);
+        quads.rect(1, HEADER + 1, WIDTH - 2, STRIP_HEIGHT - 2, dark ? 0xFF252D38 : 0xFFDADADA);
         NaniteProfile profile = sheet.profile();
         if (profile != null) {
             quads.rect(148, 2, 18, 10, TIER_COLORS[profile.tier() - 1]);
             drawGauges(quads, sheet);
         }
         quads.flush();
-        font.drawString(sheet.name(), (int) x + 23, (int) y + 2, NAME);
+        font.drawString(sheet.name(), (int) x + 23, (int) y + 2, TreeDiagramTheme.textColor(NAME));
         if (profile == null) {
             String unrated = tr("unrated");
-            font.drawString(unrated, (int) x + 23, (int) y + 12, NOTE);
+            font.drawString(unrated, (int) x + 23, (int) y + 12, TreeDiagramTheme.textColor(NOTE));
             font.drawString(
                 unrated,
                 (int) x + (WIDTH - font.getStringWidth(unrated)) / 2,
                 (int) y + HEADER + STRIP_HEIGHT / 2 - 4,
-                NOTE);
+                TreeDiagramTheme.textColor(NOTE));
             return;
         }
         font.drawString(
             tr("craftable_range", GTValues.VN[0], GTValues.VN[sheet.highestTier()]),
             (int) x + 23,
             (int) y + 12,
-            NOTE);
+            TreeDiagramTheme.textColor(NOTE));
         String badge = "T" + profile.tier();
         font.drawString(badge, (int) x + 157 - font.getStringWidth(badge) / 2, (int) y + 3, BADGE_TEXT);
         String[] values = values(sheet);
         int[] colors = valueColors(sheet);
         for (int row = 0; row < ROWS; row++) {
             int rowY = (int) y + HEADER + 3 + row * ROW;
-            drawFitted(font, tr("row." + ROW_KEYS[row]), x + 4, rowY, GAUGE_X - 5, LABEL);
-            font.drawString(values[row], (int) x + 165 - font.getStringWidth(values[row]), rowY, colors[row]);
+            drawFitted(font, tr("row." + ROW_KEYS[row]), x + 4, rowY, GAUGE_X - 5, TreeDiagramTheme.textColor(LABEL));
+            font.drawString(
+                values[row],
+                (int) x + 165 - font.getStringWidth(values[row]),
+                rowY,
+                TreeDiagramTheme.textColor(colors[row]));
         }
     }
 

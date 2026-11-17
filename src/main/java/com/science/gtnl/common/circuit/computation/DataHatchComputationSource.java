@@ -13,6 +13,7 @@ public class DataHatchComputationSource implements CircuitComputationSource {
     private long readyAt = Long.MIN_VALUE;
     private long lastRead = Long.MIN_VALUE;
     private long available;
+    private boolean ready;
 
     public DataHatchComputationSource(List<MTEHatchDataInput> hatches) {
         this.hatches = hatches;
@@ -22,6 +23,7 @@ public class DataHatchComputationSource implements CircuitComputationSource {
     public long available(long tick, Vec3Impl position) {
         if (readyAt == Long.MIN_VALUE) readyAt = tick + 40;
         if (tick < readyAt) return 0;
+        ready = true;
         if (lastRead != Long.MIN_VALUE && tick - lastRead < 20) return available;
         lastRead = tick;
         available = 0;
@@ -36,7 +38,13 @@ public class DataHatchComputationSource implements CircuitComputationSource {
     @Override
     public void reset() {
         readyAt = Long.MIN_VALUE;
+        ready = false;
         invalidate();
+    }
+
+    @Override
+    public boolean isReady() {
+        return ready;
     }
 
     @Override

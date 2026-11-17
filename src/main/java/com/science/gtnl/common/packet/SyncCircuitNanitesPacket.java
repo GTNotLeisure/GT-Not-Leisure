@@ -32,7 +32,8 @@ public class SyncCircuitNanitesPacket extends ClientboundPacket {
     @Override
     @SideOnly(Side.CLIENT)
     public void handleClient(Minecraft minecraft) {
-        CircuitNanitesDataRecipes.loadForWorld(worldSeed);
+        long seed = worldSeed;
+        minecraft.func_152344_a(() -> CircuitNanitesDataRecipes.loadForWorld(seed));
     }
 
 }

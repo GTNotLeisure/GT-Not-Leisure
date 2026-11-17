@@ -28,9 +28,7 @@ import com.science.gtnl.common.circuit.nanite.NaniteProfile;
 import com.science.gtnl.common.gui.recipe.CircuitNanitesDataBoard.Sheet;
 
 import gregtech.api.enums.GTValues;
-import gregtech.api.recipe.BasicUIProperties;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
-import gregtech.api.recipe.NEIRecipeProperties;
 import gregtech.api.recipe.NEIRecipePropertiesBuilder;
 import gregtech.api.util.GTRecipe;
 import gregtech.nei.GTNEIDefaultHandler;
@@ -40,44 +38,26 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
 
     public static final int GAP = 7, TEMPLATE_X = 5, TEMPLATE_Y = 11;
 
-    private final BasicUIProperties fixedUI;
-    private final NEIRecipeProperties fixedNEI;
-
     public CircuitNanitesDataFrontend(BasicUIPropertiesBuilder ui, NEIRecipePropertiesBuilder nei) {
-        super(ui, nei);
-        fixedUI = uiProperties.toBuilder()
-            .maxItemInputs(1)
-            .maxItemOutputs(0)
-            .maxFluidInputs(0)
-            .maxFluidOutputs(0)
-            .clearNEITransferRects()
-            .build();
-        fixedNEI = nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
-            .recipeBackgroundOffset(position(0, 0))
-            .neiSpecialInfoFormatter(neiProperties.neiSpecialInfoFormatter)
-            .unificateOutput(false)
-            .recipeComparator(neiProperties.comparator)
-            .handlerInfoCreator(builder -> {
-                if (neiProperties.handlerInfoCreator != null) builder = neiProperties.handlerInfoCreator.apply(builder);
-                return builder.setHeight(HEIGHT + GAP)
-                    .setMultipleWidgetsAllowed(true);
-            })
-            .build();
+        super(
+            ui.maxItemInputs(1)
+                .maxItemOutputs(0)
+                .maxFluidInputs(0)
+                .maxFluidOutputs(0)
+                .clearNEITransferRects(),
+            nei);
     }
 
     @Override
-    public @NotNull BasicUIProperties getUIProperties() {
-        return fixedUI;
-    }
-
-    @Override
-    public @NotNull NEIRecipeProperties getNEIProperties() {
-        return fixedNEI;
+    protected @NotNull NEIRecipePropertiesBuilder modifyNEIProperties(NEIRecipePropertiesBuilder nei) {
+        return nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
+            .recipeBackgroundOffset(position(TEMPLATE_X, TEMPLATE_Y))
+            .unificateOutput(false);
     }
 
     @Override
     protected List<Slot> itemInputSlots(int count) {
-        return slots(1, 1);
+        return slots(TEMPLATE_X + 1, TEMPLATE_Y + 1);
     }
 
     @Override
@@ -87,15 +67,15 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
 
     @Override
     public ModularWindow.@NotNull Builder createNEITemplate(GTNEIDefaultHandler.@NotNull NEITemplateContext ctx) {
-        ModularWindow.Builder builder = ModularWindow.builder(fixedNEI.recipeBackgroundSize);
+        ModularWindow.Builder builder = ModularWindow.builder(neiProperties.recipeBackgroundSize);
         builder.widget(
             new DrawableWidget().setDrawable(new CircuitNanitesDataBoard(ctx.recipeSupplier))
                 .setSize(WIDTH, HEIGHT)
-                .setPos(ctx.windowOffset));
+                .setPos(ctx.windowOffset.add(TEMPLATE_X, TEMPLATE_Y)));
         builder.widget(
             SlotWidget.phantom(ctx.itemInputsInventory, 0)
                 .setBackground(ModularUITextures.ITEM_SLOT)
-                .setPos(position(1, 1).add(ctx.windowOffset))
+                .setPos(position(TEMPLATE_X + 1, TEMPLATE_Y + 1).add(ctx.windowOffset))
                 .setSize(18, 18));
         return builder;
     }
@@ -108,7 +88,7 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
 
     @Override
     public void addAreaTooltip(GTRecipe recipe, int mouseX, int mouseY, List<String> tooltip) {
-        int x = mouseX + TEMPLATE_X, y = mouseY + TEMPLATE_Y - HEADER - 2;
+        int x = mouseX, y = mouseY - HEADER - 2;
         if (x < 1 || x >= WIDTH - 1 || y < 0 || y >= ROWS * ROW) return;
         Sheet sheet = CircuitNanitesDataBoard.sheet(recipe);
         if (sheet == null || sheet.profile() == null) return;

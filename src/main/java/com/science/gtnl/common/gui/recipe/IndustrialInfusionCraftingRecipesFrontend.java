@@ -56,7 +56,6 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
         return neiPropertiesBuilder.recipeBackgroundSize(size(170, inputAreaHeight + aspectAreaHeight));
     }
 
-    @Nullable
     @Override
     protected Slot progressOffset() {
         return new Slot(PROGRESS_OFFSET_X, usesAdjustedLayout() ? getOutputYOrigin() - 35 : 10);
@@ -109,7 +108,6 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
         return grid(itemOutputCount, OUTPUT_X_ORIGIN, getOutputYOrigin(), INFUSION_INPUT_COLUMNS);
     }
 
-    @Nullable
     @Override
     protected Slot specialItemSlot() {
         int yOrigin = usesAdjustedLayout() ? getOutputYOrigin() + 18 : LEGACY_SPECIAL_Y_ORIGIN;

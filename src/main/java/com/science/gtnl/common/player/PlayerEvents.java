@@ -61,7 +61,11 @@ public class PlayerEvents {
         if (!(event.player instanceof EntityPlayerMP player)) return;
         player.triggerAchievement(AchievementsLoader.welcome);
         ScienceNotLeisure.network.sendTo(new SoundPacket(true), player);
-        ScienceNotLeisure.network.sendTo(new SyncCircuitNanitesPacket(player.worldObj.getSeed()), player);
+        ScienceNotLeisure.network.sendTo(
+            new SyncCircuitNanitesPacket(
+                player.worldObj.getWorldInfo()
+                    .getSeed()),
+            player);
 
         SteamRocketSchematic.unlockFor(player);
 

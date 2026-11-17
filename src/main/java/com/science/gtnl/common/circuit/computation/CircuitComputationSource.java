@@ -6,6 +6,8 @@ public interface CircuitComputationSource {
 
     long available(long tick, Vec3Impl position);
 
+    boolean isReady();
+
     void reset();
 
     void invalidate();

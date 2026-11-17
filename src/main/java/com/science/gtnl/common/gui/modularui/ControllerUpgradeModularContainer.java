@@ -1,5 +1,8 @@
 package com.science.gtnl.common.gui.modularui;
 
+import java.util.Collections;
+import java.util.List;
+
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 
@@ -8,13 +11,51 @@ import org.jetbrains.annotations.Nullable;
 
 import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.screen.ModularContainer;
+import com.cleanroommc.modularui.utils.item.ItemHandlerHelper;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.PlayerSlotGroup;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+
 public class ControllerUpgradeModularContainer extends ModularContainer {
 
     public ControllerUpgradeModularContainer() {}
+
+    @Override
+    public @Nullable ItemStack slotClick(int slotId, int mouseButton, int mode, EntityPlayer player) {
+        if (slotId >= inventorySlots.size()) return null;
+        if (slotId >= 0) {
+            ModularSlot slot = getModularSlot(slotId);
+            ItemStack stored = slot.getStack();
+            ItemStack held = player.inventory.getItemStack();
+            if (stored != null && stored.stackSize > stored.getMaxStackSize()
+                && (mode == 2 || mode == 0 && held != null && !ItemHandlerHelper.canItemStacksStack(stored, held)))
+                return null;
+        }
+        return super.slotClick(slotId, mouseButton, mode, player);
+    }
+
+    @Override
+    public List<ModularSlot> getShiftClickSlots() {
+        List<ModularSlot> slots = new ObjectArrayList<>();
+        for (ModularSlot slot : super.getShiftClickSlots()) {
+            if (!slot.isInitialized()) continue;
+            String panelName = slot.getSyncHandler()
+                .getSyncManager()
+                .getPanelName();
+            if (getSyncManager().getMainPSM()
+                .getPanelName()
+                .equals(panelName)) {
+                slots.add(slot);
+                continue;
+            }
+            IPanelHandler panel = getSyncManager().getMainPSM()
+                .findPanelHandlerNullable(panelName);
+            if (panel != null && panel.isPanelOpen()) slots.add(slot);
+        }
+        return Collections.unmodifiableList(slots);
+    }
 
     @Override
     public @Nullable ItemStack transferStackInSlot(@NotNull EntityPlayer playerIn, int index) {
@@ -29,7 +70,7 @@ public class ControllerUpgradeModularContainer extends ModularContainer {
         ItemStack originalStack = sourceStack.copy();
         ItemStack remainingStack = sourceStack.copy();
         transferToUpgradeInput(remainingStack);
-        if (remainingStack.stackSize == originalStack.stackSize) return null;
+        if (remainingStack.stackSize == originalStack.stackSize) return super.transferStackInSlot(playerIn, index);
 
         sourceSlot.putStack(remainingStack.stackSize > 0 ? remainingStack : null);
         sourceSlot.onSlotChange(remainingStack, originalStack);
@@ -50,7 +91,8 @@ public class ControllerUpgradeModularContainer extends ModularContainer {
     }
 
     private void transferToUpgradeInput(ItemStack stack) {
-        for (ModularSlot targetSlot : getShiftClickSlots()) {
+        List<ModularSlot> targets = getShiftClickSlots();
+        for (ModularSlot targetSlot : targets) {
             if (!isUpgradeInputSlot(targetSlot) || !targetSlot.isItemValid(stack)) continue;
 
             ItemStack targetStack = targetSlot.getStack();
@@ -70,7 +112,7 @@ public class ControllerUpgradeModularContainer extends ModularContainer {
             if (stack.stackSize == 0) return;
         }
 
-        for (ModularSlot targetSlot : getShiftClickSlots()) {
+        for (ModularSlot targetSlot : targets) {
             if (!isUpgradeInputSlot(targetSlot) || !targetSlot.isItemValid(stack) || targetSlot.getStack() != null)
                 continue;
 
