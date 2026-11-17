@@ -167,7 +167,7 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    public void addGregTechLogo(ModularWindow.@NotNull Builder builder, @NotNull @NotNull Pos2d windowOffset) {}
+    public void addGregTechLogo(ModularWindow.@NotNull Builder builder, @NotNull Pos2d windowOffset) {}
 
     @Override
     public void drawNEIOverlays(GTNEIDefaultHandler.CachedDefaultRecipe recipe) {
