@@ -19,6 +19,7 @@ import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.IWidget;
+import com.cleanroommc.modularui.drawable.DynamicDrawable;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.viewport.GuiContext;
@@ -57,20 +58,21 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
     private static final String NANITE_SLOT_GROUP = "treeDiagramNanites";
     private static final String RUNTIME_KEY = "treeDiagramRuntime";
     public static final int POWER_PANEL_WIDTH = 290;
-    public static final int POWER_PANEL_HEIGHT = 178;
+    public static final int POWER_PANEL_HEIGHT = 190;
+    private static final int MAINTENANCE_ROW_HEIGHT = 20;
     private static final int NANITE_SHIFT_CLICK_PRIORITY = SlotGroup.STORAGE_SLOT_PRIO - 1;
     public static final int[][] NANITE_SLOTS = { { 181, 49 }, { 155, 39 }, { 207, 39 }, { 181, 69 } };
     public static final int[] MAINTENANCE_TIERS = { 1, 4, 7 };
 
     private static final Trace CU_TOP = new Trace(9, 17, 70, 17, 73, 14, 110, 14);
     private static final Trace UNLOCK_LEFT = new Trace(4, 24, 4, 60, 6, 62, 6, 150);
-    private static final Trace NANITE_RIGHT = new Trace(285, 24, 285, 100, 283, 102, 283, 160);
-    private static final Trace FLUID_MIDDLE = new Trace(143, 74, 143, 150, 147, 154, 147, 170);
-    private static final Trace POWER_MIDDLE = new Trace(146, 96, 146, 146, 150, 150, 150, 165);
-    private static final Trace FLUID_BOTTOM = new Trace(60, 172, 120, 172, 124, 168, 140, 168);
-    private static final Trace UNLOCK_CORNER = new Trace(3, 168, 14, 168, 20, 162);
-    private static final Trace GRAY_CORNER = new Trace(3, 172, 30, 172);
-    private static final Trace CU_CORNER = new Trace(286, 172, 250, 172, 246, 168);
+    private static final Trace NANITE_RIGHT = new Trace(285, 24, 285, 100, 283, 102, 283, 172);
+    private static final Trace FLUID_MIDDLE = new Trace(143, 74, 143, 162, 147, 166, 147, 182);
+    private static final Trace POWER_MIDDLE = new Trace(146, 96, 146, 158, 150, 162, 150, 177);
+    private static final Trace FLUID_BOTTOM = new Trace(60, 184, 120, 184, 124, 180, 140, 180);
+    private static final Trace UNLOCK_CORNER = new Trace(3, 180, 14, 180, 20, 174);
+    private static final Trace GRAY_CORNER = new Trace(3, 184, 30, 184);
+    private static final Trace CU_CORNER = new Trace(286, 184, 250, 184, 246, 180);
     private static final Trace CU_FLOW = new Trace(40, 84, 40, 70);
     private static final Trace POWER_FLOW = new Trace(100, 84, 100, 79, 104, 75, 104, 70);
     private static final Trace NANITE_FLOW = new Trace(152, 58, 147, 58, 143, 54, 138, 54);
@@ -121,7 +123,14 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
         long tick = tile == null ? 0
             : tile.getWorld()
                 .getTotalWorldTime();
-        if (runtimeSnapshot == null || tick < lastRuntimeSync || tick - lastRuntimeSync >= 5) {
+        int lockedSlots = 0;
+        for (int slot = 0; slot < NANITE_SLOTS.length; slot++) {
+            if (multiblock.isNaniteSlotLocked(slot)) lockedSlots |= 1 << slot;
+        }
+        // Slot lock changes bypass the normal runtime refresh interval.
+        if (runtimeSnapshot == null || runtimeSnapshot.getInteger("lockedSlots") != lockedSlots
+            || tick < lastRuntimeSync
+            || tick - lastRuntimeSync >= 5) {
             runtimeSnapshot = multiblock.getCircuitDisplayData();
             lastRuntimeSync = tick;
         }
@@ -203,7 +212,8 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
                     })
                     .tooltipAutoUpdate(true));
         }
-        addParallelControls(panel);
+        addParallelControls(panel, sync);
+        addMaintenanceTooltips(panel, data);
         return panel;
     }
 
@@ -237,7 +247,7 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
         };
     }
 
-    private void addParallelControls(Dialog<?> panel) {
+    private void addParallelControls(Dialog<?> panel, PanelSyncManager sync) {
         IntSyncValue maxParallelSyncer = new IntSyncValue(() -> Math.max(multiblock.getMaxParallelRecipes(), 1));
         BooleanSyncValue alwaysMaxParallelSyncer = new BooleanSyncValue(
             multiblock::isAlwaysMaxParallel,
@@ -245,6 +255,9 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
         IntSyncValue powerPanelMaxParallelSyncer = new IntSyncValue(
             multiblock::getTrueParallel,
             multiblock::setPowerPanelMaxParallel).allowC2S();
+        sync.syncValue("maxParallel", maxParallelSyncer);
+        sync.syncValue("alwaysMaxParallel", alwaysMaxParallelSyncer);
+        sync.syncValue("powerPanelMaxParallel", powerPanelMaxParallelSyncer);
         panel.child(
             new TextFieldWidget().value(powerPanelMaxParallelSyncer)
                 .setTextAlignment(Alignment.Center)
@@ -266,24 +279,23 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
                 .tooltipShowUpTimer(TOOLTIP_DELAY)
                 .background(TreeDiagramBoard.fieldBackground())
                 .hoverBackground(TreeDiagramBoard.fieldBackground())
-                .pos(52, 147)
-                .size(70, 15));
+                .pos(13, 159)
+                .size(70, 14));
         IDrawable maxButton = (context, x, y, width, height, theme) -> {
             TreeDiagramBoard board = new TreeDiagramBoard(x, y);
             boolean on = alwaysMaxParallelSyncer.getValue();
             board.button(0, 0, width, height, Net.CU, on);
-            board.textCenter(
-                tr("max_parallel"),
-                width / 2 + 1,
-                (height - 8) / 2,
-                on ? board.palette.text() : board.palette.muted());
             board.flush();
         };
         panel.child(
-            new ButtonWidget<>().pos(125, 147)
-                .size(15)
+            new ButtonWidget<>().pos(99, 157)
+                .size(18)
                 .background(maxButton)
                 .hoverBackground(maxButton)
+                .overlay(
+                    new DynamicDrawable(
+                        () -> alwaysMaxParallelSyncer.getValue() ? GTGuiTextures.OVERLAY_BUTTON_CHECKMARK
+                            : GTGuiTextures.OVERLAY_BUTTON_CROSS))
                 .onMousePressed(mouseButton -> {
                     alwaysMaxParallelSyncer.setValue(!alwaysMaxParallelSyncer.getValue());
                     powerPanelMaxParallelSyncer.setValue(maxParallelSyncer.getValue());
@@ -291,6 +303,34 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
                 })
                 .tooltipBuilder(tooltip -> tooltip.addLine(IKey.lang("GT5U.gui.button.max_parallel")))
                 .tooltipShowUpTimer(TOOLTIP_DELAY));
+    }
+
+    private static void addMaintenanceTooltips(Dialog<?> panel, Supplier<NBTTagCompound> data) {
+        for (int row = 0; row < MAINTENANCE_TIERS.length; row++) {
+            int index = row;
+            panel.child(
+                new Widget<>().pos(157, 118 + row * MAINTENANCE_ROW_HEIGHT)
+                    .size(121, 18)
+                    .background(IDrawable.EMPTY)
+                    .tooltipBuilder(tooltip -> {
+                        NBTTagCompound state = data.get();
+                        String name = state.getCompoundTag("maintenance" + index)
+                            .getString("name");
+                        if (name.isEmpty()) return;
+                        tooltip.addLine(fluidName(name));
+                        tooltip.addLine(maintenanceState(state, index));
+                    })
+                    .tooltipAutoUpdate(true)
+                    .tooltipShowUpTimer(TOOLTIP_DELAY));
+        }
+    }
+
+    private static String maintenanceState(NBTTagCompound state, int row) {
+        NBTTagCompound fluid = state.getCompoundTag("maintenance" + row);
+        if (fluid.getBoolean("missing")) return tr("maintenance_missing");
+        if (!fluid.getBoolean("needed")) return tr("maintenance_tier", MAINTENANCE_TIERS[row]);
+        if (!state.hasKey("parallel")) return tr("maintenance_idle");
+        return number((long) Math.ceil(fluid.getDouble("rate"))) + " mB/s";
     }
 
     private static String tr(String key, Object... args) {
@@ -347,7 +387,7 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             drawComputation(board, tag);
             drawNanites(board, tag);
             drawMaintenance(board, tag);
-            board.text(tr("parallel_limit"), 9, 151, board.palette.muted());
+            board.text(tr("parallel_limit"), 13, 147, board.palette.muted());
             board.flush();
         }
 
@@ -380,9 +420,9 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             board.trace(NANITE_RIGHT, Net.NANITE, false);
             board.trace(FLUID_MIDDLE, Net.FLUID, false);
             board.trace(POWER_MIDDLE, Net.POWER, false);
-            board.pad(150, 166, Net.POWER, false);
+            board.pad(150, 178, Net.POWER, false);
             board.trace(FLUID_BOTTOM, Net.FLUID, false);
-            board.pad(59, 172, Net.FLUID, false);
+            board.pad(59, 184, Net.FLUID, false);
             board.pad(14, 78, Net.CU, false);
             board.pad(126, 78, Net.NANITE, false);
             board.pad(210, 99, Net.UNLOCK, false);
@@ -526,18 +566,18 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
 
         private void drawMaintenance(TreeDiagramBoard board, NBTTagCompound tag) {
             Palette p = board.palette;
-            section(board, tr("maintenance"), 152, 106, 130, 62);
-            board.textRight(tr("supply_together"), 277, 109, p.dim());
+            section(board, tr("maintenance"), 152, 106, 130, 74);
+            board.textFit(tr("supply_together"), 277, 109, 58, p.dim(), true);
             boolean working = tag.hasKey("parallel");
             for (int row = 0; row < MAINTENANCE_TIERS.length; row++) {
                 NBTTagCompound fluid = tag.getCompoundTag("maintenance" + row);
-                int y = 118 + row * 16;
+                int y = 118 + row * MAINTENANCE_ROW_HEIGHT;
                 boolean needed = fluid.getBoolean("needed");
                 boolean missing = fluid.getBoolean("missing");
                 boolean supplied = needed && !missing && working;
                 board.slot(
                     157,
-                    y,
+                    y + 2,
                     15,
                     supplied ? p.wire(Net.FLUID)
                         .bright() : 0);
@@ -545,27 +585,13 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
                 if (name.isEmpty()) continue;
                 FluidStack stack = FluidRegistry.getFluidStack(name, 1);
                 if (needed && stack != null) {
-                    int left = 158, top = y + 1;
+                    int left = 158, top = y + 3;
                     board.later(
                         () -> GuiDraw.drawFluidTexture(stack, board.left() + left, board.top() + top, 13, 13, 0));
                 }
-                board.text(fluidName(name), 177, y + 4, needed ? p.text() : p.dim());
-                String state;
-                int color;
-                if (missing) {
-                    state = tr("maintenance_missing");
-                    color = p.bad();
-                } else if (!needed) {
-                    state = tr("maintenance_tier", MAINTENANCE_TIERS[row]);
-                    color = p.dim();
-                } else if (!working) {
-                    state = tr("maintenance_idle");
-                    color = p.dim();
-                } else {
-                    state = number((long) Math.ceil(fluid.getDouble("rate"))) + " mB/s";
-                    color = p.text();
-                }
-                board.textRight(state, 277, y + 4, color);
+                board.textFit(fluidName(name), 177, y, 100, needed ? p.text() : p.dim(), false);
+                int color = missing ? p.bad() : !needed || !working ? p.dim() : p.text();
+                board.textFit(maintenanceState(tag, row), 277, y + 9, 100, color, true);
             }
         }
 

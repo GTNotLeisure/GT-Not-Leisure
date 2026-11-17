@@ -449,6 +449,25 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
         return naniteRegistry != null && naniteRegistry.recognizes(stack);
     }
 
+    @Override
+    public void setPowerPanelMaxParallel(int parallel) {
+        int limit = Math.max(1, parallel);
+        IGregTechTileEntity tile = getBaseMetaTileEntity();
+        if (tile != null && tile.isServerSide()) {
+            limit = Math.min(limit, Math.max(1, getMaxParallelRecipes()));
+        }
+        if (getPowerPanelMaxParallel() == limit) return;
+        super.setPowerPanelMaxParallel(limit);
+        markCircuitDirty();
+    }
+
+    @Override
+    public void setAlwaysMaxParallel(boolean alwaysMaxParallel) {
+        if (isAlwaysMaxParallel() == alwaysMaxParallel) return;
+        super.setAlwaysMaxParallel(alwaysMaxParallel);
+        markCircuitDirty();
+    }
+
     public boolean isNaniteSlotLocked(int slot) {
         IGregTechTileEntity tile = getBaseMetaTileEntity();
         int mask = tile != null && tile.isClientSide() ? clientLockedSlots
