@@ -175,6 +175,7 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     private String missingMaintenance = "";
     private long availableComputation;
     private long actualEnergyThisTick;
+    private double powerRatio = 1;
     private boolean loadingInventories;
     private int clientLockedSlots;
 
@@ -617,7 +618,7 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
 
     @Override
     public void runActiveMachineTick(IGregTechTileEntity tile) {
-        double remainingTick = 1;
+        double remainingTick = 1, paidTime = 0, requestedTime = 0;
         for (int batches = 0; batches < MAX_BATCHES_PER_TICK && activeWork != null && remainingTick > 0; batches++) {
             if (activeWork.remainingWork() == 0) {
                 if (!finishCircuitWork()) return;
@@ -635,17 +636,26 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
                 workStatus = CircuitWorkStatus.CAPACITY_EXCEEDED;
                 return;
             }
+            requestedTime += requestedElapsed;
             if (elapsed <= 0) {
-                workStatus = CircuitWorkStatus.NO_POWER;
+                if (paidTime > 0) {
+                    powerRatio = paidTime / requestedTime;
+                    workStatus = CircuitWorkStatus.LOW_POWER;
+                } else {
+                    workStatus = CircuitWorkStatus.NO_POWER;
+                }
                 return;
             }
             if (!payForWork(activeWork, currentComputationEffects, elapsed)) return;
             activeWork.advance(elapsed >= timeToFinish ? activeWork.remainingWork() : rate * elapsed);
             remainingTick = Math.max(0, remainingTick - requestedElapsed);
+            paidTime += elapsed;
+            powerRatio = paidTime / requestedTime;
             updateWorkProgress();
             workStatus = activeWork.isLegacy() ? CircuitWorkStatus.LEGACY_BATCH
-                : currentComputationEffects.supplyRatio() < 1 ? CircuitWorkStatus.LOW_COMPUTATION
-                    : CircuitWorkStatus.RUNNING;
+                : paidTime < requestedTime ? CircuitWorkStatus.LOW_POWER
+                    : currentComputationEffects.supplyRatio() < 1 ? CircuitWorkStatus.LOW_COMPUTATION
+                        : CircuitWorkStatus.RUNNING;
             markCircuitDirty();
             if (activeWork.remainingWork() == 0) {
                 if (!finishCircuitWork()) return;
@@ -974,11 +984,15 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     }
 
     private void updateWorkProgress() {
-        double rate = activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier();
         mMaxProgresstime = (int) Math
-            .min(Integer.MAX_VALUE, Math.max(1, Math.ceil(activeWork.getTotalWork() / Math.max(0.000001, rate))));
+            .min(Integer.MAX_VALUE, Math.max(1, Math.ceil(activeWork.getTotalWork() / effectiveWorkRate())));
         mProgresstime = (int) Math
             .min(mMaxProgresstime - 1, mMaxProgresstime * activeWork.getCompletedWork() / activeWork.getTotalWork());
+    }
+
+    private double effectiveWorkRate() {
+        return Math
+            .max(0.000001, activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier() * powerRatio);
     }
 
     public NBTTagCompound getCircuitDisplayData() {
@@ -1003,11 +1017,7 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
                 "bonus",
                 activeWork.getOutputRoll()
                     .bonusParallels());
-            tag.setDouble(
-                "seconds",
-                activeWork.remainingWork()
-                    / Math.max(0.000001, activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier())
-                    / 20);
+            tag.setDouble("seconds", activeWork.remainingWork() / effectiveWorkRate() / 20);
             tag.setInteger("lockedSlots", activeWork.getLockedSlots());
             tag.setDouble("progress", activeWork.getCompletedWork() / activeWork.getTotalWork());
             tag.setDouble("euMultiplier", currentComputationEffects.euMultiplier());
@@ -1204,7 +1214,8 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
                     Math.min(1, exactDuration / computation.speedMultiplier()));
                 if (elapsed <= 0) {
                     workStatus = CircuitWorkStatus.NO_POWER;
-                    return CheckRecipeResultRegistry.insufficientPower(1);
+                    return CheckRecipeResultRegistry.insufficientPower(
+                        (long) Math.ceil(Math.min(Long.MAX_VALUE, energyPerTick(work, computation))));
                 }
                 Charge charge = quoteWork(work, computation, elapsed);
                 if (!canPayMaintenance(charge)) {

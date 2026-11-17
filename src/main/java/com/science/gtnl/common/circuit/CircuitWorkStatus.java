@@ -4,6 +4,7 @@ public enum CircuitWorkStatus {
     IDLE,
     RUNNING,
     LOW_COMPUTATION,
+    LOW_POWER,
     COMPUTATION_WARMUP,
     NO_MAINTENANCE,
     NO_POWER,

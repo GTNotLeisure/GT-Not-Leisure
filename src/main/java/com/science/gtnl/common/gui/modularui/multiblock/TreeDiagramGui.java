@@ -33,7 +33,6 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
-import com.cleanroommc.modularui.widgets.ToggleButton;
 import com.cleanroommc.modularui.widgets.slot.ModularSlot;
 import com.cleanroommc.modularui.widgets.slot.SlotGroup;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
@@ -227,13 +226,26 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             multiblock::makesPowerfailEvents,
             multiblock::setPowerfailEventCreationStatus).allowC2S();
         sync.syncValue("powerfailEvents", value);
+        IDrawable background = (context, x, y, width, height, theme) -> {
+            TreeDiagramBoard board = new TreeDiagramBoard(x, y);
+            board.button(0, 0, width, height, Net.POWER, value.getValue());
+            board.flush();
+        };
         panel.child(
-            new ToggleButton().value(value)
-                .overlay(true, GTGuiTextures.OVERLAY_BUTTON_CHECKMARK)
-                .overlay(false, GTGuiTextures.OVERLAY_BUTTON_CROSS)
-                .pos(122, 157)
+            new ButtonWidget<>().pos(122, 157)
                 .size(18)
-                .tooltipBuilder(tooltip -> tooltip.addLine(IKey.lang("GT5U.gui.text.powerfail_events"))));
+                .background(background)
+                .hoverBackground(background)
+                .overlay(
+                    new DynamicDrawable(
+                        () -> value.getValue() ? GTGuiTextures.OVERLAY_BUTTON_CHECKMARK
+                            : GTGuiTextures.OVERLAY_BUTTON_CROSS))
+                .onMousePressed(mouseButton -> {
+                    value.setValue(!value.getValue());
+                    return true;
+                })
+                .tooltipBuilder(tooltip -> tooltip.addLine(IKey.lang("GT5U.gui.text.powerfail_events")))
+                .tooltipShowUpTimer(TOOLTIP_DELAY));
     }
 
     @Override
@@ -426,7 +438,7 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             int color = switch (status) {
                 case "running" -> p.ok();
                 case "idle", "disabled" -> p.muted();
-                case "low_computation", "computation_warmup", "legacy_batch", "output_full" -> p.warn();
+                case "low_computation", "low_power", "computation_warmup", "legacy_batch", "output_full" -> p.warn();
                 default -> p.bad();
             };
             int right = width - 20;
