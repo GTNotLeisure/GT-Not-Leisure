@@ -590,7 +590,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         private void collectRing(Style style) {
             for (int packed : circle(CORE_X, CORE_Y, ORBIT)) {
                 int x = TreeDiagramBoard.unpackX(packed), y = TreeDiagramBoard.unpackY(packed);
-                if (get(x, y) != style.accent()) continue;
+                if (get(x, y) != style.ringAccent()) continue;
                 ring.add((int) Math.round(angle(x, y)));
                 ring.add(x);
                 ring.add(y);
