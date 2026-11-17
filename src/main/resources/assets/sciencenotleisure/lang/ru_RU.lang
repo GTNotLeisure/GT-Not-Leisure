@@ -3148,6 +3148,12 @@ item.gtnl.part_super_dual_interface.name=Супер двойной ME-интер
 gtnl.block.super_dual_interface.name=Супер двойной ME-интерфейс
 gtnl.gui.super_dual_interface.name=Супер двойной ME-интерфейс
 
+gtnl.block.mentalmath_unit.zi_li.name=&{ac}Блок устного счёта Цзы Ли
+gtnl.block.mentalmath_unit.mo_jin_yu.name=&{pf;#feeb01,#fe0000,#ffffff}Блок устного счёта Мо Цзинь Юй
+gtnl.block.mentalmath_unit.yi_qing.name=&{sb;#419d45,#94db93}Блок устного счёта И Цин
+gtnl.block.mentalmath_unit.bytes=&{cn}Память автокрафта: %s байт
+gtnl.block.mentalmath_unit.parallelism=&{cn}Число параллельных операций: %s
+
 gtnl.wireless.gui.shared=Поделился: %s
 gtnl.wireless.gui.budget_compact=Исходные каналы: %s / %s
 gtnl.wireless.gui.online_metric=Онлайн %s/%s

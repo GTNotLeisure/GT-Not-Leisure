@@ -3148,6 +3148,12 @@ item.gtnl.part_super_dual_interface.name=Super Dual ME Interface
 gtnl.block.super_dual_interface.name=Super Dual ME Interface
 gtnl.gui.super_dual_interface.name=Super Dual ME Interface
 
+gtnl.block.mentalmath_unit.zi_li.name=&{ac}Zi Li Mental Math Unit
+gtnl.block.mentalmath_unit.mo_jin_yu.name=&{pf;#feeb01,#fe0000,#ffffff}Mo Jin Yu Mental Math Unit
+gtnl.block.mentalmath_unit.yi_qing.name=&{sb;#419d45,#94db93}Yi Qing Mental Math Unit
+gtnl.block.mentalmath_unit.bytes=&{cn}Crafting storage: %s bytes
+gtnl.block.mentalmath_unit.parallelism=&{cn}Crafting parallelism: %s
+
 gtnl.wireless.gui.shared=Shared: %s
 gtnl.wireless.gui.budget_compact=Controller channels: %s / %s
 gtnl.wireless.gui.online_metric=Online %s/%s
