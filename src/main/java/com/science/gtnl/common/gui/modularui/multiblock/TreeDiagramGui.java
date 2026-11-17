@@ -45,6 +45,7 @@ import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Net;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Orbit;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Palette;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard.Trace;
+import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 import com.science.gtnl.common.gui.modularui.TreeDiagramUpgradePanels;
 import com.science.gtnl.common.machine.multiblock.wireless.TreeDiagram;
 
@@ -262,8 +263,14 @@ public class TreeDiagramGui extends GTNLMultiBlockBaseGui<TreeDiagram> {
             new TextFieldWidget().value(powerPanelMaxParallelSyncer)
                 .setTextAlignment(Alignment.Center)
                 .setTextColor(
-                    TreeDiagramBoard.palette()
-                        .text())
+                    TreeDiagramTheme.textColor(
+                        TreeDiagramBoard.palette()
+                            .text()))
+                .onUpdateListener(
+                    field -> field.setTextColor(
+                        TreeDiagramTheme.textColor(
+                            TreeDiagramBoard.palette()
+                                .text())))
                 .numbersInt(
                     () -> alwaysMaxParallelSyncer.getValue() ? maxParallelSyncer.getValue() : 1,
                     maxParallelSyncer::getValue)

@@ -7,9 +7,16 @@ import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.FLUID_Y;
 import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.GRID_X;
 import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.HEIGHT;
 import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.ITEM_Y;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.OFFSET_X;
 import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.SLOTS;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.SLOT_PITCH;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.SLOT_SIZE;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.TRANSFER_SIZE;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.TRANSFER_X;
+import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.TRANSFER_Y;
 import static com.science.gtnl.common.gui.recipe.TreeDiagramNEIBoard.WIDTH;
 
+import java.awt.Rectangle;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -28,6 +35,7 @@ import com.gtnewhorizons.modularui.common.widget.SlotWidget;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.circuit.CircuitCatalog;
 import com.science.gtnl.common.circuit.CircuitFamily;
+import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 import com.science.gtnl.common.gui.modularui.TreeDiagramUpgradePanels;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.gtnl.treeDiagram.CircuitRecipeGenerationReport;
@@ -37,45 +45,43 @@ import com.science.gtnl.utils.recipes.metadata.TreeDiagramCircuitMetadata;
 
 import codechicken.nei.recipe.GuiCraftingRecipe;
 import gregtech.api.enums.GTValues;
-import gregtech.api.recipe.BasicUIProperties;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
-import gregtech.api.recipe.NEIRecipeProperties;
 import gregtech.api.recipe.NEIRecipePropertiesBuilder;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTUtility;
 import gregtech.nei.GTNEIDefaultHandler;
 import gregtech.nei.RecipeDisplayInfo;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRecipeAreaHandler {
 
-    public static final int TABLE_ROW = 11, TABLE_ROWS = 4, TABLE_LEFT = 3, TABLE_RIGHT = 95;
-    public static final int TABLE_TOP = HEIGHT - 11 + 4;
+    public static final int TABLE_ROW = 11, TABLE_ROWS = 4, TABLE_LEFT = 3 + OFFSET_X, TABLE_RIGHT = 95 + OFFSET_X;
+    public static final int TABLE_TOP = HEIGHT + 4;
+    public static final int RECIPE_WIDTH = WIDTH + OFFSET_X;
+    public static final int RECIPE_HEIGHT = TABLE_TOP + TABLE_ROWS * TABLE_ROW + 12;
     public static final int KEY_COLOR = 0xFF6A6A6A, VALUE_COLOR = 0xFF101010, COMPUTATION_COLOR = 0xFF136B86,
         NANITE_COLOR = 0xFF9A6400, UNLOCK_COLOR = 0xFF6A3FB8;
 
-    private final BasicUIProperties fixedUI;
-    private final NEIRecipeProperties fixedNEI;
+    // GT shifts NEI slot templates eleven pixels upward.
+    private static final int TEMPLATE_Y_OFFSET = 11;
 
     public TreeDiagramRecipeFrontend(BasicUIPropertiesBuilder ui, NEIRecipePropertiesBuilder nei) {
-        super(ui, nei);
-        fixedUI = uiProperties.toBuilder()
-            .maxItemInputs(SLOTS)
-            .maxItemOutputs(1)
-            .maxFluidInputs(SLOTS)
-            .maxFluidOutputs(0)
-            .clearNEITransferRects()
-            .build();
-        fixedNEI = nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
-            .recipeBackgroundOffset(position(0, 0))
-            .neiSpecialInfoFormatter(neiProperties.neiSpecialInfoFormatter)
-            .unificateOutput(false)
-            .recipeComparator(neiProperties.comparator)
-            .handlerInfoCreator(builder -> {
-                if (neiProperties.handlerInfoCreator != null) builder = neiProperties.handlerInfoCreator.apply(builder);
-                return builder.setHeight(HEIGHT + 4 + TABLE_ROWS * TABLE_ROW + 8)
-                    .setMultipleWidgetsAllowed(false);
-            })
-            .build();
+        super(
+            ui.maxItemInputs(SLOTS)
+                .maxItemOutputs(1)
+                .maxFluidInputs(SLOTS)
+                .maxFluidOutputs(0)
+                .clearNEITransferRects()
+                .addNEITransferRect(
+                    new Rectangle(TRANSFER_X + OFFSET_X, TRANSFER_Y + TEMPLATE_Y_OFFSET, TRANSFER_SIZE, TRANSFER_SIZE)),
+            nei);
+    }
+
+    @Override
+    protected NEIRecipePropertiesBuilder modifyNEIProperties(NEIRecipePropertiesBuilder nei) {
+        return nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
+            .recipeBackgroundOffset(position(OFFSET_X, TEMPLATE_Y_OFFSET))
+            .unificateOutput(false);
     }
 
     public void configure(CircuitRecipeGenerationReport report) {
@@ -91,28 +97,29 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    public BasicUIProperties getUIProperties() {
-        return fixedUI;
-    }
-
-    @Override
-    public NEIRecipeProperties getNEIProperties() {
-        return fixedNEI;
-    }
-
-    @Override
     protected List<Slot> itemInputSlots(int count) {
-        return grid(count, GRID_X, ITEM_Y, COLUMNS);
+        return inputSlots(count, ITEM_Y);
     }
 
     @Override
     protected List<Slot> fluidInputSlots(int count) {
-        return grid(count, GRID_X, FLUID_Y, COLUMNS);
+        return inputSlots(count, FLUID_Y);
+    }
+
+    private static List<Slot> inputSlots(int count, int top) {
+        List<Slot> slots = new ObjectArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            slots.add(
+                new Slot(
+                    GRID_X + OFFSET_X + i % COLUMNS * SLOT_PITCH,
+                    top + TEMPLATE_Y_OFFSET + i / COLUMNS * SLOT_PITCH));
+        }
+        return slots;
     }
 
     @Override
     protected List<Slot> itemOutputSlots(int count) {
-        return slots(CORE_X - 9, CORE_Y - 9);
+        return slots(CORE_X - SLOT_SIZE / 2 + OFFSET_X, CORE_Y - SLOT_SIZE / 2 + TEMPLATE_Y_OFFSET);
     }
 
     @Override
@@ -122,11 +129,11 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
 
     @Override
     public ModularWindow.Builder createNEITemplate(GTNEIDefaultHandler.NEITemplateContext ctx) {
-        ModularWindow.Builder builder = ModularWindow.builder(fixedNEI.recipeBackgroundSize);
+        ModularWindow.Builder builder = ModularWindow.builder(neiProperties.recipeBackgroundSize);
         builder.widget(
             new DrawableWidget().setDrawable(new TreeDiagramNEIBoard(ctx.recipeSupplier))
                 .setSize(WIDTH, HEIGHT)
-                .setPos(ctx.windowOffset));
+                .setPos(ctx.windowOffset.add(OFFSET_X, TEMPLATE_Y_OFFSET)));
         List<Pos2d> items = getItemInputPositions(SLOTS);
         for (int i = 0; i < SLOTS; i++) {
             builder.widget(
@@ -135,7 +142,7 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
                     .setPos(
                         items.get(i)
                             .add(ctx.windowOffset))
-                    .setSize(18, 18));
+                    .setSize(SLOT_SIZE, SLOT_SIZE));
         }
         List<Pos2d> fluids = getFluidInputPositions(SLOTS);
         for (int i = 0; i < SLOTS; i++) {
@@ -145,18 +152,26 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
                     .setPos(
                         fluids.get(i)
                             .add(ctx.windowOffset))
-                    .setSize(18, 18));
+                    .setSize(SLOT_SIZE, SLOT_SIZE));
         }
         builder.widget(
             SlotWidget.phantom(ctx.itemOutputsInventory, 0)
                 .setBackground(IDrawable.EMPTY)
-                .setPos(position(CORE_X - 9, CORE_Y - 9).add(ctx.windowOffset))
-                .setSize(18, 18));
+                .setPos(
+                    getItemOutputPositions(1).get(0)
+                        .add(ctx.windowOffset))
+                .setSize(SLOT_SIZE, SLOT_SIZE));
         return builder;
     }
 
     @Override
     public void addGregTechLogo(ModularWindow.Builder builder, Pos2d windowOffset) {}
+
+    @Override
+    public void drawNEIOverlays(GTNEIDefaultHandler.CachedDefaultRecipe recipe) {
+        TreeDiagramNEIBoard.drawFluidFrames(recipe.mInputs);
+        super.drawNEIOverlays(recipe);
+    }
 
     @Override
     public void drawDescription(RecipeDisplayInfo recipeInfo) {
@@ -220,10 +235,10 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
 
     private static void cell(int x, int y, String key, Run... values) {
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        font.drawString(key, x, y, KEY_COLOR);
+        font.drawString(key, x, y, TreeDiagramTheme.textColor(KEY_COLOR));
         int valueX = x + Math.max(22, font.getStringWidth(key) + 4);
         for (Run value : values) {
-            font.drawString(value.text(), valueX, y, value.color());
+            font.drawString(value.text(), valueX, y, TreeDiagramTheme.textColor(value.color()));
             valueX += font.getStringWidth(value.text());
         }
     }
@@ -242,7 +257,9 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     private static boolean overNaniteCell(int mouseX, int mouseY) {
-        return mouseX >= TABLE_RIGHT && mouseX < WIDTH - 5 && mouseY >= TABLE_TOP - 1 && mouseY < TABLE_TOP + 9;
+        return mouseX >= TABLE_RIGHT && mouseX < WIDTH + OFFSET_X - 5
+            && mouseY >= TABLE_TOP - 1
+            && mouseY < TABLE_TOP + 9;
     }
 
     @Override

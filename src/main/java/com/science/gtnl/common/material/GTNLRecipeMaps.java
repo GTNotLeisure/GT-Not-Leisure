@@ -375,7 +375,11 @@ public class GTNLRecipeMaps {
         .neiSpecialInfoFormatter(recipeInfo -> Collections.emptyList())
         .dontUseProgressBar()
         .frontend(TreeDiagramRecipeFrontend::new)
-        .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1)))
+        .neiHandlerInfo(
+            builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1))
+                .setWidth(TreeDiagramRecipeFrontend.RECIPE_WIDTH)
+                .setHeight(TreeDiagramRecipeFrontend.RECIPE_HEIGHT)
+                .setMultipleWidgetsAllowed(false))
         .build();
 
     public static final RecipeMap<SteamGateAssemblerBackend> SteamGateAssemblerRecipes = RecipeMapBuilder

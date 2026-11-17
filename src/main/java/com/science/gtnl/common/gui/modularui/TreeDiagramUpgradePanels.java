@@ -131,9 +131,14 @@ public class TreeDiagramUpgradePanels extends GTNLControllerUpgradePanels {
             new TextFieldWidget().value(view.search)
                 .setMaxLength(128)
                 .autoUpdateOnChange(true)
-                .setTextColor(palette.text())
+                .setTextColor(TreeDiagramTheme.textColor(palette.text()))
                 .hintText(tr("gtnl.tree_diagram.gui.search"))
-                .hintColor(palette.dim())
+                .hintColor(TreeDiagramTheme.textColor(palette.dim()))
+                .onUpdateListener(field -> {
+                    Palette current = TreeDiagramBoard.palette();
+                    field.setTextColor(TreeDiagramTheme.textColor(current.text()))
+                        .hintColor(TreeDiagramTheme.textColor(current.dim()));
+                })
                 .background(TreeDiagramBoard.fieldBackground())
                 .hoverBackground(TreeDiagramBoard.fieldBackground())
                 .pos(8, 20)

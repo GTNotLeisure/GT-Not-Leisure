@@ -25,8 +25,6 @@ import gregtech.api.enums.OrePrefixes;
 import gregtech.api.objects.ItemData;
 import gregtech.api.util.GTOreDictUnificator;
 import gregtech.api.util.GTRecipe;
-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -73,8 +71,6 @@ public class CircuitIngredientNormalizer {
             OrePrefixes.pipeNonuple));
 
     private final Map<ItemId, ItemId> singlesByWrap = new Object2ObjectLinkedOpenHashMap<>();
-    private final Map<ItemId, ItemId> wrapsBySingle = new Object2ObjectLinkedOpenHashMap<>();
-    private final Int2ObjectMap<ItemId> wrapsByOre = new Int2ObjectOpenHashMap<>();
     private final CircuitComputationPolicy computationPolicy;
 
     public CircuitIngredientNormalizer(CircuitComputationPolicy computationPolicy) {
@@ -84,7 +80,6 @@ public class CircuitIngredientNormalizer {
             ItemId single = ItemId.create(wrap.itemSingle.get(1));
             ItemId wrapped = ItemId.create(wrap.itemWrap.get(1));
             singlesByWrap.put(wrapped, single);
-            wrapsBySingle.put(single, wrapped);
         }
     }
 
@@ -116,23 +111,6 @@ public class CircuitIngredientNormalizer {
             long original = entry.getValue();
             long amount = key.catalyst() ? original : discount(original);
             if (original > 0 && amount == 0) continue;
-            List<ItemId> wrapped = new ObjectArrayList<>();
-            for (ItemId item : key.alternatives()) {
-                ItemId wrap = wrapsBySingle.get(item);
-                if (wrap == null) {
-                    wrapped.clear();
-                    break;
-                }
-                wrapped.add(wrap);
-            }
-            if (wrapsByOre.containsKey(key.oreId())) {
-                wrapped = Collections.singletonList(wrapsByOre.get(key.oreId()));
-            }
-            if (!key.catalyst() && amount >= 16 && !wrapped.isEmpty()) {
-                addItems(itemInputs, itemChances, itemOreIds, wrapped, amount / 16, key.chance(), -1);
-                amount %= 16;
-                if (amount == 0) continue;
-            }
             addItems(itemInputs, itemChances, itemOreIds, key.alternatives(), amount, key.chance(), key.oreId());
         }
 
@@ -195,7 +173,6 @@ public class CircuitIngredientNormalizer {
                 }
                 if (alternatives.isEmpty())
                     throw new IllegalArgumentException("Wrapped circuit has no raw equivalents");
-                wrapsByOre.put(oreId, wrapped);
                 return new CircuitItemInput(
                     alternatives,
                     Math.multiplyExact(input.amount(), 16),

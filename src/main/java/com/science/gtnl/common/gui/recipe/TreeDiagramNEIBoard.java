@@ -16,7 +16,9 @@ import com.gtnewhorizons.modularui.api.drawable.IDrawable;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard;
 import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 
+import codechicken.nei.PositionedStack;
 import gregtech.api.util.GTRecipe;
+import gregtech.common.items.ItemFluidDisplay;
 import gregtech.nei.GTNEIDefaultHandler;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -26,10 +28,13 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class TreeDiagramNEIBoard implements IDrawable {
 
-    public static final int WIDTH = 168, HEIGHT = 176;
+    public static final int WIDTH = 168, HEIGHT = 168, OFFSET_X = 5;
     public static final int COLUMNS = 5, ROWS = 4, SLOTS = COLUMNS * ROWS;
-    public static final int GRID_X = 7, ITEM_Y = 9, FLUID_Y = 91, BOTTOM = 163;
+    public static final int SLOT_SIZE = 18, SLOT_PITCH = SLOT_SIZE;
+    public static final int GRID_X = 7, ITEM_Y = 9, FLUID_Y = ITEM_Y + ROWS * SLOT_PITCH + 2,
+        BOTTOM = FLUID_Y + ROWS * SLOT_PITCH;
     public static final int CORE_X = 139, CORE_Y = 86, ORBIT = 26;
+    public static final int TRANSFER_X = CORE_X - 27, TRANSFER_Y = CORE_Y - 8, TRANSFER_SIZE = 16;
     public static final int LOOP_MILLIS = 2400, GLIMMER_LOOP = 144, GLIMMER_FADE = 33, FRAMES_PER_LOOP = 72;
 
     @Desugar
@@ -50,7 +55,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
     public record Style(boolean dark, int background, int scan, int dots, int frame, int highlight, int accent,
         int label, int ringAccent, int ringAccentDim, int deco, Map<String, Ramp> ramps, int socketUsed,
         int socketEmpty, int[] edgeDark, int[] edgeLit, int mark, int itemLed, int fluidLed, int glimmerBase,
-        int itemGlimmer, int fluidGlimmer, float glimmerShift) {
+        int itemGlimmer, int fluidGlimmer, int glimmerShift) {
 
         public Ramp ramp(String net) {
             return ramps.get(net);
@@ -90,7 +95,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         rgb(222, 227, 233),
         rgb(170, 150, 222),
         rgb(118, 186, 152),
-        -1f);
+        -1);
 
     public static final Style DARK = new Style(
         true,
@@ -125,7 +130,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         rgb(14, 21, 31),
         rgb(98, 74, 156),
         rgb(44, 114, 88),
-        -0.5f);
+        -1);
 
     public static final int CORE_EDGE = rgb(80, 190, 236), CORE_INNER = rgb(26, 58, 82), CORE_FILL = rgb(10, 17, 28),
         CORE_WELL = rgb(40, 112, 152), CORE_FLOOR = rgb(12, 22, 36);
@@ -133,7 +138,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
     public static final int[][] CORE_RINGS = { { 14, 20 }, { 17, 26 }, { 20, 32 } };
     public static final int[][] CORE_PATHS = { { 18, 42, 74 }, { 12, 35, 64 }, { 4, 25, 52 }, { 18, 43, 76 }, { 5, 27 },
         { 2, 23, 51 }, { 15, 39, 71 }, { 12, 35, 66 }, { 5, 26, 55 }, { 0, 20, 46 }, { 6 }, { 13, 36 } };
-    public static final int[][] DECO = { { 112, 128, 112, 140, 120, 148, 128, 148 }, { 106, 160, 118, 160, 124, 166 },
+    public static final int[][] DECO = { { 112, 120, 112, 132, 120, 140, 128, 140 }, { 106, 152, 118, 152, 124, 158 },
         { 160, 22, 160, 40, 154, 46 }, { 150, 10, 150, 18, 156, 24 } };
     public static final int[][] ORBIT_GAPS = { { 80, 100 }, { 170, 190 }, { 260, 280 }, { 37, 53 } };
     public static final Map<Character, String[]> FONT = Map.of(
@@ -158,6 +163,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         'M',
         new String[] { "10001", "11011", "10101", "10001", "10001" });
 
+    private static final int BOARD_CUT = 5;
     private static final int[] CELLS = ringCells();
     private static final float[][] GLIMMERS = { glimmerPoints(11), glimmerPoints(29) };
     private static final Map<String, Layer> LAYERS = new Object2ObjectOpenHashMap<>();
@@ -189,12 +195,16 @@ public class TreeDiagramNEIBoard implements IDrawable {
         drawComets(quads, layer, phase);
         drawCore(quads, phase);
         drawRing(quads, style, layer, phase);
-        drawSockets(quads, style, ITEM_Y, items, style.itemLed());
-        drawSockets(quads, style, FLUID_Y, fluids, style.fluidLed());
+        drawItemSockets(quads, style, items);
+        drawFluidSockets(quads, style, fluids);
         float frame = now * FRAMES_PER_LOOP / (float) LOOP_MILLIS;
         drawGlimmer(quads, style, ITEM_Y, GLIMMERS[0], style.itemGlimmer(), frame);
         drawGlimmer(quads, style, FLUID_Y, GLIMMERS[1], style.fluidGlimmer(), frame);
         quads.rect(CORE_X - 9, CORE_Y - 9, 18, 18, CORE_FLOOR);
+        for (int i = 0; i < 4; i++) {
+            quads.rect(TRANSFER_X + 5 + i, CORE_Y - 4 + i, 1, 1, CORE_EDGE);
+            quads.rect(TRANSFER_X + 5 + i, CORE_Y + 3 - i, 1, 1, CORE_EDGE);
+        }
         quads.flush();
     }
 
@@ -244,23 +254,60 @@ public class TreeDiagramNEIBoard implements IDrawable {
         }
     }
 
-    private static void drawSockets(TreeDiagramBoard quads, Style style, int top, int used, int led) {
+    private static void drawItemSockets(TreeDiagramBoard quads, Style style, int used) {
         for (int i = 0; i < SLOTS; i++) {
-            float x = GRID_X + i % COLUMNS * 18, y = top + i / COLUMNS * 18;
+            int x = GRID_X + i % COLUMNS * SLOT_PITCH, y = ITEM_Y + i / COLUMNS * SLOT_PITCH;
             boolean on = i < used;
-            quads.rect(x + 0.5f, y + 0.5f, 17, 17, on ? style.socketUsed() : style.socketEmpty());
+            quads.rect(x, y, SLOT_SIZE, SLOT_SIZE, on ? style.socketUsed() : style.socketEmpty());
             int dark = style.edgeDark()[on ? 0 : 1], lit = style.edgeLit()[on ? 0 : 1];
-            quads.rect(x + 0.5f, y + 0.5f, 0.5f, 17, dark);
-            quads.rect(x + 0.5f, y + 0.5f, 17, 0.5f, dark);
-            quads.rect(x + 17, y + 1, 0.5f, 16.5f, lit);
-            quads.rect(x + 1, y + 17, 16.5f, 0.5f, lit);
+            slotFrame(quads, x, y, dark, lit);
             if (on) {
-                quads.rect(x + 15, y + 1.5f, 1, 1, led);
-            } else {
-                quads.rect(x + 8, y + 8.5f, 1.5f, 0.5f, style.mark());
-                quads.rect(x + 8.5f, y + 8, 0.5f, 1.5f, style.mark());
+                quads.rect(x + SLOT_SIZE - 2, y + 1, 1, 1, style.itemLed());
             }
         }
+    }
+
+    private static void drawFluidSockets(TreeDiagramBoard quads, Style style, int used) {
+        int well = style.dark() ? rgb(5, 12, 16) : rgb(62, 78, 82);
+        for (int i = 0; i < SLOTS; i++) {
+            int x = GRID_X + i % COLUMNS * SLOT_PITCH, y = FLUID_Y + i / COLUMNS * SLOT_PITCH;
+            boolean on = i < used;
+            quads.rect(x, y, SLOT_SIZE, SLOT_SIZE, on ? well : mix(well, style.background(), 0.16));
+            fluidFrame(quads, style, x, y, on);
+            if (!on) {
+                int mark = mix(style.fluidLed(), well, 0.55);
+                quads.rect(x + 8, y + 6, 2, 2, mark);
+                quads.rect(x + 7, y + 8, 4, 3, mark);
+                quads.rect(x + 8, y + 11, 2, 1, mark);
+            }
+        }
+    }
+
+    public static void drawFluidFrames(List<PositionedStack> inputs) {
+        TreeDiagramBoard quads = new TreeDiagramBoard(0, 0);
+        Style style = style();
+        for (PositionedStack input : inputs) {
+            if (input.item != null && input.item.getItem() instanceof ItemFluidDisplay) {
+                fluidFrame(quads, style, input.relx - 1, input.rely - 1, true);
+            }
+        }
+        quads.flush();
+    }
+
+    private static void fluidFrame(TreeDiagramBoard quads, Style style, int x, int y, boolean used) {
+        int dark = style.edgeDark()[used ? 0 : 1];
+        int lip = mix(style.edgeLit()[used ? 0 : 1], style.fluidLed(), used ? 0.3 : 0.1);
+        slotFrame(quads, x, y, dark, lip);
+        for (int tick = 3; tick <= 9; tick += 3) {
+            quads.rect(x + SLOT_SIZE - 2, y + tick, 1, 1, used ? style.fluidLed() : style.mark());
+        }
+    }
+
+    private static void slotFrame(TreeDiagramBoard quads, int x, int y, int shadow, int highlight) {
+        quads.rect(x, y, SLOT_SIZE, 1, shadow);
+        quads.rect(x, y + 1, 1, SLOT_SIZE - 1, shadow);
+        quads.rect(x + SLOT_SIZE - 1, y + 1, 1, SLOT_SIZE - 1, highlight);
+        quads.rect(x + 1, y + SLOT_SIZE - 1, SLOT_SIZE - 1, 1, highlight);
     }
 
     private static void drawGlimmer(TreeDiagramBoard quads, Style style, int top, float[] points, int peak,
@@ -271,9 +318,9 @@ public class TreeDiagramNEIBoard implements IDrawable {
             float strength = points[i + 3];
             double level = t < GLIMMER_FADE ? strength * (0.5 - 0.5 * Math.cos(Math.PI * t / GLIMMER_FADE))
                 : strength * (0.5 + 0.5 * Math.cos(Math.PI * (t - GLIMMER_FADE) / GLIMMER_FADE));
-            float x = GRID_X + points[i] * 18 + style.glimmerShift();
-            float y = top + points[i + 1] * 18 + style.glimmerShift();
-            quads.rect(x, y, 1.5f, 1.5f, mix(style.glimmerBase(), peak, level));
+            int x = GRID_X + (int) points[i] * SLOT_PITCH + style.glimmerShift();
+            int y = top + (int) points[i + 1] * SLOT_PITCH + style.glimmerShift();
+            quads.rect(x, y, 1, 1, mix(style.glimmerBase(), peak, level));
         }
     }
 
@@ -339,8 +386,8 @@ public class TreeDiagramNEIBoard implements IDrawable {
                 extra.add(
                     halo(
                         style,
-                        new int[] { WIDTH - 3, CORE_Y + 34 + k * 2, CORE_X + 34, CORE_Y + 34 + k * 2,
-                            CORE_X + 20 - k * 2, CORE_Y + 20 },
+                        new int[] { WIDTH - 3, CORE_Y + 34 + k * 2, WIDTH - 8, CORE_Y + 34 + k * 2, CORE_X + 20 - k * 2,
+                            CORE_Y + 20 },
                         style.ramp("nanite"),
                         0.13f + k * 0.29f));
             }
@@ -369,7 +416,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         }
 
         private void put(int x, int y, int color) {
-            if (x >= 0 && y >= 0 && x < WIDTH && y < HEIGHT) pixels[y * WIDTH + x] = color;
+            if (chamfer(x, y, BOARD_CUT)) pixels[y * WIDTH + x] = color;
         }
 
         private int get(int x, int y) {
@@ -377,7 +424,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
         }
 
         private void paintBoard(Style style) {
-            int cut = 5;
+            int cut = BOARD_CUT;
             for (int x = 0; x < WIDTH; x++) {
                 for (int y = 0; y < HEIGHT; y++) {
                     if (!chamfer(x, y, cut)) continue;
@@ -419,22 +466,19 @@ public class TreeDiagramNEIBoard implements IDrawable {
 
         private void paintRows(Style style, String net, int top, int[] ports, boolean down, int used) {
             int left = CORE_X - ORBIT;
-            int[] lanes = { 110, 108, 106, 104 };
-            int source = GRID_X + COLUMNS * 18 + 3;
+            int[] lanes = { CORE_X - 29, CORE_X - 31, CORE_X - 33, CORE_X - 35 };
+            int source = GRID_X + COLUMNS * SLOT_PITCH + 3;
             for (int rank = 0; rank < ROWS; rank++) {
                 int row = down ? rank : ROWS - 1 - rank;
                 boolean live = row < used;
                 Ramp ramp = live ? style.ramp(net)
                     : style.ramp(net)
                         .faded(style.background());
-                int y = top + row * 18 + 9;
+                int y = top + row * SLOT_PITCH + SLOT_SIZE / 2;
                 for (int i = -1; i <= 1; i++) for (int j = -1; j <= 1; j++) put(source + i, y + j, ramp.at(2));
                 put(source, y, live ? 0xFFFFFFFF : ramp.at(3));
-                Fibre fibre = new Fibre(
-                    pathPixels(
-                        bend(
-                            new int[] { source + 2, y, lanes[rank], y, lanes[rank], ports[row], left - 1,
-                                ports[row] })),
+                Fibre fibre = fibre(
+                    new int[] { source + 2, y, lanes[rank], y, lanes[rank], ports[row], left - 1, ports[row] },
                     ramp,
                     rank * 0.23f);
                 if (style.dark() && live) glow(fibre);
@@ -444,9 +488,19 @@ public class TreeDiagramNEIBoard implements IDrawable {
         }
 
         private Fibre halo(Style style, int[] points, Ramp ramp, float offset) {
-            Fibre fibre = new Fibre(pathPixels(bend(points)), ramp, offset);
+            Fibre fibre = fibre(points, ramp, offset);
             if (style.dark()) glow(fibre);
             return fibre;
+        }
+
+        private Fibre fibre(int[] points, Ramp ramp, float offset) {
+            IntArrayList pixels = new IntArrayList();
+            for (int packed : pathPixels(bend(points))) {
+                if (chamfer(TreeDiagramBoard.unpackX(packed), TreeDiagramBoard.unpackY(packed), BOARD_CUT)) {
+                    pixels.add(packed);
+                }
+            }
+            return new Fibre(pixels.toIntArray(), ramp, offset);
         }
 
         private void glow(Fibre fibre) {
@@ -644,11 +698,22 @@ public class TreeDiagramNEIBoard implements IDrawable {
         IntArrayList out = new IntArrayList();
         for (int i = 0; i + 3 < points.length; i += 2) {
             int x0 = points[i], y0 = points[i + 1], x1 = points[i + 2], y1 = points[i + 3];
-            int steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+            int dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
             int sx = Integer.signum(x1 - x0), sy = Integer.signum(y1 - y0);
-            for (int k = 0; k <= steps; k++) {
-                int packed = TreeDiagramBoard.pack(x0 + sx * k, y0 + sy * k);
+            int error = dx + dy;
+            while (true) {
+                int packed = TreeDiagramBoard.pack(x0, y0);
                 if (out.isEmpty() || out.getInt(out.size() - 1) != packed) out.add(packed);
+                if (x0 == x1 && y0 == y1) break;
+                int twiceError = error * 2;
+                if (twiceError >= dy) {
+                    error += dy;
+                    x0 += sx;
+                }
+                if (twiceError <= dx) {
+                    error += dx;
+                    y0 += sy;
+                }
             }
         }
         return out.toIntArray();

@@ -8,7 +8,7 @@ public interface IRecipeAreaHandler {
 
     /**
      * Adds tooltip lines for the point under the mouse on one NEI recipe. Coordinates are relative to the recipe, the
-     * same space GT uses for description text; the slot template sits 5 left and 11 up from it.
+     * same space GT uses for description text. Frontends must account for the slot template offset when placing areas.
      */
     void addAreaTooltip(GTRecipe recipe, int mouseX, int mouseY, List<String> tooltip);
 
