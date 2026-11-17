@@ -10,9 +10,9 @@ Participating nanites stay locked until the whole batch is delivered. The nanite
 The three maintenance fluids are Grade 4, Grade 6 and Grade 8 Purified Water.
 T1–T3 use the first fluid. T4–T6 use the first two together. T7–T10 use all three together. Higher tiers need more fluid.
 The main nanite and active supports each need maintenance. Faster work uses more fluid; the runtime panel shows the current rates.
-Stable nanites have no loss with full maintenance. Gambling nanites retain at least 22%, 14% or 6% loss chance in the three stages.
+Nanites without bonus output have no loss with full maintenance. Nanites with bonus output keep at least 22%, 14% or 6% failure chance in the three stages.
 A loss event reduces that parallel's output by 25%. An ordinary bonus event adds 30%. Both events can happen together.
-Extra high-grade fluid cannot remove a low-tier gambling nanite's risk. Extra computation does not reduce risk either.
+Extra high-grade fluid cannot remove the failure chance of a low-tier nanite with bonus output. Extra computation does not reduce it either.
 Wired and wireless computation input hatches are supported. Required computation depends on the recipe, actual parallels and base processing speed.
 Computation updates during a batch. Half the required supply gives one quarter of the speed and 1.75 times the EU/t.
 More computation speeds up work. Beyond twice the requirement, each further increase gives a smaller speed gain.

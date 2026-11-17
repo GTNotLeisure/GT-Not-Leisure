@@ -32,6 +32,10 @@ public class NaniteMaintenancePolicy {
         this.fluids = List.copyOf(fluids);
     }
 
+    public List<String> fluids() {
+        return fluids;
+    }
+
     public List<NaniteMaintenanceRequirement> requirements(NaniteEffects effects) {
         long[] amounts = new long[3];
         for (NaniteParticipation participant : effects.participants()) {

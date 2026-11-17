@@ -52,6 +52,7 @@ import com.science.gtnl.common.circuit.nanite.NaniteBranch;
 import com.science.gtnl.common.circuit.nanite.NaniteEffects;
 import com.science.gtnl.common.circuit.nanite.NaniteMaintenancePolicy;
 import com.science.gtnl.common.circuit.nanite.NaniteMaintenanceRequirement;
+import com.science.gtnl.common.circuit.nanite.NaniteParticipation;
 import com.science.gtnl.common.circuit.nanite.NaniteProfile;
 import com.science.gtnl.common.circuit.processing.TreeDiagramParallelHelper;
 import com.science.gtnl.common.gui.modularui.multiblock.TreeDiagramGui;
@@ -937,17 +938,27 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
                     / Math.max(0.000001, activeWork.getBaseWorkRate() * currentComputationEffects.speedMultiplier())
                     / 20);
             tag.setInteger("lockedSlots", activeWork.getLockedSlots());
-            double multiplier = Math.max(1, activeWork.getBaseWorkRate())
-                * Math.max(1, currentComputationEffects.speedMultiplier());
-            int index = 0;
-            for (NaniteMaintenanceRequirement requirement : activeWork.getMaintenance()) {
-                NBTTagCompound fluid = new NBTTagCompound();
-                fluid.setString("name", requirement.fluidName());
-                fluid.setDouble("rate", requirement.milliBucketsPerSecond() * multiplier);
-                tag.setTag("fluid" + index++, fluid);
+            tag.setDouble("progress", activeWork.getCompletedWork() / activeWork.getTotalWork());
+            tag.setDouble("euMultiplier", currentComputationEffects.euMultiplier());
+            long output = 0;
+            for (ItemStack stack : activeWork.getItemOutputs()) {
+                if (stack == null) continue;
+                if (!tag.hasKey("product")) {
+                    ItemStack product = stack.copy();
+                    product.stackSize = 1;
+                    tag.setTag("product", product.writeToNBT(new NBTTagCompound()));
+                }
+                output += stack.stackSize;
             }
-            tag.setInteger("fluidCount", index);
+            tag.setLong("output", output);
         }
+        NaniteEffects available = nanitePolicy.select(naniteProfiles, 1, Integer.MAX_VALUE);
+        tag.setInteger("capacity", available == null ? 0 : available.maxParallel());
+        if (available != null) {
+            for (NaniteParticipation participant : available.participants())
+                tag.setInteger("contribution" + participant.slot(), participant.parallelContribution());
+        }
+        writeMaintenanceRows(tag, available);
         for (int slot = 0; slot < NANITE_SLOT_COUNT; slot++) {
             NBTTagCompound nanite = new NBTTagCompound();
             NaniteProfile profile = naniteProfiles[slot];
@@ -971,6 +982,30 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
             tag.setTag("nanite" + slot, nanite);
         }
         return tag;
+    }
+
+    private void writeMaintenanceRows(NBTTagCompound tag, NaniteEffects available) {
+        if (maintenancePolicy == null) return;
+        List<NaniteMaintenanceRequirement> needed = activeWork != null ? activeWork.getMaintenance()
+            : available == null ? List.of() : maintenancePolicy.requirements(available);
+        double multiplier = activeWork == null ? 0
+            : Math.max(1, activeWork.getBaseWorkRate()) * Math.max(1, currentComputationEffects.speedMultiplier());
+        List<String> fluids = maintenancePolicy.fluids();
+        for (int row = 0; row < fluids.size(); row++) {
+            String name = fluids.get(row);
+            NBTTagCompound fluid = new NBTTagCompound();
+            fluid.setString("name", name);
+            for (NaniteMaintenanceRequirement requirement : needed) {
+                if (!requirement.fluidName()
+                    .equals(name)) continue;
+                fluid.setBoolean("needed", true);
+                fluid.setDouble("rate", requirement.milliBucketsPerSecond() * multiplier);
+            }
+            fluid.setBoolean(
+                "missing",
+                workStatus == CircuitWorkStatus.NO_MAINTENANCE && name.equals(missingMaintenance));
+            tag.setTag("maintenance" + row, fluid);
+        }
     }
 
     private class CircuitProcessingLogic extends TransactionalProcessingLogic {
