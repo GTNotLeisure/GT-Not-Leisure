@@ -170,12 +170,6 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     public void addGregTechLogo(ModularWindow.@NotNull Builder builder, @NotNull Pos2d windowOffset) {}
 
     @Override
-    public void drawNEIOverlays(GTNEIDefaultHandler.CachedDefaultRecipe recipe) {
-        TreeDiagramNEIBoard.drawFluidFrames(recipe.mInputs);
-        super.drawNEIOverlays(recipe);
-    }
-
-    @Override
     public void drawDescription(RecipeDisplayInfo recipeInfo) {
         GTRecipe recipe = recipeInfo.recipe;
         CircuitRecipeRequirement requirement = recipe.getMetadata(TreeDiagramCircuitMetadata.INSTANCE);

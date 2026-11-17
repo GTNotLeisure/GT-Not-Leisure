@@ -16,9 +16,7 @@ import com.gtnewhorizons.modularui.api.drawable.IDrawable;
 import com.science.gtnl.common.gui.modularui.TreeDiagramBoard;
 import com.science.gtnl.common.gui.modularui.TreeDiagramTheme;
 
-import codechicken.nei.PositionedStack;
 import gregtech.api.util.GTRecipe;
-import gregtech.common.items.ItemFluidDisplay;
 import gregtech.nei.GTNEIDefaultHandler;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -54,8 +52,8 @@ public class TreeDiagramNEIBoard implements IDrawable {
     @Desugar
     public record Style(boolean dark, int background, int scan, int dots, int frame, int highlight, int accent,
         int label, int ringAccent, int ringAccentDim, int deco, Map<String, Ramp> ramps, int socketUsed,
-        int socketEmpty, int[] edgeDark, int[] edgeLit, int mark, int itemLed, int fluidLed, int glimmerBase,
-        int itemGlimmer, int fluidGlimmer, int glimmerShift) {
+        int socketEmpty, int fluidWell, int fluidEmpty, int fluidDrop, int[] edgeDark, int[] edgeLit, int fluidLed,
+        int glimmerBase, int itemGlimmer, int fluidGlimmer, int glimmerShift) {
 
         public Ramp ramp(String net) {
             return ramps.get(net);
@@ -87,10 +85,11 @@ public class TreeDiagramNEIBoard implements IDrawable {
             ramp(220, 200, 150, 224, 178, 72, 220, 156, 20, 182, 122, 6)),
         rgb(244, 247, 251),
         rgb(230, 234, 240),
+        rgb(244, 247, 251),
+        rgb(230, 234, 240),
+        rgb(176, 206, 192),
         new int[] { rgb(140, 152, 170), rgb(176, 186, 200) },
         new int[] { rgb(255, 255, 255), rgb(246, 248, 251) },
-        rgb(196, 204, 216),
-        rgb(124, 86, 216),
         rgb(36, 160, 110),
         rgb(222, 227, 233),
         rgb(170, 150, 222),
@@ -122,10 +121,11 @@ public class TreeDiagramNEIBoard implements IDrawable {
             ramp(86, 66, 18, 168, 128, 28, 250, 206, 92, 255, 242, 196)),
         rgb(17, 27, 42),
         rgb(11, 16, 24),
+        rgb(5, 12, 16),
+        rgb(5, 12, 16),
+        rgb(47, 110, 85),
         new int[] { rgb(4, 7, 12), rgb(8, 12, 18) },
         new int[] { rgb(60, 84, 112), rgb(26, 34, 46) },
-        rgb(24, 32, 44),
-        rgb(176, 146, 255),
         rgb(100, 230, 170),
         rgb(14, 21, 31),
         rgb(98, 74, 156),
@@ -261,45 +261,22 @@ public class TreeDiagramNEIBoard implements IDrawable {
             quads.rect(x, y, SLOT_SIZE, SLOT_SIZE, on ? style.socketUsed() : style.socketEmpty());
             int dark = style.edgeDark()[on ? 0 : 1], lit = style.edgeLit()[on ? 0 : 1];
             slotFrame(quads, x, y, dark, lit);
-            if (on) {
-                quads.rect(x + SLOT_SIZE - 2, y + 1, 1, 1, style.itemLed());
-            }
         }
     }
 
     private static void drawFluidSockets(TreeDiagramBoard quads, Style style, int used) {
-        int well = style.dark() ? rgb(5, 12, 16) : rgb(62, 78, 82);
         for (int i = 0; i < SLOTS; i++) {
             int x = GRID_X + i % COLUMNS * SLOT_PITCH, y = FLUID_Y + i / COLUMNS * SLOT_PITCH;
             boolean on = i < used;
-            quads.rect(x, y, SLOT_SIZE, SLOT_SIZE, on ? well : mix(well, style.background(), 0.16));
-            fluidFrame(quads, style, x, y, on);
+            quads.rect(x, y, SLOT_SIZE, SLOT_SIZE, on ? style.fluidWell() : style.fluidEmpty());
+            int dark = style.edgeDark()[on ? 0 : 1];
+            int lip = mix(style.edgeLit()[on ? 0 : 1], style.fluidLed(), on ? 0.3 : 0.1);
+            slotFrame(quads, x, y, dark, lip);
             if (!on) {
-                int mark = mix(style.fluidLed(), well, 0.55);
-                quads.rect(x + 8, y + 6, 2, 2, mark);
-                quads.rect(x + 7, y + 8, 4, 3, mark);
-                quads.rect(x + 8, y + 11, 2, 1, mark);
+                quads.rect(x + 8, y + 6, 2, 2, style.fluidDrop());
+                quads.rect(x + 7, y + 8, 4, 3, style.fluidDrop());
+                quads.rect(x + 8, y + 11, 2, 1, style.fluidDrop());
             }
-        }
-    }
-
-    public static void drawFluidFrames(List<PositionedStack> inputs) {
-        TreeDiagramBoard quads = new TreeDiagramBoard(0, 0);
-        Style style = style();
-        for (PositionedStack input : inputs) {
-            if (input.item != null && input.item.getItem() instanceof ItemFluidDisplay) {
-                fluidFrame(quads, style, input.relx - 1, input.rely - 1, true);
-            }
-        }
-        quads.flush();
-    }
-
-    private static void fluidFrame(TreeDiagramBoard quads, Style style, int x, int y, boolean used) {
-        int dark = style.edgeDark()[used ? 0 : 1];
-        int lip = mix(style.edgeLit()[used ? 0 : 1], style.fluidLed(), used ? 0.3 : 0.1);
-        slotFrame(quads, x, y, dark, lip);
-        for (int tick = 3; tick <= 9; tick += 3) {
-            quads.rect(x + SLOT_SIZE - 2, y + tick, 1, 1, used ? style.fluidLed() : style.mark());
         }
     }
 
