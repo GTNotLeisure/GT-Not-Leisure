@@ -1,10 +1,6 @@
 package com.science.gtnl.utils.recipes.metadata;
 
-import java.util.Locale;
-
 import javax.annotation.ParametersAreNonnullByDefault;
-
-import net.minecraft.util.StatCollector;
 
 import org.jetbrains.annotations.Nullable;
 
@@ -25,41 +21,5 @@ public class CircuitNanitesDataMetadata extends RecipeMetadataKey<CircuitNanites
     }
 
     @Override
-    public void drawInfo(RecipeDisplayInfo recipeInfo, @Nullable Object value) {
-        CircuitNanitesRecipeData data = cast(value, new CircuitNanitesRecipeData());
-        recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted(
-                "gtnl.machine.tree_diagram.metadata.eu_discount",
-                String.format(Locale.ROOT, "%.3f", data.euModifier)),
-            28,
-            10);
-        recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted(
-                "gtnl.machine.tree_diagram.metadata.speed_bonus",
-                String.format(Locale.ROOT, "%.3f", data.speedBoost)),
-            28,
-            10);
-        recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted(
-                "gtnl.machine.tree_diagram.metadata.failure_bonus",
-                String.format(Locale.ROOT, "%.1f", data.failedChance * 100)),
-            28,
-            10);
-        recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted(
-                "gtnl.machine.tree_diagram.metadata.output_coefficient",
-                String.format(Locale.ROOT, "%.1f", data.outputMultiplier * 100)),
-            28,
-            10);
-        recipeInfo.drawText(
-            StatCollector.translateToLocalFormatted("gtnl.machine.tree_diagram.metadata.parallel", data.parallelCount),
-            28,
-            10);
-        recipeInfo.drawText(
-            StatCollector
-                .translateToLocalFormatted("gtnl.machine.tree_diagram.metadata.nanites_tier", data.nantiesTier),
-            28,
-            10);
-    }
-
+    public void drawInfo(RecipeDisplayInfo recipeInfo, @Nullable Object value) {}
 }

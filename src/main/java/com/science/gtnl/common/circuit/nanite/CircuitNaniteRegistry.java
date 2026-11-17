@@ -1,5 +1,7 @@
 package com.science.gtnl.common.circuit.nanite;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -14,12 +16,15 @@ import gregtech.api.enums.Materials;
 import gregtech.api.enums.OrePrefixes;
 import gregtech.api.util.GTOreDictUnificator;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class CircuitNaniteRegistry {
 
-    private static final int[] PARALLELS = { 8, 16, 32, 64, 96, 128, 192, 256, 384, 512 };
-    private static final double[] ENERGY = { 1, 0.97, 0.94, 0.90, 0.86, 0.82, 0.78, 0.74, 0.70, 0.66 };
-    private static final double[] DURATION = { 1, 0.90, 0.82, 0.75, 0.68, 0.62, 0.57, 0.52, 0.48, 0.44 };
+    public static final int[] PARALLELS = { 8, 16, 32, 64, 96, 128, 192, 256, 384, 512 };
+    public static final double[] ENERGY = { 1, 0.97, 0.94, 0.90, 0.86, 0.82, 0.78, 0.74, 0.70, 0.66 };
+    public static final double[] DURATION = { 1, 0.90, 0.82, 0.75, 0.68, 0.62, 0.57, 0.52, 0.48, 0.44 };
+    public static final double ROLL_SPREAD = 0.05;
+    public static final double GAMBLING_LOSS = 0.30, GAMBLING_BONUS = 0.30, BONUS_FRACTION = 0.30;
 
     private final Map<ItemId, NaniteProfile> profiles = new Object2ObjectOpenHashMap<>();
     private final Map<ItemId, String> candidates = new Object2ObjectOpenHashMap<>();
@@ -57,9 +62,9 @@ public class CircuitNaniteRegistry {
         Random random = new Random(
             worldSeed ^ CircuitIdentity.item(stack)
                 .hashCode());
-        double energy = ENERGY[tier - 1] * (0.95 + 0.10 * random.nextDouble());
-        double duration = DURATION[tier - 1] * (0.95 + 0.10 * random.nextDouble());
-        double rawLoss = branch == NaniteBranch.STABLE ? NaniteMaintenancePolicy.lossCancellation(tier) : 0.30;
+        double energy = ENERGY[tier - 1] * roll(random);
+        double duration = DURATION[tier - 1] * roll(random);
+        double rawLoss = branch == NaniteBranch.STABLE ? NaniteMaintenancePolicy.lossCancellation(tier) : GAMBLING_LOSS;
         register(
             new NaniteProfile(
                 id,
@@ -70,8 +75,12 @@ public class CircuitNaniteRegistry {
                 energy,
                 duration,
                 rawLoss,
-                branch == NaniteBranch.GAMBLING ? 0.30 : 0,
-                0.30));
+                branch == NaniteBranch.GAMBLING ? GAMBLING_BONUS : 0,
+                BONUS_FRACTION));
+    }
+
+    private static double roll(Random random) {
+        return 1 - ROLL_SPREAD + 2 * ROLL_SPREAD * random.nextDouble();
     }
 
     public void registerCandidate(String id, ItemStack item) {
@@ -81,6 +90,21 @@ public class CircuitNaniteRegistry {
     public void register(NaniteProfile profile) {
         profiles.put(profile.item(), profile);
         candidates.put(profile.item(), profile.id());
+    }
+
+    public List<NaniteProfile> standardProfiles() {
+        List<NaniteProfile> list = new ObjectArrayList<>(profiles.values());
+        list.sort(
+            Comparator.comparingInt(NaniteProfile::tier)
+                .thenComparing(NaniteProfile::id));
+        return list;
+    }
+
+    public List<ItemId> unratedCandidates() {
+        List<ItemId> list = new ObjectArrayList<>();
+        for (ItemId item : candidates.keySet()) if (!profiles.containsKey(item)) list.add(item);
+        list.sort(Comparator.comparing(candidates::get));
+        return list;
     }
 
     public boolean recognizes(ItemStack stack) {
@@ -113,7 +137,7 @@ public class CircuitNaniteRegistry {
                 data.speedBoost,
                 data.failedChance,
                 branch == NaniteBranch.STABLE ? 0 : data.outputMultiplier,
-                0.30);
+                BONUS_FRACTION);
         } catch (IllegalArgumentException ignored) {
             return baseline;
         }

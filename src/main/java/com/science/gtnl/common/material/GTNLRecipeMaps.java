@@ -567,12 +567,15 @@ public class GTNLRecipeMaps {
         .of("gtnl.recipe.circuit_nanites_data")
         .maxIO(1, 0, 0, 0)
         .dontUseProgressBar()
-        .neiRecipeComparator(
-            Comparator
-                .<GTRecipe, CircuitNanitesRecipeData>comparing(
-                    recipe -> recipe
-                        .getMetadataOrDefault(CircuitNanitesDataMetadata.INSTANCE, new CircuitNanitesRecipeData()))
-                .thenComparing(GTRecipe::compareTo))
+        .neiRecipeComparator(Comparator.<GTRecipe>comparingInt(recipe -> {
+            int tier = recipe
+                .getMetadataOrDefault(CircuitNanitesDataMetadata.INSTANCE, new CircuitNanitesRecipeData()).nantiesTier;
+            return tier < 1 ? Integer.MAX_VALUE : tier;
+        })
+            .thenComparing(
+                recipe -> recipe
+                    .getMetadataOrDefault(CircuitNanitesDataMetadata.INSTANCE, new CircuitNanitesRecipeData()))
+            .thenComparing(GTRecipe::compareTo))
         .frontend(CircuitNanitesDataFrontend::new)
         .neiHandlerInfo(builder -> builder.setDisplayStack(GTNLItemList.TreeDiagram.get(1)))
         .build();

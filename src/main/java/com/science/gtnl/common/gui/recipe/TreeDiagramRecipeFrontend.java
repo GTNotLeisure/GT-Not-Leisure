@@ -29,11 +29,13 @@ import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.circuit.CircuitCatalog;
 import com.science.gtnl.common.circuit.CircuitFamily;
 import com.science.gtnl.common.gui.modularui.TreeDiagramUpgradePanels;
+import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.gtnl.treeDiagram.CircuitRecipeGenerationReport;
 import com.science.gtnl.mixins.early.gregtech.AccessorRecipeDisplayInfo;
 import com.science.gtnl.utils.recipes.data.CircuitRecipeRequirement;
 import com.science.gtnl.utils.recipes.metadata.TreeDiagramCircuitMetadata;
 
+import codechicken.nei.recipe.GuiCraftingRecipe;
 import gregtech.api.enums.GTValues;
 import gregtech.api.recipe.BasicUIProperties;
 import gregtech.api.recipe.BasicUIPropertiesBuilder;
@@ -44,9 +46,10 @@ import gregtech.api.util.GTUtility;
 import gregtech.nei.GTNEIDefaultHandler;
 import gregtech.nei.RecipeDisplayInfo;
 
-public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend {
+public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRecipeAreaHandler {
 
-    public static final int TABLE_ROW = 11, TABLE_ROWS = 4;
+    public static final int TABLE_ROW = 11, TABLE_ROWS = 4, TABLE_LEFT = 3, TABLE_RIGHT = 95;
+    public static final int TABLE_TOP = HEIGHT - 11 + 4;
     public static final int KEY_COLOR = 0xFF6A6A6A, VALUE_COLOR = 0xFF101010, COMPUTATION_COLOR = 0xFF136B86,
         NANITE_COLOR = 0xFF9A6400, UNLOCK_COLOR = 0xFF6A3FB8;
 
@@ -159,8 +162,8 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend {
     public void drawDescription(RecipeDisplayInfo recipeInfo) {
         GTRecipe recipe = recipeInfo.recipe;
         CircuitRecipeRequirement requirement = recipe.getMetadata(TreeDiagramCircuitMetadata.INSTANCE);
-        int top = recipeInfo.getYPos() + 1;
-        int left = 3, right = 95;
+        int top = TABLE_TOP;
+        int left = TABLE_LEFT, right = TABLE_RIGHT;
         if (requirement != null) {
             int tier = Math.max(0, Math.min(14, requirement.circuitTier()));
             CircuitFamily family = CircuitCatalog.INSTANCE.family(requirement.familyId());
@@ -236,5 +239,20 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend {
 
     private static String tr(String key, Object... args) {
         return StatCollector.translateToLocalFormatted("gtnl.tree_diagram.nei." + key, args);
+    }
+
+    private static boolean overNaniteCell(int mouseX, int mouseY) {
+        return mouseX >= TABLE_RIGHT && mouseX < WIDTH - 5 && mouseY >= TABLE_TOP - 1 && mouseY < TABLE_TOP + 9;
+    }
+
+    @Override
+    public void addAreaTooltip(GTRecipe recipe, int mouseX, int mouseY, List<String> tooltip) {
+        if (overNaniteCell(mouseX, mouseY)) tooltip.add(tr("nanite_link"));
+    }
+
+    @Override
+    public boolean clickArea(GTRecipe recipe, int mouseX, int mouseY, int button) {
+        if (button != 0 || !overNaniteCell(mouseX, mouseY)) return false;
+        return GuiCraftingRecipe.openRecipeGui(GTNLRecipeMaps.CircuitNanitesDataRecipes.unlocalizedName);
     }
 }

@@ -30,7 +30,8 @@ public class CircuitNanitePolicy {
             capacity = (int) Math.min(Integer.MAX_VALUE, (long) capacity + contribution);
         }
         double cancellation = NaniteMaintenancePolicy.lossCancellation(main.tier());
-        double loss = main.branch() == NaniteBranch.STABLE ? 0 : Math.max(0.30, main.lossChance()) - cancellation;
+        double loss = main.branch() == NaniteBranch.STABLE ? 0
+            : Math.max(CircuitNaniteRegistry.GAMBLING_LOSS, main.lossChance()) - cancellation;
         return new NaniteEffects(main, participants, capacity, Math.max(0, loss));
     }
 }

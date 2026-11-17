@@ -27,9 +27,9 @@ public enum Mixins implements IMixins {
         "gregtech.assLineRemover.MixinGTRecipeBuilder", "gregtech.assLineRemover.MixinTTRecipeAdder",
         "energyMonitor.MixinBaseMetaTileEntityEnergyMonitor", "energyMonitor.MixinCommonMetaTileEntityEnergyMonitor"),
 
-    GREGTECH_CLIENT_EARLY(
-        new MixinBuilder("Gregtech early client safety mixins").addClientMixins("gregtech.MixinGTLanguageManager")
-            .setPhase(Phase.EARLY)),
+    GREGTECH_CLIENT_EARLY(new MixinBuilder("Gregtech early client safety mixins")
+        .addClientMixins("gregtech.MixinGTLanguageManager", "gregtech.MixinGTNEIDefaultHandler")
+        .setPhase(Phase.EARLY)),
 
     NO_NHU_EARLY(
         new MixinBuilder("Early Mixins when NHUtilities is absent").addCommonMixins("noNHU.MixinBaseMetaTileEntity")
