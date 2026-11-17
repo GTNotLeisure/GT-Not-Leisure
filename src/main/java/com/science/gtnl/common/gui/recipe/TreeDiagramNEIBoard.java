@@ -363,8 +363,7 @@ public class TreeDiagramNEIBoard implements IDrawable {
                 extra.add(
                     halo(
                         style,
-                        new int[] { WIDTH - 3, CORE_Y + 34 + k * 2, WIDTH - 8, CORE_Y + 34 + k * 2, CORE_X + 20 - k * 2,
-                            CORE_Y + 20 },
+                        new int[] { WIDTH - 3, CORE_Y + 26 + k * 2, CORE_X + 20 - k * 2, CORE_Y + 20 },
                         style.ramp("nanite"),
                         0.13f + k * 0.29f));
             }
