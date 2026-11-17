@@ -25,6 +25,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.util.StatCollector;
 
+import org.jetbrains.annotations.NotNull;
+
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
 import com.gtnewhorizons.modularui.api.drawable.IDrawable;
@@ -78,7 +80,7 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    protected NEIRecipePropertiesBuilder modifyNEIProperties(NEIRecipePropertiesBuilder nei) {
+    protected @NotNull NEIRecipePropertiesBuilder modifyNEIProperties(NEIRecipePropertiesBuilder nei) {
         return nei.recipeBackgroundSize(size(WIDTH, HEIGHT))
             .recipeBackgroundOffset(position(OFFSET_X, TEMPLATE_Y_OFFSET))
             .unificateOutput(false);
@@ -97,12 +99,12 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    protected List<Slot> itemInputSlots(int count) {
+    protected @NotNull List<Slot> itemInputSlots(int count) {
         return inputSlots(count, ITEM_Y);
     }
 
     @Override
-    protected List<Slot> fluidInputSlots(int count) {
+    protected @NotNull List<Slot> fluidInputSlots(int count) {
         return inputSlots(count, FLUID_Y);
     }
 
@@ -118,17 +120,17 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    protected List<Slot> itemOutputSlots(int count) {
+    protected @NotNull List<Slot> itemOutputSlots(int count) {
         return slots(CORE_X - SLOT_SIZE / 2 + OFFSET_X, CORE_Y - SLOT_SIZE / 2 + TEMPLATE_Y_OFFSET);
     }
 
     @Override
-    protected List<Slot> fluidOutputSlots(int count) {
+    protected @NotNull List<Slot> fluidOutputSlots(int count) {
         return Collections.emptyList();
     }
 
     @Override
-    public ModularWindow.Builder createNEITemplate(GTNEIDefaultHandler.NEITemplateContext ctx) {
+    public ModularWindow.@NotNull Builder createNEITemplate(GTNEIDefaultHandler.@NotNull NEITemplateContext ctx) {
         ModularWindow.Builder builder = ModularWindow.builder(neiProperties.recipeBackgroundSize);
         builder.widget(
             new DrawableWidget().setDrawable(new TreeDiagramNEIBoard(ctx.recipeSupplier))
@@ -165,7 +167,7 @@ public class TreeDiagramRecipeFrontend extends GTNLRecipeFrontend implements IRe
     }
 
     @Override
-    public void addGregTechLogo(ModularWindow.Builder builder, Pos2d windowOffset) {}
+    public void addGregTechLogo(ModularWindow.@NotNull Builder builder, @NotNull @NotNull Pos2d windowOffset) {}
 
     @Override
     public void drawNEIOverlays(GTNEIDefaultHandler.CachedDefaultRecipe recipe) {

@@ -6,6 +6,8 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 import net.minecraft.item.ItemStack;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.science.gtnl.common.recipe.gtnl.CrucibleCraftingRecipes;
 import com.science.gtnl.common.recipe.gtnl.InfusionCraftingRecipes;
 import com.science.gtnl.common.recipe.gtnl.ShapedArcaneCraftingRecipes;
@@ -54,6 +56,7 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
         return neiPropertiesBuilder.recipeBackgroundSize(size(170, inputAreaHeight + aspectAreaHeight));
     }
 
+    @Nullable
     @Override
     protected Slot progressOffset() {
         return new Slot(PROGRESS_OFFSET_X, usesAdjustedLayout() ? getOutputYOrigin() - 35 : 10);
@@ -106,12 +109,14 @@ public class IndustrialInfusionCraftingRecipesFrontend extends GTNLRecipeFronten
         return grid(itemOutputCount, OUTPUT_X_ORIGIN, getOutputYOrigin(), INFUSION_INPUT_COLUMNS);
     }
 
+    @Nullable
     @Override
     protected Slot specialItemSlot() {
         int yOrigin = usesAdjustedLayout() ? getOutputYOrigin() + 18 : LEGACY_SPECIAL_Y_ORIGIN;
         return new Slot(OUTPUT_X_ORIGIN, yOrigin);
     }
 
+    @Nullable
     @Override
     protected Slot logoOffset() {
         if (!usesAdjustedLayout()) return null;

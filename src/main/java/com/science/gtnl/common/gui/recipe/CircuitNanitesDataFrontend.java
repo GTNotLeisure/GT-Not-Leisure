@@ -16,6 +16,8 @@ import net.minecraftforge.fluids.Fluid;
 import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.fluids.FluidStack;
 
+import org.jetbrains.annotations.NotNull;
+
 import com.gtnewhorizons.modularui.api.ModularUITextures;
 import com.gtnewhorizons.modularui.api.math.Pos2d;
 import com.gtnewhorizons.modularui.api.screen.ModularWindow;
@@ -64,12 +66,12 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
     }
 
     @Override
-    public BasicUIProperties getUIProperties() {
+    public @NotNull BasicUIProperties getUIProperties() {
         return fixedUI;
     }
 
     @Override
-    public NEIRecipeProperties getNEIProperties() {
+    public @NotNull NEIRecipeProperties getNEIProperties() {
         return fixedNEI;
     }
 
@@ -79,12 +81,12 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
     }
 
     @Override
-    protected List<Slot> fluidInputSlots(int count) {
+    protected @NotNull List<Slot> fluidInputSlots(int count) {
         return Collections.emptyList();
     }
 
     @Override
-    public ModularWindow.Builder createNEITemplate(GTNEIDefaultHandler.NEITemplateContext ctx) {
+    public ModularWindow.@NotNull Builder createNEITemplate(GTNEIDefaultHandler.@NotNull NEITemplateContext ctx) {
         ModularWindow.Builder builder = ModularWindow.builder(fixedNEI.recipeBackgroundSize);
         builder.widget(
             new DrawableWidget().setDrawable(new CircuitNanitesDataBoard(ctx.recipeSupplier))
@@ -99,10 +101,10 @@ public class CircuitNanitesDataFrontend extends GTNLRecipeFrontend implements IR
     }
 
     @Override
-    public void addGregTechLogo(ModularWindow.Builder builder, Pos2d windowOffset) {}
+    public void addGregTechLogo(ModularWindow.@NotNull Builder builder, @NotNull Pos2d windowOffset) {}
 
     @Override
-    public void drawDescription(RecipeDisplayInfo recipeInfo) {}
+    public void drawDescription(@NotNull RecipeDisplayInfo recipeInfo) {}
 
     @Override
     public void addAreaTooltip(GTRecipe recipe, int mouseX, int mouseY, List<String> tooltip) {

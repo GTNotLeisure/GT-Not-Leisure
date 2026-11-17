@@ -5,6 +5,7 @@ import java.util.List;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.jetbrains.annotations.Nullable;
 
 import com.github.bsideup.jabel.Desugar;
 import com.gtnewhorizons.modularui.api.ModularUITextures;
@@ -82,14 +83,17 @@ public class GTNLRecipeFrontend extends RecipeMapFrontend {
         return false;
     }
 
+    @Nullable
     protected Slot progressOffset() {
         return null;
     }
 
+    @Nullable
     protected Slot logoOffset() {
         return null;
     }
 
+    @Nullable
     protected Slot specialItemSlot() {
         return null;
     }
@@ -192,19 +196,21 @@ public class GTNLRecipeFrontend extends RecipeMapFrontend {
         return new Slot(uiProperties.logoPos.x, uiProperties.logoPos.y);
     }
 
+    @Nullable
     protected List<Slot> itemInputSlots(int count) {
         return null;
     }
 
+    @Nullable
     protected List<Slot> itemOutputSlots(int count) {
         return null;
     }
 
-    protected List<Slot> fluidInputSlots(int count) {
+    protected @Nullable List<Slot> fluidInputSlots(int count) {
         return null;
     }
 
-    protected List<Slot> fluidOutputSlots(int count) {
+    protected @Nullable List<Slot> fluidOutputSlots(int count) {
         return null;
     }
 
