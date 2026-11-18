@@ -42,10 +42,10 @@ public enum Mixins implements IMixins {
         "minecraft.AccessorMinecraft", "minecraft.AccessorTileEntity", "minecraft.MixinCommandTeleport",
         "minecraft.MixinEntity", "minecraft.MixinEntityItem", "minecraft.MixinEntityLivingBase",
         "minecraft.MixinEntityLiving", "minecraft.MixinEntityPlayer", "minecraft.MixinExplosion",
-        "minecraft.MixinInventoryCrafting", "minecraft.MixinItemStack", "minecraft.MixinMinecraftServer",
-        "minecraft.MixinNBTTagList", "minecraft.MixinPotionEffect", "minecraft.MixinServerConfigurationManager",
-        "minecraft.MixinWorld", "minecraft.MixinWorldGhostlyShape", "minecraft.MixinWorldServer",
-        "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName",
+        "minecraft.MixinInventoryCrafting", "minecraft.MixinItemStack", "minecraft.MixinEntityLandingBlock",
+        "minecraft.MixinMinecraftServer", "minecraft.MixinNBTTagList", "minecraft.MixinPotionEffect",
+        "minecraft.MixinServerConfigurationManager", "minecraft.MixinWorld", "minecraft.MixinWorldGhostlyShape",
+        "minecraft.MixinWorldServer", "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName",
         "minecraft.MixinNetworkManagerRemoteDevice"),
 
     APRIL_FOOL(new MixinBuilder("April Fool Late Mixins")
@@ -107,6 +107,12 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.AppliedEnergistics)
         .addRequiredMod(ModList.MatterManipulator)),
+
+    ME_STANDALONE_CRAFTING_CPU(new MixinBuilder("Standalone ME crafting CPU isolation")
+        .addCommonMixins("appliedEnergistics.MixinCraftingCPUCalculator")
+        .addClientMixins("appliedEnergistics.MixinRenderBlockCraftingCPU")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.AppliedEnergistics)),
 
     ME_MINI_TERMINAL(new MixinBuilder("ME mini portable terminal native terminal adapter")
         .addCommonMixins("appliedEnergistics.meminiterminal.MixinMiniTerminalMonitorableDestination")

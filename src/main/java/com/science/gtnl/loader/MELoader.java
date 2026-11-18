@@ -4,6 +4,8 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.client.MinecraftForgeClient;
 
+import com.science.gtnl.common.block.MentalMathUnitRegistry;
+import com.science.gtnl.common.block.blocks.BlockBouncyMentalMathUnit;
 import com.science.gtnl.common.block.blocks.tile.TileEntitySuperDualInterface;
 import com.science.gtnl.common.block.blocks.tile.TileEntitySuperInterface;
 import com.science.gtnl.common.machine.hatch.SuperCraftingInputHatchME;
@@ -24,6 +26,14 @@ public class MELoader implements IContentLoader {
     @Override
     public String name() {
         return "me";
+    }
+
+    @Override
+    public void preInit() {
+        GTNLItemList.ZiLiMentalMathUnit
+            .set(new ItemStack(MentalMathUnitRegistry.register("zi_li", 1024, 4, BlockBouncyMentalMathUnit::new)));
+        GTNLItemList.MoJinYuMentalMathUnit.set(new ItemStack(MentalMathUnitRegistry.register("mo_jin_yu", 256, 16)));
+        GTNLItemList.YiQingMentalMathUnit.set(new ItemStack(MentalMathUnitRegistry.register("yi_qing", 4096, 1)));
     }
 
     @Override

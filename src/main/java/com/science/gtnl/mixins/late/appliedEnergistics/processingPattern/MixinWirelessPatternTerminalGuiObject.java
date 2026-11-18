@@ -28,16 +28,16 @@ public abstract class MixinWirelessPatternTerminalGuiObject
     implements IProcessingPatternOverflowAccess, IProcessingPatternInventoryBatchAccess {
 
     @Shadow
-    public int craftingInvSize;
+    int craftingInvSize;
 
     @Shadow
-    public int outputInvSize;
+    int outputInvSize;
 
     @Shadow
-    public IAEStackInventory crafting;
+    IAEStackInventory crafting;
 
     @Shadow
-    public IAEStackInventory output;
+    IAEStackInventory output;
 
     @Shadow
     private boolean inverted;

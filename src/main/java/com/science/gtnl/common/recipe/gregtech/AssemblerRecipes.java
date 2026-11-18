@@ -75,6 +75,51 @@ public class AssemblerRecipes implements IRecipePool {
 
         RecipeBuilder.builder()
             .itemInputs(
+                GTNLItemList.PigmeeFumo.get(8),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Gold, 4),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Emerald, 16),
+                GTOreDictUnificator.get(OrePrefixes.lens, Materials.Emerald, 2),
+                GTOreDictUnificator.get(OrePrefixes.gem, Materials.Emerald, 1),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Diamond, 2),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.StainlessSteel, 4),
+                new ItemStack(Blocks.vine, 2))
+            .itemOutputs(GTNLItemList.YiQingMentalMathUnit.get(1))
+            .duration(300)
+            .eut(TierEU.RECIPE_HV)
+            .addTo(As);
+
+        RecipeBuilder.builder()
+            .itemInputs(
+                GTNLItemList.PigmeeFumo.get(8),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Steel, 4),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Electrum, 16),
+                GTOreDictUnificator.get(OrePrefixes.lens, Materials.InfusedEntropy, 2),
+                GTOreDictUnificator.get(OrePrefixes.gem, Materials.Ruby, 4),
+                GTOreDictUnificator.get(OrePrefixes.dust, Materials.Redstone, 8),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.StainlessSteel, 4),
+                new ItemStack(Items.dye, 4, 8))
+            .itemOutputs(GTNLItemList.MoJinYuMentalMathUnit.get(1))
+            .duration(300)
+            .eut(TierEU.RECIPE_HV)
+            .addTo(As);
+
+        RecipeBuilder.builder()
+            .itemInputs(
+                GTNLItemList.PigmeeFumo.get(8),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.Amethyst, 4),
+                GTOreDictUnificator.get(OrePrefixes.plateDense, Materials.Rubber, 2),
+                new ItemStack(Items.ender_eye, 2),
+                GTOreDictUnificator.get(OrePrefixes.gem, Materials.Amethyst, 3),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.EnderPearl, 8),
+                GTOreDictUnificator.get(OrePrefixes.plate, Materials.StainlessSteel, 4),
+                new ItemStack(Items.dye, 4, 5))
+            .itemOutputs(GTNLItemList.ZiLiMentalMathUnit.get(1))
+            .duration(300)
+            .eut(TierEU.RECIPE_HV)
+            .addTo(As);
+
+        RecipeBuilder.builder()
+            .itemInputs(
                 GTOreDictUnificator.get(OrePrefixes.wireFine, Materials.NaquadahAlloy, 8),
                 GTOreDictUnificator.get(OrePrefixes.foil, Materials.Silicon, 8),
                 GTOreDictUnificator.get(OrePrefixes.foil, Materials.Naquadah, 4))
