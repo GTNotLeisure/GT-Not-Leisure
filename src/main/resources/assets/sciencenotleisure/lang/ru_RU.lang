@@ -87,7 +87,7 @@ gtnl.gui.config.debug.enabledebugmode.tooltip=Включить вывод жур
 
 
 gtnl.gui.config.client.enable_update_check=Проверять обновления GTNL
-gtnl.gui.config.client.enable_update_check.tooltip=Фоновая проверка GitHub один раз за запуск. Успешный результат хранится 24 часа. Сбой не влияет на игру.
+gtnl.gui.config.client.enable_update_check.tooltip=Проверять соответствующий канал выпусков или ветку в фоне один раз за запуск. Сбой не влияет на игру.
 
 gtnl.gui.config.client.enable_railgun_shake=Тряска камеры рельсотрона
 gtnl.gui.config.client.enable_railgun_shake.tooltip=Тряска камеры и модели от первого лица при зарядке и стрельбе из рельсотрона.

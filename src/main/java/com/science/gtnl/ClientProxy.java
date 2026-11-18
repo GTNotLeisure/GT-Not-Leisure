@@ -25,7 +25,7 @@ public class ClientProxy extends CommonProxy {
         ConfigRegistry.registerClient();
         super.preInit(event);
         ContentLoaders.clientPreInit();
-        UpdateNotifier.init(event.getModConfigurationDirectory());
+        UpdateNotifier.init();
     }
 
     @Override

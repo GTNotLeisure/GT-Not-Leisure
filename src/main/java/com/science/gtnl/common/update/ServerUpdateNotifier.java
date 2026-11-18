@@ -13,7 +13,6 @@ import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 
 import com.science.gtnl.ScienceNotLeisure;
-import com.science.gtnl.Tags;
 import com.science.gtnl.config.MessageConfig;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -33,7 +32,7 @@ public final class ServerUpdateNotifier {
 
     private ServerUpdateNotifier(MinecraftServer server) {
         this.server = server;
-        check = UpdateChecker.start(server.getFile("config"));
+        check = UpdateChecker.start();
     }
 
     public static void start(MinecraftServer server) {
@@ -73,8 +72,11 @@ public final class ServerUpdateNotifier {
         if (!result.hasUpdate()) {
             return;
         }
-        ScienceNotLeisure.LOG
-            .info("GTNL server update available: {} -> {}. {}", Tags.VERSION, result.version, result.downloadUrl());
+        ScienceNotLeisure.LOG.info(
+            "GTNL server update available: {} -> {}. {}",
+            UpdateChecker.currentVersion(),
+            result.version,
+            result.downloadUrl());
         for (Object player : server.getConfigurationManager().playerEntityList) {
             notifyOperator((EntityPlayerMP) player);
         }
@@ -96,8 +98,9 @@ public final class ServerUpdateNotifier {
             return;
         }
         player.addChatMessage(
-            new ChatComponentTranslation("gtnl.update.available", Tags.VERSION, result.version).setChatStyle(
-                new ChatStyle().setColor(EnumChatFormatting.YELLOW)
-                    .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, result.downloadUrl()))));
+            new ChatComponentTranslation("gtnl.update.available", UpdateChecker.currentVersion(), result.version)
+                .setChatStyle(
+                    new ChatStyle().setColor(EnumChatFormatting.YELLOW)
+                        .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, result.downloadUrl()))));
     }
 }

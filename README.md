@@ -146,14 +146,26 @@ GTNL provides industrial-grade automation for your favorite magic mods.
 |  **2.8.0+**  |   `0.2.2`   | ✅ **Recommended** | [![v0.2.1](https://img.shields.io/badge/Download-v0.2.2-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.2.2)       |
 |  **2.7.x**   |  `0.1.9.1`  |       ❌ EOL       | [![v0.1.9.1](https://img.shields.io/badge/Download-v0.1.9.1-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.1.9.1) |
 
-The in-game update notifier only recommends stable hotfixes of the installed numeric
-GTNL version (for example, `0.2.6` to `0.2.6-hotfix1`). It does not recommend a
-different numeric version, because the table above maps releases to different GTNH
-environments. This restriction is not a guarantee of compatibility: release tags do
-not provide a machine-readable dependency manifest. Development and RC builds skip
-the check. Cross-version upgrades must be selected manually using this table and
-the target release requirements. Download links in notifications open the selected
-release directly.
+Update checks use the build identity embedded in `gtnl-build.properties`:
+
+* Stable builds check stable Releases within `gtnlUpdateReleaseRange` (this branch:
+  `[0.2.7,)`). Drafts, RC/pre tags and `dev-build` are excluded, and a downloadable
+  install jar must exist. This declared range follows the compatibility table; it
+  is not automatic detection of the installed GTNH pack or proof of future compatibility.
+* CI development builds check the same repository and exact branch. A branch-specific
+  manifest identifies the display version, full commit and install jar. A notification
+  requires the published commit to be ahead of the installed commit; divergent,
+  older, identical and not-yet-published builds do not trigger a notification.
+* Local builds without an explicit CI channel log that checks are skipped. No tokens
+  are embedded. Successful and failed checks are shared for the process lifetime;
+  no disk cache is used. All networking remains on the background worker.
+
+CI versions look like `0.2.7-dev.dev-290.123+abc12345`: the numeric prefix comes from
+an ancestor tag, the build number distinguishes runs, and a short commit is for
+presentation only. Full repository/branch/SHA metadata is authoritative. Development
+builds continue to use the `dev-build` Release, without creating a Git tag per build.
+Links point to the selected install jar. Client GUI changes apply after saving;
+the dedicated-server option requires a server restart.
 
 For this branch, Forge enforces GTNLLib's generated minimum version, GregTech
 `5.09.54.265+`, and StructureLib `1.4.46+` at startup. These are mod version checks,

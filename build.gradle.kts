@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
@@ -27,6 +29,36 @@ val generateDependencyVersions = tasks.register("generateDependencyVersions") {
     }
 }
 sourceSets.main { java.srcDir(generateDependencyVersions) }
+
+fun gitIdentity(vararg arguments: String) = providers.exec {
+    commandLine("git", *arguments)
+}.standardOutput.asText.map { it.trim() }
+
+val updateIdentity = mapOf(
+    "repository" to providers.environmentVariable("GTNL_BUILD_REPOSITORY")
+        .orElse(providers.environmentVariable("GITHUB_REPOSITORY"))
+        .orElse("GTNotLeisure/GT-Not-Leisure"),
+    "branch" to providers.environmentVariable("GTNL_BUILD_BRANCH").orElse(gitIdentity("branch", "--show-current")),
+    "commit" to providers.environmentVariable("GTNL_BUILD_COMMIT").orElse(gitIdentity("rev-parse", "HEAD")),
+    "channel" to providers.environmentVariable("GTNL_BUILD_CHANNEL").orElse(
+        if (version.toString().matches(Regex("[vV]?[0-9]+(\\.[0-9]+)*(-hotfix[0-9]+)?"))) "stable" else "local"
+    ),
+    "version" to providers.provider { project.version.toString() },
+    "releaseRange" to providers.gradleProperty("gtnlUpdateReleaseRange")
+)
+val updateResources = layout.buildDirectory.dir("generated/resources/updateIdentity")
+val generateUpdateIdentity = tasks.register("generateUpdateIdentity") {
+    updateIdentity.forEach { (key, value) -> inputs.property(key, value) }
+    outputs.dir(updateResources)
+    doLast {
+        val properties = Properties()
+        inputs.properties.forEach { (key, value) -> properties.setProperty(key, value.toString()) }
+        val output = outputs.files.singleFile.resolve("gtnl-build.properties")
+        output.parentFile.mkdirs()
+        output.outputStream().use { properties.store(it, "GTNL build identity") }
+    }
+}
+tasks.named<ProcessResources>("processResources") { from(generateUpdateIdentity) }
 
 minecraft {
     extraRunJvmArguments.addAll("-Xmx8G", "-Xms8G", "-Dgtnhlib.dumpkeys=true")

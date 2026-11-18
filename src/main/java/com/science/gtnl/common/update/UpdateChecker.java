@@ -1,14 +1,15 @@
 package com.science.gtnl.common.update;
 
-import java.io.File;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.security.MessageDigest;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -16,138 +17,267 @@ import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.Tags;
 
 import cpw.mods.fml.common.versioning.ComparableVersion;
+import cpw.mods.fml.common.versioning.DefaultArtifactVersion;
+import cpw.mods.fml.common.versioning.VersionParser;
 
 public final class UpdateChecker {
 
-    public static final String RELEASES = "https://github.com/GTNotLeisure/GT-Not-Leisure/releases";
     private static CompletableFuture<Result> check;
+    private static volatile String currentVersion = Tags.VERSION;
 
     private UpdateChecker() {}
 
-    public static synchronized CompletableFuture<Result> start(File configDirectory) {
+    public static String currentVersion() {
+        return currentVersion;
+    }
+
+    public static synchronized CompletableFuture<Result> start() {
         if (check != null) return check;
         CompletableFuture<Result> result = new CompletableFuture<>();
         check = result;
-        if (!isStableVersion(Tags.VERSION)) {
-            result.complete(new Result(null, "Development version; update check skipped"));
-            return result;
-        }
-        File cache = new File(configDirectory, "GTNotLeisure/update-check.json");
-        Thread worker = new Thread(() -> result.complete(lookup(cache)), "GTNL update check");
+        Thread worker = new Thread(() -> {
+            try {
+                BuildIdentity build = BuildIdentity.load();
+                currentVersion = build.version;
+                ScienceNotLeisure.LOG.info(
+                    "GTNL update check: channel={}, repository={}, branch={}, installed={}",
+                    build.channel,
+                    build.repository,
+                    build.branch,
+                    build.version);
+                Result found;
+                if ("stable".equals(build.channel)) {
+                    found = stable(build);
+                } else if ("development".equals(build.channel)) {
+                    found = development(build);
+                } else {
+                    ScienceNotLeisure.LOG
+                        .info("GTNL update check skipped: local build has no published update channel");
+                    found = new Result(null, null, false, null);
+                }
+                if (found.hasUpdate()) {
+                    ScienceNotLeisure.LOG
+                        .info("GTNL update found: {} -> {}; {}", build.version, found.version, found.downloadUrl());
+                } else {
+                    ScienceNotLeisure.LOG.info(
+                        "GTNL update check completed: {}",
+                        found.failure == null ? "no newer published build in this channel" : found.failure);
+                }
+                result.complete(found);
+            } catch (Exception exception) {
+                String failure = exception.getClass()
+                    .getSimpleName() + ": "
+                    + exception.getMessage();
+                ScienceNotLeisure.LOG.info("GTNL update check unavailable (no retry this launch): {}", failure);
+                result.complete(new Result(null, null, false, failure));
+            }
+        }, "GTNL update check");
         worker.setDaemon(true);
         worker.start();
         return result;
     }
 
-    private static Result lookup(File cache) {
-        try {
-            if (cache.isFile()) {
-                JsonObject saved = new JsonParser()
-                    .parse(new String(Files.readAllBytes(cache.toPath()), StandardCharsets.UTF_8))
-                    .getAsJsonObject();
-                long age = System.currentTimeMillis() - saved.get("checkedAt")
-                    .getAsLong();
-                if (age >= 0 && age < TimeUnit.HOURS.toMillis(24)) {
-                    String version = saved.get("version")
-                        .getAsString();
-                    if (isCompatibleCandidate(version)) return new Result(version, null);
-                }
+    private static Result stable(BuildIdentity build) throws Exception {
+        JsonArray releases = api(build, "/releases?per_page=100").getAsJsonArray();
+        String latest = null;
+        String link = null;
+        for (JsonElement entry : releases) {
+            JsonObject release = entry.getAsJsonObject();
+            if (release.get("draft")
+                .getAsBoolean()
+                || release.get("prerelease")
+                    .getAsBoolean())
+                continue;
+            String tag = release.get("tag_name")
+                .getAsString();
+            if (!tag.matches("[vV]?[0-9]+(\\.[0-9]+)*(?:-hotfix[0-9]+)?")) continue;
+            String normalized = tag.replaceFirst("^[vV]", "");
+            if (!VersionParser.parseRange(build.releaseRange)
+                .containsVersion(new DefaultArtifactVersion(normalized))) continue;
+            if (compare(normalized, build.version.replaceFirst("^[vV]", "")) <= 0) continue;
+            String asset = installAsset(
+                release.getAsJsonArray("assets"),
+                "sciencenotleisure-" + tag.replaceFirst("^[vV]", "") + ".jar");
+            if (asset == null)
+                asset = installAsset(release.getAsJsonArray("assets"), "sciencenotleisure-" + tag + ".jar");
+            if (asset != null
+                && (latest == null || compare(tag.replaceFirst("^[vV]", ""), latest.replaceFirst("^[vV]", "")) > 0)) {
+                latest = tag;
+                requireDownloadUrl(build, asset);
+                link = asset;
             }
-        } catch (Exception e) {
-            ScienceNotLeisure.LOG.debug("Ignoring unreadable GTNL update cache", e);
         }
+        return new Result(latest, link, latest != null, null);
+    }
 
-        HttpURLConnection connection = null;
+    private static Result development(BuildIdentity build) throws Exception {
+        if (build.branch.isEmpty()) throw new java.io.IOException("Development build has no branch");
+        JsonObject release = api(build, "/releases/tags/dev-build").getAsJsonObject();
+        if (release.get("draft")
+            .getAsBoolean()) return new Result(null, null, false, null);
+        JsonArray assets = release.getAsJsonArray("assets");
+        String key = branchKey(build.branch);
+        String manifestUrl = installAsset(assets, "gtnl-update-" + key + ".json");
+        String candidate = null;
+        String display = null;
+        String link = null;
+        if (manifestUrl != null) {
+            requireDownloadUrl(build, manifestUrl);
+            JsonObject manifest = readJson(manifestUrl).getAsJsonObject();
+            if (manifest.get("schema")
+                .getAsInt() != 1
+                || !"development".equals(
+                    manifest.get("channel")
+                        .getAsString())
+                || !build.repository.equals(
+                    manifest.get("repository")
+                        .getAsString())
+                || !build.branch.equals(
+                    manifest.get("branch")
+                        .getAsString())) {
+                throw new java.io.IOException("Development manifest identity mismatch");
+            }
+            candidate = manifest.get("commit")
+                .getAsString();
+            if (!candidate.matches("[a-fA-F0-9]{40}")) throw new java.io.IOException("Invalid manifest commit");
+            display = manifest.get("version")
+                .getAsString();
+            link = installAsset(
+                assets,
+                manifest.get("artifact")
+                    .getAsString());
+        } else {
+            // Older published builds already encode the exact branch hash and source commit.
+            String branchName = build.branch.replaceAll("[^A-Za-z0-9._-]+", "-")
+                .replaceAll("^-+|-+$", "");
+            Pattern name = Pattern.compile(
+                "sciencenotleisure-" + Pattern.quote(branchName + "-" + key + "-") + "([a-fA-F0-9]{8,40})\\.jar");
+            for (JsonElement entry : assets) {
+                JsonObject asset = entry.getAsJsonObject();
+                Matcher match = name.matcher(
+                    asset.get("name")
+                        .getAsString());
+                if (!match.matches()) continue;
+                if (candidate != null) throw new java.io.IOException("Ambiguous legacy branch assets");
+                candidate = match.group(1);
+                link = asset.get("browser_download_url")
+                    .getAsString();
+            }
+            if (candidate != null) {
+                candidate = api(build, "/commits/" + candidate).getAsJsonObject()
+                    .get("sha")
+                    .getAsString();
+                display = build.branch + " (" + candidate.substring(0, 8) + ")";
+            }
+        }
+        if (candidate == null || link == null)
+            return new Result(null, null, false, "No downloadable build for branch " + build.branch);
+        requireDownloadUrl(build, link);
+        if (candidate.equalsIgnoreCase(build.commit)) return new Result(null, null, false, null);
+        JsonObject comparison = api(build, "/compare/" + build.commit + "..." + candidate).getAsJsonObject();
+        boolean newer = "ahead".equals(
+            comparison.get("status")
+                .getAsString())
+            && comparison.get("ahead_by")
+                .getAsInt() > 0;
+        return new Result(
+            display,
+            link,
+            newer,
+            newer ? null : "Published branch build is not ahead of installed commit");
+    }
+
+    private static void requireDownloadUrl(BuildIdentity build, String url) throws Exception {
+        if (!url.startsWith("https://github.com/" + build.repository + "/releases/download/")) {
+            throw new java.io.IOException("Unexpected release download URL");
+        }
+    }
+
+    private static String installAsset(JsonArray assets, String name) {
+        for (JsonElement entry : assets) {
+            JsonObject asset = entry.getAsJsonObject();
+            if (name.equals(
+                asset.get("name")
+                    .getAsString())
+                && "uploaded".equals(
+                    asset.get("state")
+                        .getAsString())) {
+                return asset.get("browser_download_url")
+                    .getAsString();
+            }
+        }
+        return null;
+    }
+
+    private static String branchKey(String branch) throws Exception {
+        byte[] hash = MessageDigest.getInstance("SHA-256")
+            .digest(branch.getBytes(StandardCharsets.UTF_8));
+        StringBuilder key = new StringBuilder();
+        for (int index = 0; index < 6; index++) key.append(String.format("%02x", hash[index] & 255));
+        return key.toString();
+    }
+
+    private static JsonElement api(BuildIdentity build, String path) throws Exception {
+        return readJson("https://api.github.com/repos/" + build.repository + path);
+    }
+
+    private static JsonElement readJson(String address) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) new URL(address).openConnection();
         try {
-            // /latest may point to a non-versioned dev-build release.
-            connection = (HttpURLConnection) new URL(
-                "https://api.github.com/repos/GTNotLeisure/GT-Not-Leisure/releases?per_page=100").openConnection();
             connection.setConnectTimeout(5000);
-            connection.setReadTimeout(5000);
+            connection.setReadTimeout(10000);
             connection.setRequestProperty("Accept", "application/vnd.github+json");
             connection.setRequestProperty("User-Agent", "GTNotLeisure-update-check");
             int status = connection.getResponseCode();
-            if (status != 200) throw new java.io.IOException("GitHub HTTP " + status);
-            String latest = null;
+            if (status != 200) {
+                String detail = "HTTP " + status;
+                if ("0".equals(connection.getHeaderField("X-RateLimit-Remaining"))) {
+                    String reset = connection.getHeaderField("X-RateLimit-Reset");
+                    detail += "; GitHub API rate limit exhausted; reset epoch=" + reset;
+                }
+                throw new java.io.IOException(detail + " at " + address);
+            }
             try (
                 InputStreamReader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
-                for (JsonElement element : new JsonParser().parse(reader)
-                    .getAsJsonArray()) {
-                    JsonObject release = element.getAsJsonObject();
-                    if (release.get("draft")
-                        .getAsBoolean()
-                        || release.get("prerelease")
-                            .getAsBoolean())
-                        continue;
-                    String version = release.get("tag_name")
-                        .getAsString();
-                    if (isCompatibleCandidate(version) && (latest == null || compare(version, latest) > 0))
-                        latest = version;
+                StringBuilder text = new StringBuilder();
+                char[] buffer = new char[4096];
+                int count;
+                while ((count = reader.read(buffer)) != -1) {
+                    if (text.length() + count > 4 * 1024 * 1024)
+                        throw new java.io.IOException("Update response too large");
+                    text.append(buffer, 0, count);
                 }
+                return new JsonParser().parse(text.toString());
             }
-            if (latest == null) throw new java.io.IOException("No stable numeric release in the latest 100 releases");
-            try {
-                JsonObject saved = new JsonObject();
-                saved.addProperty("checkedAt", System.currentTimeMillis());
-                saved.addProperty("version", latest);
-                Files.createDirectories(
-                    cache.toPath()
-                        .getParent());
-                Files.write(
-                    cache.toPath(),
-                    saved.toString()
-                        .getBytes(StandardCharsets.UTF_8));
-            } catch (Exception e) {
-                ScienceNotLeisure.LOG.debug("Could not save GTNL update cache", e);
-            }
-            return new Result(latest, null);
-        } catch (Exception e) {
-            String failure = e.getClass()
-                .getSimpleName() + ": "
-                + e.getMessage();
-            ScienceNotLeisure.LOG.info("GTNL update check unavailable (no retry this launch): {}", failure);
-            return new Result(null, failure);
         } finally {
-            if (connection != null) connection.disconnect();
+            connection.disconnect();
         }
     }
 
-    private static boolean isStableVersion(String version) {
-        return version.matches("[vV]?[0-9]+(\\.[0-9]+)*(?:-hotfix[0-9]+)?");
-    }
-
-    private static boolean isCompatibleCandidate(String version) {
-        if (!isStableVersion(version)) return false;
-        // README maps different GTNL patch lines to different GTNH releases. Without target
-        // compatibility metadata, only recommend hotfixes within the installed numeric version.
-        return version.replaceFirst("^[vV]", "")
-            .replaceFirst("-hotfix[0-9]+$", "")
-            .equals(
-                Tags.VERSION.replaceFirst("^[vV]", "")
-                    .replaceFirst("-hotfix[0-9]+$", ""));
-    }
-
     private static int compare(String left, String right) {
-        return new ComparableVersion(left.replaceFirst("^[vV]", ""))
-            .compareTo(new ComparableVersion(right.replaceFirst("^[vV]", "")));
+        return new ComparableVersion(left).compareTo(new ComparableVersion(right));
     }
 
     public static final class Result {
 
         public final String version;
         public final String failure;
+        private final String url;
+        private final boolean newer;
 
-        private Result(String version, String failure) {
+        private Result(String version, String url, boolean newer, String failure) {
             this.version = version;
+            this.url = url;
+            this.newer = newer;
             this.failure = failure;
         }
 
         public boolean hasUpdate() {
-            return version != null && isCompatibleCandidate(version) && compare(version, Tags.VERSION) > 0;
+            return newer;
         }
 
         public String downloadUrl() {
-            return RELEASES + "/tag/" + version;
+            return url;
         }
     }
 }
