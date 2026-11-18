@@ -4,6 +4,8 @@ itemGroup.gtnl.block=GT Not Leisure: Блоки
 itemGroup.gtnl.player_doll=GT Not Leisure: Кукла-игрок
 gtnl.feature.structural_reconstruction_plan=План структурной замены
 
+gtnl.update.available=Доступно обновление GTNL: %s -> %s. Нажмите, чтобы открыть страницу загрузки.
+
 gtnl.message.welcome.0=Добро пожаловать в GT: Science Not Leisure!
 gtnl.message.welcome.1=Если вы устанавливаете мод впервые, внимательно проверьте файлы конфигурации.
 gtnl.message.welcome.2=Этот мод добавляет большое количество машин и новые рецепты.
@@ -83,6 +85,9 @@ gtnl.gui.config.wireless.tooltip=Ограничения беспроводных
 gtnl.gui.config.debug.enabledebugmode=Режим отладки
 gtnl.gui.config.debug.enabledebugmode.tooltip=Включить вывод журнала отладки на печать.
 
+
+gtnl.gui.config.client.enable_update_check=Проверять обновления GTNL
+gtnl.gui.config.client.enable_update_check.tooltip=Проверять соответствующий канал выпусков или ветку в фоне один раз за запуск.
 
 gtnl.gui.config.client.enable_railgun_shake=Тряска камеры рельсотрона
 gtnl.gui.config.client.enable_railgun_shake.tooltip=Тряска камеры и модели от первого лица при зарядке и стрельбе из рельсотрона.
@@ -463,6 +468,9 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=Если отключ�
 
 gtnl.gui.config.message.enableshowaddmods=Показать загруженные моды
 gtnl.gui.config.message.enableshowaddmods.tooltip=Включить показ списка загруженных модов игроку.
+gtnl.gui.config.message.enableserverupdatecheck=Проверять обновления сервера
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=Проверять обновления в фоне и уведомлять консоль и операторов. Требуется перезапуск сервера.
+
 gtnl.gui.config.message.enableshowjoinmessage=Показать сообщение о присоединении
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Включите приветственное сообщение, когда игрок присоединяется к миру.
 

@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.science.gtnl.common.packet.NetWorkHandler;
+import com.science.gtnl.common.update.ServerUpdateNotifier;
 import com.science.gtnl.loader.ContentLoaders;
 import com.science.gtnl.utils.item.MissingMappingsHandler;
 
@@ -24,7 +25,7 @@ import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
     modid = "sciencenotleisure",
     version = Tags.VERSION,
     name = ScienceNotLeisure.MODNAME,
-    dependencies = "required-after:gtnllib;" + "after:AWWayofTime;"
+    dependencies = DependencyVersions.GTNLLIB + "after:AWWayofTime;"
         + "after:Avaritia;"
         + "after:BloodArsenal;"
         + "required-after:Botania;"
@@ -94,10 +95,12 @@ public class ScienceNotLeisure {
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         ContentLoaders.serverStarting(event);
+        ServerUpdateNotifier.start(event.getServer());
     }
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        ServerUpdateNotifier.stop();
         ContentLoaders.serverStopping();
     }
 

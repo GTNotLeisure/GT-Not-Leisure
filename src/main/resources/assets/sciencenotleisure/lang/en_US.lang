@@ -4,6 +4,8 @@ itemGroup.gtnl.block=GT Not Leisure: Blocks
 itemGroup.gtnl.player_doll=GT Not Leisure: Player Doll
 gtnl.feature.structural_reconstruction_plan=Structural Replacement Plan
 
+gtnl.update.available=GTNL update available: %s -> %s. Click to open the download page.
+
 gtnl.message.welcome.0=Welcome to GT: Science Not Leisure!
 gtnl.message.welcome.1=If this is your first time installing the mod, please check the config files carefully.
 gtnl.message.welcome.2=This mod adds a large number of machines and new recipes.
@@ -83,6 +85,9 @@ gtnl.gui.config.wireless.tooltip=Limits of the wireless frequency cards.
 gtnl.gui.config.debug.enabledebugmode=Debug Mode
 gtnl.gui.config.debug.enabledebugmode.tooltip=Enable debug print log output.
 
+
+gtnl.gui.config.client.enable_update_check=Check for GTNL updates
+gtnl.gui.config.client.enable_update_check.tooltip=Check the matching release/build channel once per launch in the background.
 
 gtnl.gui.config.client.enable_railgun_shake=Railgun Camera Shake
 gtnl.gui.config.client.enable_railgun_shake.tooltip=Shake the camera and the first person model while charging and firing the railgun.
@@ -463,6 +468,9 @@ gtnl.gui.config.machine.portal_to_alfheim.bigboom.tooltip=If disabled, reduces t
 
 gtnl.gui.config.message.enableshowaddmods=Show Loaded Mods
 gtnl.gui.config.message.enableshowaddmods.tooltip=Enable showing the list of loaded mods to the player.
+gtnl.gui.config.message.enableserverupdatecheck=Check for server updates
+gtnl.gui.config.message.enableserverupdatecheck.tooltip=Check for updates in the background and notify the console and operators. Requires a server restart.
+
 gtnl.gui.config.message.enableshowjoinmessage=Show Join Message
 gtnl.gui.config.message.enableshowjoinmessage.tooltip=Enable the welcome message when a player joins the world.
 
