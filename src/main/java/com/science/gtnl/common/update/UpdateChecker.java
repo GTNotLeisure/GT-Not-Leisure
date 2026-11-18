@@ -6,6 +6,9 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,7 +24,7 @@ import cpw.mods.fml.common.versioning.ComparableVersion;
 import cpw.mods.fml.common.versioning.DefaultArtifactVersion;
 import cpw.mods.fml.common.versioning.VersionParser;
 
-public final class UpdateChecker {
+public class UpdateChecker {
 
     private static CompletableFuture<Result> check;
     private static volatile String currentVersion = Tags.VERSION;
@@ -118,47 +121,11 @@ public final class UpdateChecker {
             .getAsBoolean()) return new Result(null, null, false, null);
         JsonArray assets = release.getAsJsonArray("assets");
         String key = branchKey(build.branch);
-        String manifestUrl = null;
-        long selectedRun = -1;
-        long selectedAttempt = -1;
-        Pattern manifestName = Pattern.compile("gtnl-update-" + key + "-([0-9]+)-([0-9]+)\\.json");
-        for (JsonElement entry : assets) {
-            JsonObject asset = entry.getAsJsonObject();
-            Matcher match = manifestName.matcher(
-                asset.get("name")
-                    .getAsString());
-            if (!match.matches()) continue;
-            long run = Long.parseLong(match.group(1));
-            long attempt = Long.parseLong(match.group(2));
-            String url = installAsset(
-                assets,
-                asset.get("name")
-                    .getAsString());
-            if (url != null && (run > selectedRun || (run == selectedRun && attempt > selectedAttempt))) {
-                selectedRun = run;
-                selectedAttempt = attempt;
-                manifestUrl = url;
-            }
-        }
+        JsonObject manifest = developmentManifest(build, assets, key);
         String candidate = null;
         String display = null;
         String link = null;
-        if (manifestUrl != null) {
-            requireDownloadUrl(build, manifestUrl);
-            JsonObject manifest = readJson(manifestUrl).getAsJsonObject();
-            if (manifest.get("schema")
-                .getAsInt() != 1
-                || !"development".equals(
-                    manifest.get("channel")
-                        .getAsString())
-                || !build.repository.equals(
-                    manifest.get("repository")
-                        .getAsString())
-                || !build.branch.equals(
-                    manifest.get("branch")
-                        .getAsString())) {
-                throw new IOException("Development manifest identity mismatch");
-            }
+        if (manifest != null) {
             candidate = manifest.get("commit")
                 .getAsString();
             if (!candidate.matches("[a-fA-F0-9]{40}")) throw new IOException("Invalid manifest commit");
@@ -168,16 +135,6 @@ public final class UpdateChecker {
                 assets,
                 manifest.get("artifact")
                     .getAsString());
-            if (link == null) {
-                // The immutable manifest may become visible before its install jar finishes uploading.
-                JsonArray refreshed = api(build, "/releases/tags/dev-build").getAsJsonObject()
-                    .getAsJsonArray("assets");
-                link = installAsset(
-                    refreshed,
-                    manifest.get("artifact")
-                        .getAsString());
-                if (link == null) throw new IOException("Published manifest install jar is not uploaded yet");
-            }
         } else {
             // Older published builds already encode the exact branch hash and source commit.
             String branchName = build.branch.replaceAll("[^A-Za-z0-9._-]+", "-")
@@ -214,9 +171,56 @@ public final class UpdateChecker {
                 .getAsInt() > 0;
         return new Result(
             display,
-            link,
+            "https://github.com/" + build.repository + "/releases/tag/dev-build",
             newer,
             newer ? null : "Published branch build is not ahead of installed commit");
+    }
+
+    private static JsonObject developmentManifest(BuildIdentity build, JsonArray assets, String key) throws Exception {
+        List<ManifestAsset> manifests = new ArrayList<>();
+        Pattern manifestName = Pattern.compile("gtnl-update-" + key + "-([0-9]+)-([0-9]+)\\.json");
+        for (JsonElement entry : assets) {
+            JsonObject asset = entry.getAsJsonObject();
+            Matcher match = manifestName.matcher(
+                asset.get("name")
+                    .getAsString());
+            if (!match.matches() || !"uploaded".equals(
+                asset.get("state")
+                    .getAsString()))
+                continue;
+            manifests.add(
+                new ManifestAsset(
+                    Long.parseLong(match.group(1)),
+                    Long.parseLong(match.group(2)),
+                    asset.get("browser_download_url")
+                        .getAsString()));
+        }
+        manifests.sort(
+            Comparator.comparingLong(ManifestAsset::run)
+                .thenComparingLong(ManifestAsset::attempt)
+                .reversed());
+        for (ManifestAsset asset : manifests) {
+            requireDownloadUrl(build, asset.url());
+            JsonObject manifest = readJson(asset.url()).getAsJsonObject();
+            if (manifest.get("schema")
+                .getAsInt() != 1
+                || !"development".equals(
+                    manifest.get("channel")
+                        .getAsString())
+                || !build.repository.equals(
+                    manifest.get("repository")
+                        .getAsString())
+                || !build.branch.equals(
+                    manifest.get("branch")
+                        .getAsString())) {
+                throw new IOException("Development manifest identity mismatch");
+            }
+            String artifact = manifest.get("artifact")
+                .getAsString();
+            if (installAsset(assets, artifact) != null) return manifest;
+            ScienceNotLeisure.LOG.info("Skipping incomplete GTNL development build: {}", artifact);
+        }
+        return null;
     }
 
     private static void requireDownloadUrl(BuildIdentity build, String url) throws Exception {
@@ -289,7 +293,9 @@ public final class UpdateChecker {
         return new ComparableVersion(left).compareTo(new ComparableVersion(right));
     }
 
-    public static final class Result {
+    private record ManifestAsset(long run, long attempt, String url) {}
+
+    public static class Result {
 
         public final String version;
         public final String failure;

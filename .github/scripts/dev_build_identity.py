@@ -1,15 +1,49 @@
+import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import subprocess
-import sys
 import zipfile
 
 
 def git(*args):
-    return subprocess.check_output(["git", *args], text=True).strip()
+    return subprocess.check_output(["git", *args], encoding="utf-8").strip()
+
+
+def github(*args):
+    return json.loads(subprocess.check_output(["gh", "api", *args], encoding="utf-8", stderr=subprocess.PIPE))
+
+
+def published_assets(repository):
+    try:
+        release = github(f"repos/{repository}/releases/tags/dev-build")
+    except subprocess.CalledProcessError as error:
+        if "(HTTP 404)" in error.stderr:
+            return {}
+        raise
+    pages = github("--paginate", "--slurp", f"repos/{repository}/releases/{release['id']}/assets?per_page=100")
+    return {asset["name"]: asset for page in pages for asset in page}
+
+
+def newer_publication(published, key):
+    current = int(os.environ["GITHUB_RUN_NUMBER"]), int(os.environ.get("GITHUB_RUN_ATTEMPT", "1"))
+    manifest_name = re.compile(rf"gtnl-update-{key}-([0-9]+)-([0-9]+)\.json")
+    for name, asset in published.items():
+        match = manifest_name.fullmatch(name)
+        if match and asset["state"] == "uploaded" and (int(match[1]), int(match[2])) > current:
+            return True
+    return False
+
+
+def publication():
+    published = published_assets(os.environ["GITHUB_REPOSITORY"])
+    eligible = not newer_publication(published, os.environ["BRANCH_KEY"])
+    with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+        output.write(f"eligible={str(eligible).lower()}\n")
+    if not eligible:
+        print("Skipping obsolete publication: a newer build for this branch is already published")
 
 
 def identity():
@@ -57,7 +91,7 @@ def assets():
                 raise ValueError("More than one install jar")
             main = name
             with zipfile.ZipFile(jar) as archive:
-                data = archive.read("gtnl-build.properties").decode("iso-8859-1")
+                data = archive.read("gtnl-build.properties").decode("utf-8")
                 properties = {}
                 for line in data.splitlines():
                     if not line or line.startswith(("#", "!")):
@@ -88,8 +122,54 @@ def assets():
     }
     manifest_name = f"gtnl-update-{key}-{os.environ['GITHUB_RUN_NUMBER']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}.json"
     (output / manifest_name).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    names.append(manifest_name)
     (output / "asset-names.txt").write_text("\n".join(names) + "\n", encoding="utf-8")
 
 
+def cleanup(dry_run=False):
+    repository = os.environ["GITHUB_REPOSITORY"]
+    key = os.environ["BRANCH_KEY"]
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository):
+        raise ValueError("Invalid release repository")
+    if not re.fullmatch(r"[0-9a-f]{12}", key):
+        raise ValueError("Invalid branch key")
+
+    current = set(Path("build/release-assets/asset-names.txt").read_text(encoding="utf-8").splitlines())
+    if not current or not any(name.startswith(f"gtnl-update-{key}-") for name in current):
+        raise ValueError("Current build manifest is missing")
+
+    published = published_assets(repository)
+    if newer_publication(published, key):
+        print("Skipping obsolete cleanup: a newer build for this branch is already published")
+        return
+    if any(name not in published or published[name]["state"] != "uploaded" for name in current):
+        if not dry_run:
+            raise ValueError("Current build assets are not completely uploaded; keeping previous builds")
+        print("Preview only: current build assets are not completely uploaded")
+
+    branch_asset = re.compile(
+        rf".+-{key}(?:-[0-9a-fA-F]{{7,40}})?\.jar|gtnl-update-{key}(?:-[0-9]+-[0-9]+)?\.json"
+    )
+    for name, asset in published.items():
+        if name in current or not branch_asset.fullmatch(name):
+            continue
+        print(f"{'Would remove' if dry_run else 'Removing'} obsolete branch asset: {name}")
+        if not dry_run:
+            subprocess.run(
+                ["gh", "api", "--method", "DELETE", f"repos/{repository}/releases/assets/{asset['id']}"],
+                check=True,
+                encoding="utf-8",
+            )
+
+
 if __name__ == "__main__":
-    {"identity": identity, "assets": assets}[sys.argv[1]]()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("command", choices=("identity", "assets", "publication", "cleanup"))
+    parser.add_argument("--dry-run", action="store_true", help="Preview cleanup without deleting release assets")
+    arguments = parser.parse_args()
+    if arguments.dry_run and arguments.command != "cleanup":
+        parser.error("--dry-run is only available for cleanup")
+    if arguments.command == "cleanup":
+        cleanup(arguments.dry_run)
+    else:
+        {"identity": identity, "assets": assets, "publication": publication}[arguments.command]()

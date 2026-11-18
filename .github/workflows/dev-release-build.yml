@@ -75,8 +75,15 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
-      - name: Release
+      - name: Check publication order
+        id: publication
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/dev_build_identity.py publication
+
+      - name: Release
+        if: steps.publication.outputs.eligible == 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: Dev Build
@@ -88,6 +95,14 @@ jobs:
           prerelease: false
           make_latest: true
           overwrite_files: false
+          preserve_order: true
+          fail_on_unmatched_files: true
           files: |
             build/release-assets/*.jar
             build/release-assets/gtnl-update-*.json
+
+      - name: Remove obsolete builds for the published branch
+        if: steps.publication.outputs.eligible == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/dev_build_identity.py cleanup
