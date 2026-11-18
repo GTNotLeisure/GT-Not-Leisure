@@ -87,7 +87,7 @@ gtnl.gui.config.debug.enabledebugmode.tooltip=Enable debug print log output.
 
 
 gtnl.gui.config.client.enable_update_check=Check for GTNL updates
-gtnl.gui.config.client.enable_update_check.tooltip=Check the matching release/build channel once per launch in the background. Failures do not affect gameplay.
+gtnl.gui.config.client.enable_update_check.tooltip=Check the matching release/build channel once per launch in the background.
 
 gtnl.gui.config.client.enable_railgun_shake=Railgun Camera Shake
 gtnl.gui.config.client.enable_railgun_shake.tooltip=Shake the camera and the first person model while charging and firing the railgun.

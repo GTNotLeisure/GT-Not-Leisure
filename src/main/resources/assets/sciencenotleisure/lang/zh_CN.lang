@@ -87,7 +87,7 @@ gtnl.gui.config.debug.enabledebugmode.tooltip=启用调试日志输出
 
 
 gtnl.gui.config.client.enable_update_check=检查 GTNL 更新
-gtnl.gui.config.client.enable_update_check.tooltip=每次启动在后台检查对应的正式版或开发分支更新，失败不影响游戏。
+gtnl.gui.config.client.enable_update_check.tooltip=每次启动在后台检查对应的正式版或开发分支更新。
 
 gtnl.gui.config.client.enable_railgun_shake=电磁炮镜头震动
 gtnl.gui.config.client.enable_railgun_shake.tooltip=蓄力与发射电磁炮时震动镜头和第一人称模型

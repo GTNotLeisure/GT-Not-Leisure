@@ -37,7 +37,7 @@ import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
         + "after:GalacticraftMars;"
         + "after:GalacticraftPlanets;"
         + "required-after:gtnhintergalactic;"
-        + "required-after:gregtech@[5.09.54.265,);"
+        + "required-after:gregtech;"
         + "required-after:galacticgreg;"
         + "required-after:IC2;"
         + "required-after:modularui;"
