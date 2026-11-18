@@ -1,5 +1,6 @@
 package com.science.gtnl.common.update;
 
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -111,13 +112,34 @@ public final class UpdateChecker {
     }
 
     private static Result development(BuildIdentity build) throws Exception {
-        if (build.branch.isEmpty()) throw new java.io.IOException("Development build has no branch");
+        if (build.branch.isEmpty()) throw new IOException("Development build has no branch");
         JsonObject release = api(build, "/releases/tags/dev-build").getAsJsonObject();
         if (release.get("draft")
             .getAsBoolean()) return new Result(null, null, false, null);
         JsonArray assets = release.getAsJsonArray("assets");
         String key = branchKey(build.branch);
-        String manifestUrl = installAsset(assets, "gtnl-update-" + key + ".json");
+        String manifestUrl = null;
+        long selectedRun = -1;
+        long selectedAttempt = -1;
+        Pattern manifestName = Pattern.compile("gtnl-update-" + key + "-([0-9]+)-([0-9]+)\\.json");
+        for (JsonElement entry : assets) {
+            JsonObject asset = entry.getAsJsonObject();
+            Matcher match = manifestName.matcher(
+                asset.get("name")
+                    .getAsString());
+            if (!match.matches()) continue;
+            long run = Long.parseLong(match.group(1));
+            long attempt = Long.parseLong(match.group(2));
+            String url = installAsset(
+                assets,
+                asset.get("name")
+                    .getAsString());
+            if (url != null && (run > selectedRun || (run == selectedRun && attempt > selectedAttempt))) {
+                selectedRun = run;
+                selectedAttempt = attempt;
+                manifestUrl = url;
+            }
+        }
         String candidate = null;
         String display = null;
         String link = null;
@@ -135,17 +157,27 @@ public final class UpdateChecker {
                 || !build.branch.equals(
                     manifest.get("branch")
                         .getAsString())) {
-                throw new java.io.IOException("Development manifest identity mismatch");
+                throw new IOException("Development manifest identity mismatch");
             }
             candidate = manifest.get("commit")
                 .getAsString();
-            if (!candidate.matches("[a-fA-F0-9]{40}")) throw new java.io.IOException("Invalid manifest commit");
+            if (!candidate.matches("[a-fA-F0-9]{40}")) throw new IOException("Invalid manifest commit");
             display = manifest.get("version")
                 .getAsString();
             link = installAsset(
                 assets,
                 manifest.get("artifact")
                     .getAsString());
+            if (link == null) {
+                // The immutable manifest may become visible before its install jar finishes uploading.
+                JsonArray refreshed = api(build, "/releases/tags/dev-build").getAsJsonObject()
+                    .getAsJsonArray("assets");
+                link = installAsset(
+                    refreshed,
+                    manifest.get("artifact")
+                        .getAsString());
+                if (link == null) throw new IOException("Published manifest install jar is not uploaded yet");
+            }
         } else {
             // Older published builds already encode the exact branch hash and source commit.
             String branchName = build.branch.replaceAll("[^A-Za-z0-9._-]+", "-")
@@ -158,7 +190,7 @@ public final class UpdateChecker {
                     asset.get("name")
                         .getAsString());
                 if (!match.matches()) continue;
-                if (candidate != null) throw new java.io.IOException("Ambiguous legacy branch assets");
+                if (candidate != null) throw new IOException("Ambiguous legacy branch assets");
                 candidate = match.group(1);
                 link = asset.get("browser_download_url")
                     .getAsString();
@@ -189,7 +221,7 @@ public final class UpdateChecker {
 
     private static void requireDownloadUrl(BuildIdentity build, String url) throws Exception {
         if (!url.startsWith("https://github.com/" + build.repository + "/releases/download/")) {
-            throw new java.io.IOException("Unexpected release download URL");
+            throw new IOException("Unexpected release download URL");
         }
     }
 
@@ -235,7 +267,7 @@ public final class UpdateChecker {
                     String reset = connection.getHeaderField("X-RateLimit-Reset");
                     detail += "; GitHub API rate limit exhausted; reset epoch=" + reset;
                 }
-                throw new java.io.IOException(detail + " at " + address);
+                throw new IOException(detail + " at " + address);
             }
             try (
                 InputStreamReader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
@@ -243,8 +275,7 @@ public final class UpdateChecker {
                 char[] buffer = new char[4096];
                 int count;
                 while ((count = reader.read(buffer)) != -1) {
-                    if (text.length() + count > 4 * 1024 * 1024)
-                        throw new java.io.IOException("Update response too large");
+                    if (text.length() + count > 4 * 1024 * 1024) throw new IOException("Update response too large");
                     text.append(buffer, 0, count);
                 }
                 return new JsonParser().parse(text.toString());

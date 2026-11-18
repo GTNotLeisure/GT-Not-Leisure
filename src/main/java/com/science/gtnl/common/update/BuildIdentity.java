@@ -1,5 +1,6 @@
 package com.science.gtnl.common.update;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 
@@ -26,14 +27,15 @@ final class BuildIdentity {
     static BuildIdentity load() throws Exception {
         Properties properties = new Properties();
         try (InputStream stream = BuildIdentity.class.getResourceAsStream("/gtnl-build.properties")) {
-            if (stream == null) throw new java.io.IOException("Missing gtnl-build.properties");
+            if (stream == null) throw new IOException("Missing gtnl-build.properties");
             properties.load(stream);
         }
         BuildIdentity identity = new BuildIdentity(properties);
         if (!identity.repository.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) {
-            throw new java.io.IOException("Invalid build repository");
+            throw new IOException("Invalid build repository");
         }
-        if (!identity.commit.matches("[a-fA-F0-9]{40}")) throw new java.io.IOException("Invalid build commit");
+        if (!"local".equals(identity.channel) && !identity.commit.matches("[a-fA-F0-9]{40}"))
+            throw new IOException("Invalid build commit");
         return identity;
     }
 }

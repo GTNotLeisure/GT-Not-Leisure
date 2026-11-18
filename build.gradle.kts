@@ -38,8 +38,18 @@ val updateIdentity = mapOf(
     "repository" to providers.environmentVariable("GTNL_BUILD_REPOSITORY")
         .orElse(providers.environmentVariable("GITHUB_REPOSITORY"))
         .orElse("GTNotLeisure/GT-Not-Leisure"),
-    "branch" to providers.environmentVariable("GTNL_BUILD_BRANCH").orElse(gitIdentity("branch", "--show-current")),
-    "commit" to providers.environmentVariable("GTNL_BUILD_COMMIT").orElse(gitIdentity("rev-parse", "HEAD")),
+    "branch" to providers.environmentVariable("GTNL_BUILD_BRANCH").orElse(
+        providers.environmentVariable("GTNL_BUILD_CHANNEL").orElse("local").flatMap {
+            if (it == "local") providers.provider { "" } else gitIdentity("branch", "--show-current")
+        }
+    ),
+    "commit" to providers.environmentVariable("GTNL_BUILD_COMMIT").orElse(
+        providers.environmentVariable("GTNL_BUILD_CHANNEL").orElse(
+            if (version.toString().matches(Regex("[vV]?[0-9]+(\\.[0-9]+)*(-hotfix[0-9]+)?"))) "stable" else "local"
+        ).flatMap {
+            if (it == "local") providers.provider { "" } else gitIdentity("rev-parse", "HEAD")
+        }
+    ),
     "channel" to providers.environmentVariable("GTNL_BUILD_CHANNEL").orElse(
         if (version.toString().matches(Regex("[vV]?[0-9]+(\\.[0-9]+)*(-hotfix[0-9]+)?"))) "stable" else "local"
     ),

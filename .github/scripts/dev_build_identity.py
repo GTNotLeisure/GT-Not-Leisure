@@ -19,7 +19,7 @@ def identity():
     tag = git("describe", "--tags", "--abbrev=0", "--match", "[0-9]*", "--match", "v[0-9]*")
     base = re.match(r"v?(\d+(?:\.\d+)+)", tag).group(1)
     name = re.sub(r"[^A-Za-z0-9._-]+", "-", branch).strip("-")
-    version = f"{base}-dev.{name}.{os.environ['GITHUB_RUN_NUMBER']}+{short}"
+    version = f"{base}-dev.{name}.{os.environ['GITHUB_RUN_NUMBER']}.{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}+{short}"
     values = {
         "VERSION": version,
         "RELEASE_VERSION": version,
@@ -86,7 +86,8 @@ def assets():
         "version": os.environ["VERSION"],
         "artifact": main,
     }
-    (output / f"gtnl-update-{key}.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    manifest_name = f"gtnl-update-{key}-{os.environ['GITHUB_RUN_NUMBER']}-{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}.json"
+    (output / manifest_name).write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output / "asset-names.txt").write_text("\n".join(names) + "\n", encoding="utf-8")
 
 

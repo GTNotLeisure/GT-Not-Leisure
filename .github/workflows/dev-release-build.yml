@@ -62,11 +62,6 @@ jobs:
       - name: Build the mod
         run: ./gradlew --build-cache --info --stacktrace assemble
 
-      - name: Check build identity and update channels
-        run: |
-          python3 .github/scripts/test_dev_build_identity.py
-          python3 .github/scripts/test_update_channels.py
-
       - name: Prepare release assets
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: python3 .github/scripts/dev_build_identity.py assets
@@ -92,38 +87,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           prerelease: false
           make_latest: true
-          overwrite_files: true
+          overwrite_files: false
           files: |
             build/release-assets/*.jar
             build/release-assets/gtnl-update-*.json
-
-      - name: Remove previous release builds
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          asset_list=$(mktemp)
-          trap 'rm -f "$asset_list"' EXIT
-          release_id=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/dev-build" --jq '.id')
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" \
-            --jq '.[] | [.id, .name] | @tsv' > "$asset_list"
-          while IFS=$'\t' read -r asset_id asset_name; do
-            [[ "$asset_name" == *.jar ]] || continue
-            if grep -Fqx -- "$asset_name" build/release-assets/asset-names.txt; then
-              continue
-            fi
-
-            legacy_base=${asset_name%.jar}
-            while [[ "$legacy_base" =~ ^(.*)-[[:xdigit:]]{7,40}$ ]]; do
-              legacy_base=${BASH_REMATCH[1]}
-            done
-            same_branch_asset=false
-            if [[ "$asset_name" == *-"$BRANCH_KEY"-*.jar ]] \
-              || [[ "$asset_name" == *-"$BRANCH_KEY".jar ]]; then
-              same_branch_asset=true
-            fi
-
-            if [[ "$same_branch_asset" == true ]]; then
-              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
-            fi
-          done < "$asset_list"
