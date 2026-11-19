@@ -81,6 +81,8 @@ public class NetWorkHandler {
         registerClientbound(RemoteDeviceOpenPacket.class);
         registerServerbound(RemoteDeviceRequestPacket.class);
         registerServerbound(MajoBroomActionPacket.class);
+        registerServerbound(ProjectorPlanPacket.class);
+        registerServerbound(OpenProjectorPacket.class);
     }
 
     public static <T extends ClientboundPacket> void registerClientbound(Class<T> packet) {
