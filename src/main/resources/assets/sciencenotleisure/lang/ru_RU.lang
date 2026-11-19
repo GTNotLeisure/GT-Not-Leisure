@@ -1593,7 +1593,7 @@ gtnl.machine.steam_fusion_reactor.name=Реактор гипердавления
 gtnl.recipe.steam_fusion_reactor=Реактор высокого давления
 gtnl.machine.steam_fusion_reactor.metadata.requires_compact_reactor=Требуется компактный реактор гипердавления
 gtnl.machine.steam_fusion_reactor.recipe_type=Реактор высокого давления
-gtnl.machine.steam_fusion_reactor.error.requires_compact_reactor=Нужен компактный реактор гипердавления
+GT5U.gui.text.recipe_result.requires_steam_compact_reactor=Нужен компактный реактор гипердавления
 
 gtnl.machine.high_pressure_steam_fusion_reactor.name=Компактный реактор гипердавления
 gtnl.machine.high_pressure_steam_fusion_reactor.recipe_type=Реактор высокого давления
@@ -1953,7 +1953,7 @@ gtnl.machine.crystal_builder.recipe_type=Автоклав
 gtnl.machine.large_rock_crusher.name=Большая камнедробилка
 gtnl.recipe.industrial_rock_crusher=Промышленная камнедробилка
 gtnl.machine.large_rock_crusher.recipe_type=Каменная дробилка
-GT5U.gui.text.recipe_result.gtnl.crusher.invalid_selection=Для выбранного выхода нет рецепта
+GT5U.gui.text.recipe_result.crusher_invalid_selection=Для выбранного выхода нет рецепта
 
 gtnl.machine.phase_change_cube.name=Куб фазового перехода
 gtnl.machine.phase_change_cube.recipe_type=Экстрактор / Экстрактор жидкости / Отвердитель жидкости

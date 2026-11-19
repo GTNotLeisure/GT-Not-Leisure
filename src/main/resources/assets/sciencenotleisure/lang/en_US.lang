@@ -1593,7 +1593,7 @@ gtnl.machine.steam_fusion_reactor.name=Hyper Pressure Reactor
 gtnl.recipe.steam_fusion_reactor=High Pressure Reactor
 gtnl.machine.steam_fusion_reactor.metadata.requires_compact_reactor=Requires Compact Hyper Pressure Reactor
 gtnl.machine.steam_fusion_reactor.recipe_type=High Pressure Reactor
-gtnl.machine.steam_fusion_reactor.error.requires_compact_reactor=Need Compact Hyper Pressure Reactor
+GT5U.gui.text.recipe_result.requires_steam_compact_reactor=Need Compact Hyper Pressure Reactor
 
 gtnl.machine.high_pressure_steam_fusion_reactor.name=Compact Hyper Pressure Reactor
 gtnl.machine.high_pressure_steam_fusion_reactor.recipe_type=High Pressure Reactor
@@ -1953,7 +1953,7 @@ gtnl.machine.crystal_builder.recipe_type=Autoclave
 gtnl.machine.large_rock_crusher.name=Large Rock Crusher
 gtnl.recipe.industrial_rock_crusher=Industrial Rock Crusher
 gtnl.machine.large_rock_crusher.recipe_type=Rock Crusher
-GT5U.gui.text.recipe_result.gtnl.crusher.invalid_selection=The selected output has no recipe
+GT5U.gui.text.recipe_result.crusher_invalid_selection=The selected output has no recipe
 
 gtnl.machine.phase_change_cube.name=Phase Change Cube
 gtnl.machine.phase_change_cube.recipe_type=Extractor / Fluid Extractor / Fluid Solidifier
