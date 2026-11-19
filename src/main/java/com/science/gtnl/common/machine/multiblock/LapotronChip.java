@@ -52,11 +52,11 @@ public class LapotronChip extends MultiMachineBase<LapotronChip>
         () -> getGreenScreenVariants(),
         -1);
     private static final TieredCasing<Integer> FIRST_GLASS_CASING = new TieredCasing<>(
-        LapotronChip::getTierGlass1,
+        LapotronChip::getGlassTier,
         () -> getGlass(),
         -1);
     private static final TieredCasing<Integer> SECOND_GLASS_CASING = new TieredCasing<>(
-        LapotronChip::getTierGlass2,
+        LapotronChip::getGlassTier,
         () -> getGlass(),
         -1);
 
@@ -226,22 +226,12 @@ public class LapotronChip extends MultiMachineBase<LapotronChip>
 
     @Nullable
     public static Integer getLapisCaelestisTier(Block block, int meta) {
-        if (block == null) return null;
-        if (block == Block.getBlockFromName("ExtraUtilities:greenscreen")) return meta + 1;
-        return -1;
+        Block greenScreen = ExtraUtilitiesContent.greenScreen();
+        return block == (greenScreen == null ? Blocks.stained_glass : greenScreen) ? meta + 1 : null;
     }
 
     @Nullable
-    public static Integer getTierGlass1(Block block, int meta) {
-        if (block == null) return null;
-        if (block == Blocks.stained_glass) return meta + 1;
-        return -1;
-    }
-
-    @Nullable
-    public static Integer getTierGlass2(Block block, int meta) {
-        if (block == null) return null;
-        if (block == Blocks.stained_glass) return meta + 1;
-        return -1;
+    public static Integer getGlassTier(Block block, int meta) {
+        return block == Blocks.stained_glass ? meta + 1 : null;
     }
 }
