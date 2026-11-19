@@ -162,6 +162,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                 buildHatchAdder(GrandAssemblyLine.class).casingIndex(getCasingTextureID())
                     .hint(1)
                     .atLeast(
+                        HatchElement.Maintenance,
                         HatchElement.InputHatch,
                         HatchElement.InputBus,
                         HatchElement.OutputBus,
@@ -175,6 +176,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                 buildHatchAdder(GrandAssemblyLine.class).casingIndex(getCasingTextureID())
                     .hint(1)
                     .atLeast(
+                        HatchElement.Maintenance,
                         HatchElement.InputHatch,
                         HatchElement.InputBus,
                         HatchElement.OutputBus,
