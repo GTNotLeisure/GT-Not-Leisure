@@ -337,8 +337,8 @@ public class RecipeInputConflictResolver {
 
     private long atom(ItemStack stack) {
         long nbt = 0;
-        if (nbtSensitive && stack.hasTagCompound()) {
-            NBTTagCompound tag = stack.getTagCompound();
+        NBTTagCompound tag = stack.getTagCompound();
+        if (nbtSensitive && tag != null && !tag.hasNoTags()) {
             int id = nbtIds.getInt(tag);
             if (id == 0) {
                 id = nbtIds.size() + 1;
@@ -388,7 +388,7 @@ public class RecipeInputConflictResolver {
         return stack != null && stack.getItem() != null && GTUtility.isAnyIntegratedCircuit(stack);
     }
 
-    public final class EntryBuilder {
+    public class EntryBuilder {
 
         // slot << 32 | amount, sorted later so equal slots end up adjacent
         private final LongArrayList packed = new LongArrayList();
@@ -595,7 +595,7 @@ public class RecipeInputConflictResolver {
         }
     }
 
-    private static final class DuplicateKey {
+    private static class DuplicateKey {
 
         final Entry entry;
         final int hash;

@@ -29,6 +29,7 @@ import net.minecraftforge.fluids.FluidStack;
 import org.jetbrains.annotations.NotNull;
 
 import com.github.bsideup.jabel.Desugar;
+import com.gtnewhorizon.gtnhlib.util.ItemUtil;
 import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
@@ -65,7 +66,7 @@ import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.render.TextureFactory;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.AssemblyLineUtils;
-import gregtech.api.util.GTRecipe;
+import gregtech.api.util.GTRecipe.RecipeAssemblyLine;
 import gregtech.api.util.GTRecipeBuilder;
 import gregtech.api.util.GTUtility;
 import gregtech.api.util.IGTHatchAdder;
@@ -318,7 +319,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
     public CheckRecipeResult processRecipeLogic(List<IDualInputInventory> inputInventories, long energyEU,
         int maxParallel, int minDuration) {
         CheckRecipeResult failureResult = null;
-        ObjectList<GTRecipe.RecipeAssemblyLine> validRecipes = new ObjectArrayList<>();
+        ObjectList<RecipeAssemblyLine> validRecipes = new ObjectArrayList<>();
 
         if (AssemblyLineUtils.isItemDataStick(mInventory[1])) {
             validRecipes.addAll(AssemblyLineUtils.findALRecipeFromDataStick(mInventory[1]));
@@ -329,8 +330,8 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
         if (validRecipes.isEmpty()) return CheckRecipeResultRegistry.NO_DATA_STICKS;
 
         long minFilteredPower = Long.MAX_VALUE;
-        for (Iterator<GTRecipe.RecipeAssemblyLine> iterator = validRecipes.iterator(); iterator.hasNext();) {
-            GTRecipe.RecipeAssemblyLine recipe = iterator.next();
+        for (Iterator<RecipeAssemblyLine> iterator = validRecipes.iterator(); iterator.hasNext();) {
+            RecipeAssemblyLine recipe = iterator.next();
             if (recipe.mInputs == null || recipe.mFluidInputs == null || recipe.mOutput == null) {
                 iterator.remove();
                 continue;
@@ -352,10 +353,10 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
         BigInteger wirelessUserEU = wirelessMode ? WirelessNetworkManager.getUserEU(ownerUUID) : BigInteger.ZERO;
         List<RecipeTask> tasks = new ObjectArrayList<>();
         int remainingGlobalParallel = maxParallel;
-        long currentWiredInstantPower = 0; // 有线模式累计瞬时功率
-        BigInteger currentWirelessTotalEnergy = BigInteger.ZERO; // 无线模式累计消耗总量
+        long currentWiredInstantPower = 0; // Total instantaneous power in wired mode.
+        BigInteger currentWirelessTotalEnergy = BigInteger.ZERO; // Total energy consumed in wireless mode.
 
-        // 第一阶段：优先填满并行
+        // Fill the available parallel capacity before overclocking.
         for (IDualInputInventory inventory : inputInventories) {
             if (remainingGlobalParallel <= 0) break;
             ItemStack[] invItems = inventory.getItemInputs();
@@ -365,8 +366,8 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
             Object2LongOpenHashMap<ItemId> itemMap = getInventoryItemMap(invItems);
             Object2LongOpenHashMap<Fluid> fluidMap = getInventoryFluidMap(invFluids);
 
-            for (GTRecipe.RecipeAssemblyLine oldRecipe : validRecipes) {
-                GTRecipe.RecipeAssemblyLine recipe = copyRecipe(oldRecipe);
+            for (RecipeAssemblyLine oldRecipe : validRecipes) {
+                RecipeAssemblyLine recipe = copyRecipe(oldRecipe);
                 int circuit = specialRecipe.get(oldRecipe.getPersistentHash());
                 if (circuit > 0) {
                     ItemStack[] inputsArray = recipe.mInputs;
@@ -423,7 +424,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                     continue;
                 }
 
-                // 溢出保护检查
+                // Check output overflow protection.
                 if (protectsExcessItem()) {
                     List<ItemStack> pred = new ObjectArrayList<>();
                     ItemStack out = recipe.mOutput.copy();
@@ -462,13 +463,13 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
             return CheckRecipeResultRegistry.NO_RECIPE;
         }
 
-        // 第二阶段：尝试超频
+        // Overclock each scheduled recipe.
         int overclockFactor = getPerfectOC() ? 4 : 2;
 
         for (RecipeTask task : tasks) {
             BigInteger taskParallelBI = BigInteger.valueOf(task.parallel);
             if (wirelessMode) {
-                // 无线模式：基于总量进行超频，尽量压到 minDuration
+                // Overclock within the wireless energy budget toward minDuration.
                 BigInteger currentTaskTotal = GrandAssemblyLineOverclockTool
                     .getTotalEnergy(task.adjustedPower, task.adjustedTime, task.parallel);
                 BigInteger otherTasksEnergy = currentWirelessTotalEnergy.subtract(currentTaskTotal);
@@ -486,7 +487,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                     GrandAssemblyLineOverclockTool
                         .getTotalEnergy(task.adjustedPower, task.adjustedTime, task.parallel));
             } else {
-                // 有线模式：基于瞬时功率进行超频
+                // Overclock within the available instantaneous wired power.
                 long availableInstant = energyEU - (currentWiredInstantPower - (task.adjustedPower * task.parallel));
                 final GrandAssemblyLineOverclockTool.Result overclock = GrandAssemblyLineOverclockTool
                     .applyWiredOverclock(
@@ -501,7 +502,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                 currentWiredInstantPower += overclock.addedInstantPower();
             }
 
-            // 批处理逻辑：在功率限制内延长至 128t
+            // Extend batches to 128 ticks within the power budget.
             if (task.adjustedTime < 128 && batchMode) {
                 BigInteger extendedPower = BigInteger.valueOf(task.adjustedPower)
                     .multiply(BigInteger.valueOf(128))
@@ -509,7 +510,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
                 if (extendedPower.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) continue;
                 long extendedPowerLong = extendedPower.longValueExact();
                 if (wirelessMode) {
-                    // 无线模式只需检查余额
+                    // Check the remaining wireless energy balance.
                     BigInteger currentTotal = GrandAssemblyLineOverclockTool
                         .getTotalEnergy(task.adjustedPower, task.adjustedTime, task.parallel);
                     BigInteger extendedTotal = GrandAssemblyLineOverclockTool
@@ -536,7 +537,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
             task.adjustedTime = Math.max(1, task.adjustedTime);
         }
 
-        // 最终结算
+        // Settle the total outputs, energy and duration.
         List<ItemStack> totalOutputs = new ObjectArrayList<>();
 
         GrandAssemblyLineOverclockTool.EnergyTotals totals = new GrandAssemblyLineOverclockTool.EnergyTotals();
@@ -582,8 +583,11 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
         for (ItemStack is : inputs) {
             if (is == null || is.stackSize < 0) continue;
 
-            itemMap.merge(ItemId.createNoCopy(is), is.stackSize, Long::sum);
-            itemMap.merge(ItemId.createAsWildcard(is), is.stackSize, Long::sum);
+            itemMap.merge(getIngredientKey(is), is.stackSize, Long::sum);
+            itemMap.merge(
+                ItemId.createNoCopy(is.getItem(), GTRecipeBuilder.WILDCARD, getIngredientTag(is)),
+                is.stackSize,
+                Long::sum);
         }
         return itemMap;
     }
@@ -599,7 +603,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
     }
 
     public static ItemConsumptionPlan createItemConsumptionPlan(Object2LongOpenHashMap<ItemId> availableMap,
-        int maxParallel, GTRecipe.RecipeAssemblyLine recipe) {
+        int maxParallel, RecipeAssemblyLine recipe) {
         if (recipe.mInputs == null || recipe.mInputs.length == 0) return ItemConsumptionPlan.empty();
 
         double currentParallel = maxParallel;
@@ -630,7 +634,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
         return new ItemConsumptionPlan(requirements, currentParallel);
     }
 
-    public static ItemStack[] getOreDictAlternatives(GTRecipe.RecipeAssemblyLine recipe, int index) {
+    public static ItemStack[] getOreDictAlternatives(RecipeAssemblyLine recipe, int index) {
         if (recipe.mOreDictAlt == null || index >= recipe.mOreDictAlt.length) return null;
         return recipe.mOreDictAlt[index];
     }
@@ -680,8 +684,14 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
     }
 
     public static ItemId getIngredientKey(ItemStack ingredient) {
-        return ingredient.getItemDamage() == GTRecipeBuilder.WILDCARD ? ItemId.createAsWildcard(ingredient)
-            : ItemId.createNoCopy(ingredient);
+        return ItemId
+            .createNoCopy(ingredient.getItem(), ItemUtil.getStackMeta(ingredient), getIngredientTag(ingredient));
+    }
+
+    private static NBTTagCompound getIngredientTag(ItemStack ingredient) {
+        NBTTagCompound tag = ingredient.getTagCompound();
+        // Empty compounds carry no ingredient data and must match stacks without NBT.
+        return tag == null || tag.hasNoTags() ? null : tag;
     }
 
     public static double calculateParallelByFluidsUnordered(Object2LongOpenHashMap<Fluid> availableMap,
@@ -743,15 +753,15 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
             return false;
         }
 
-        NBTTagCompound tag1 = stack1.getTagCompound();
+        NBTTagCompound tag1 = getIngredientTag(stack1);
 
         if (tag1 == null) return true;
 
-        NBTTagCompound tag2 = stack2.getTagCompound();
+        NBTTagCompound tag2 = getIngredientTag(stack2);
         return tag1.equals(tag2);
     }
 
-    public void consumeFluidsUnordered(GTRecipe.RecipeAssemblyLine recipe, int parallel, FluidStack[] invFluids) {
+    public void consumeFluidsUnordered(RecipeAssemblyLine recipe, int parallel, FluidStack[] invFluids) {
         if (recipe.mFluidInputs == null || invFluids == null) return;
 
         for (FluidStack recipeFluid : recipe.mFluidInputs) {
@@ -771,7 +781,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
         }
     }
 
-    public static GTRecipe.RecipeAssemblyLine copyRecipe(GTRecipe.RecipeAssemblyLine original) {
+    public static RecipeAssemblyLine copyRecipe(RecipeAssemblyLine original) {
         if (original == null) return null;
 
         ItemStack[] inputsCopy = new ItemStack[original.mInputs.length];
@@ -809,7 +819,7 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
             }
         }
 
-        GTRecipe.RecipeAssemblyLine copy = new GTRecipe.RecipeAssemblyLine(
+        RecipeAssemblyLine copy = new RecipeAssemblyLine(
             original.mResearchItem != null ? original.mResearchItem.copy() : null,
             original.mResearchTime,
             original.mResearchVoltage,
@@ -1089,12 +1099,12 @@ public class GrandAssemblyLine extends GTMMultiMachineBase<GrandAssemblyLine> im
 
     public static class RecipeTask {
 
-        public GTRecipe.RecipeAssemblyLine recipe;
+        public RecipeAssemblyLine recipe;
         public int parallel;
         public int adjustedTime;
         public long adjustedPower;
 
-        RecipeTask(GTRecipe.RecipeAssemblyLine r, int p) {
+        RecipeTask(RecipeAssemblyLine r, int p) {
             this.recipe = r;
             this.parallel = p;
             this.adjustedTime = r.mDuration;
