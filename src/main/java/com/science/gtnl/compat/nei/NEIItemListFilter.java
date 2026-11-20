@@ -2,11 +2,12 @@ package com.science.gtnl.compat.nei;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Map;
 
 import net.minecraft.item.ItemStack;
 
-import com.science.gtnl.mixins.late.notEnoughItems.AccessorItemList;
+import com.science.gtnl.mixins.late.notEnoughItems.AccessorItemListLoader;
 
 import codechicken.nei.ItemList;
 import codechicken.nei.ItemPanel;
@@ -17,16 +18,19 @@ import codechicken.nei.api.ItemFilter;
 public class NEIItemListFilter {
 
     public static void filter(RestartableTask task) {
-        if (!ItemList.loadFinished) return;
+        if (!ItemList.loadFinished || task.interrupted()) return;
 
+        List<ItemStack> items = ItemList.items;
+        Map<ItemStack, Integer> ordering = AccessorItemListLoader.getOrdering();
         ItemFilter filter = ItemList.getItemListFilter();
-        ArrayList<ItemStack> filtered;
+        ArrayList<ItemStack> filtered = new ArrayList<>();
 
         try {
             // NEI worker threads can race legacy class resolution on newer JVMs.
-            filtered = ItemList.items.stream()
-                .filter(filter::matches)
-                .collect(Collectors.toCollection(ArrayList::new));
+            for (ItemStack item : items) {
+                if (task.interrupted()) return;
+                if (filter.matches(item)) filtered.add(item);
+            }
         } catch (RuntimeException exception) {
             NEIClientConfig.logger.error("Exception filtering item list sequentially", exception);
             task.stop();
@@ -37,10 +41,8 @@ public class NEIItemListFilter {
             return;
         }
 
-        filtered.sort(
-            Comparator.comparingInt(
-                a -> AccessorItemList.getItems()
-                    .indexOf(a)));
+        // NEI assigns the same ordering index to items in a collapsible group.
+        filtered.sort(Comparator.comparingInt(ordering::get));
 
         if (task.interrupted()) {
             return;

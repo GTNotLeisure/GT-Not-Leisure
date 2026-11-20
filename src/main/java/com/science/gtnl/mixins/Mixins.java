@@ -321,7 +321,7 @@ public enum Mixins implements IMixins {
         .addRequiredMod(ModList.NotEnoughEnergistics)),
 
     NOT_ENOUGH_ITEMS(new MixinBuilder("Not Enough Items stability mixins")
-        .addClientMixins("notEnoughItems.AccessorItemList", "notEnoughItems.MixinItemListUpdateFilter")
+        .addClientMixins("notEnoughItems.AccessorItemListLoader", "notEnoughItems.MixinItemListUpdateFilter")
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.NotEnoughItems)),
 
