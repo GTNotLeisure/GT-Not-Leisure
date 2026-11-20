@@ -56,7 +56,8 @@ public class ProjectorMachineTab {
     }
 
     public Flow build() {
-        machineSlot.filter(this::acceptsController)
+        machineSlot.clearable(false)
+            .filter(this::acceptsController)
             .onChange(item -> gui.selectMachine(ProjectorMachines.supportedIdOf(item.toStack())));
         showMachine();
         TextFieldWidget field = new TextFieldWidget().setMaxLength(64)

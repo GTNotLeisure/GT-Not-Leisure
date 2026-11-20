@@ -127,7 +127,7 @@ public class EquipmentSoundScreen extends ModularScreen {
                     .range(0, 1, STEPS)
                     .milestones(MILESTONE_EVERY)
                     .format(value -> Math.round(value * 100) + "%")
-                    .activeWhen(() -> channel.enabled && audible.getAsBoolean())
+                    .available(() -> channel.enabled && audible.getAsBoolean())
                     .tagWidth(TAG_WIDTH)
 
                     .onRelease(EquipmentSoundConfig::save)));

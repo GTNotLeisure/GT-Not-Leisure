@@ -31,7 +31,6 @@ import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widget.Widget;
-import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnllib.gui.theme.AE2Theme;
@@ -42,6 +41,7 @@ import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.IconRowList;
 import com.gtnllib.gui.widget.IconRowList.Row;
 import com.gtnllib.gui.widget.ListRow;
+import com.gtnllib.gui.widget.PageTabs;
 import com.gtnllib.gui.widget.VerticalButtonBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.ScreenThemes;
@@ -258,22 +258,12 @@ public class ProjectorGui extends ModularPanel {
     }
 
     private void buildTabs() {
+        PageTabs tabs = new PageTabs(() -> page, index -> page = index);
         for (int i = 0; i < TAB_ICONS.length; i++) {
             int index = i;
-            ButtonWidget<?> tab = new ButtonWidget<>();
-            IDrawable look = AE2Theme.pageTab(tab, () -> TAB_ICONS[index], () -> page == index);
-            child(
-                tab.background(look)
-                    .hoverBackground(look)
-                    .disableHoverThemeBackground(true)
-                    .pos(WIDTH - BODY_RIGHT - AE2Theme.PAGE_TAB_INSET, TABS_TOP + i * AE2Theme.PAGE_TAB_PITCH)
-                    .size(AE2Theme.PAGE_TAB_SIZE, AE2Theme.PAGE_TAB_SIZE)
-                    .tooltipBuilder(tooltip -> tooltip.addLine(StatCollector.translateToLocal(LANG + TAB_NAMES[index])))
-                    .onMousePressed(mouse -> {
-                        page = index;
-                        return true;
-                    }));
+            tabs.tab(() -> TAB_ICONS[index], () -> StatCollector.translateToLocal(LANG + TAB_NAMES[index]));
         }
+        child(tabs.pos(WIDTH - BODY_RIGHT - AE2Theme.PAGE_TAB_INSET, TABS_TOP));
     }
 
     private IWidget toolbar() {
