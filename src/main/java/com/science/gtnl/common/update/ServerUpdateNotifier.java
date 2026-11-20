@@ -6,11 +6,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.event.ClickEvent;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.util.ChatStyle;
-import net.minecraft.util.EnumChatFormatting;
 
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.config.MessageConfig;
@@ -20,7 +16,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 
-public final class ServerUpdateNotifier {
+public class ServerUpdateNotifier {
 
     private static ServerUpdateNotifier instance;
     private final MinecraftServer server;
@@ -98,9 +94,6 @@ public final class ServerUpdateNotifier {
             return;
         }
         player.addChatMessage(
-            new ChatComponentTranslation("gtnl.update.available", UpdateChecker.currentVersion(), result.version)
-                .setChatStyle(
-                    new ChatStyle().setColor(EnumChatFormatting.YELLOW)
-                        .setChatClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, result.downloadUrl()))));
+            new UpdateNotice(UpdateChecker.currentVersion(), result.version).toChatMessage(result.downloadUrl()));
     }
 }
