@@ -58,11 +58,6 @@ import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gtnhintergalactic.tile.multi.elevator.TileEntitySpaceElevator;
 import gtnhintergalactic.tile.multi.elevatormodules.TileEntityModuleBase;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import micdoodle8.mods.galacticraft.core.util.GCCoreUtil;
-import tectech.thing.metaTileEntity.multi.base.INameFunction;
-import tectech.thing.metaTileEntity.multi.base.IStatusFunction;
-import tectech.thing.metaTileEntity.multi.base.LedStatus;
-import tectech.thing.metaTileEntity.multi.base.Parameters;
 import tectech.thing.metaTileEntity.multi.base.TTMultiblockBase;
 import tectech.thing.metaTileEntity.multi.base.render.TTRenderedExtendedFacingTexture;
 
@@ -70,10 +65,6 @@ import tectech.thing.metaTileEntity.multi.base.render.TTRenderedExtendedFacingTe
 @IMetaTileEntity.SkipGenerateName
 public class ResourceCollectionModule extends TileEntityModuleBase {
 
-    private static final INameFunction<ResourceCollectionModule> PARALLEL_SETTING_NAME = (base, p) -> GCCoreUtil
-        .translate("gt.blockmachines.multimachine.project.ig.assembler.cfgi.0");
-    private static final IStatusFunction<ResourceCollectionModule> PARALLEL_STATUS = (base, p) -> LedStatus
-        .fromLimitsInclusiveOuterBoundary(p.get(), 0, 1, 100, base.getMaxParallelRecipes());
     private static final int MACHINEMODE_MINER = 0;
     private static final int MACHINEMODE_DRILL = 1;
     private static final String STRUCTURE_PIECE_MAIN = "main";
@@ -92,7 +83,6 @@ public class ResourceCollectionModule extends TileEntityModuleBase {
     private long processingLogicEU;
     private int mParallelTier;
 
-    public Parameters.Group.ParameterIn parallelSetting;
     public ObjectArrayList<ParallelControllerHatch> mParallelControllerHatches = new ObjectArrayList<>();
 
     public ResourceCollectionModule(int aID, String aName, String aNameRegional) {
@@ -203,10 +193,11 @@ public class ResourceCollectionModule extends TileEntityModuleBase {
     public void setProcessingLogicPower(ProcessingLogic logic) {
         long recipePower = processingLogicEU <= 0 ? Integer.MAX_VALUE : processingLogicEU;
         logic.setAvailableVoltage(recipePower);
-        logic.setAvailableAmperage((long) parallelSetting.get());
+        logic.setAvailableAmperage(getTrueParallel());
         logic.setAmperageOC(false);
     }
 
+    @Override
     public int getMaxParallelRecipes() {
         if (mParallelControllerHatches != null) {
             for (ParallelControllerHatch module : GTUtility.filterValidMTEs(mParallelControllerHatches)) {
@@ -279,14 +270,19 @@ public class ResourceCollectionModule extends TileEntityModuleBase {
                     .setEUtDiscount(1.0D - (mParallelTier / 50.0D))
                     .setDurationModifier(1.0D - (Math.max(0, mParallelTier - 1) / 50.0D));
             }
-        }.setMaxParallelSupplier(() -> Math.min((int) parallelSetting.get(), getMaxParallelRecipes()));
+        }.setMaxParallelSupplier(this::getTrueParallel);
     }
 
     @Override
-    public void parametersInstantiation_EM() {
-        super.parametersInstantiation_EM();
-        Parameters.Group hatch_0 = parametrization.getGroup(0, false);
-        parallelSetting = hatch_0.makeInParameter(0, getMaxParallelRecipes(), PARALLEL_SETTING_NAME, PARALLEL_STATUS);
+    public void setPowerPanelMaxParallel(int parallel) {
+        super.setPowerPanelMaxParallel(parallel);
+        scheduleRecipeCheckImmediate();
+    }
+
+    @Override
+    public void setAlwaysMaxParallel(boolean alwaysMaxParallel) {
+        super.setAlwaysMaxParallel(alwaysMaxParallel);
+        scheduleRecipeCheckImmediate();
     }
 
     @Override
