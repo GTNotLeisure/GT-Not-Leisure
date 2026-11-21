@@ -37,7 +37,6 @@ import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.GTNLListWidget;
 import com.gtnllib.gui.widget.HandleScrollData;
 import com.gtnllib.gui.widget.IconButton;
-import com.gtnllib.gui.widget.ThemedButton;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceGroup;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceView;
 import com.science.gtnl.client.wireless.WirelessCardClientView.Section;
@@ -267,7 +266,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         return group == null ? null : Target.row(group.header());
     }
 
-    private ThemedButton renameButton() {
+    private AE2Button renameButton() {
         return new AE2Button(
             () -> StatCollector.translateToLocal("selectWorld.rename"),
             () -> owner.openRename(renameTarget())).size(RENAME_WIDTH, NAME_HEIGHT)
@@ -278,7 +277,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         return row.getBoolean("group") ? "devices.rename_group" : "devices.rename_cluster";
     }
 
-    private ThemedButton modeButton(int mode) {
+    private AE2Button modeButton(int mode) {
         BooleanSupplier selected = () -> !devices.isEmpty() && devices.stream()
             .allMatch(
                 device -> owner.clientView()
@@ -300,7 +299,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
             .tooltipAutoUpdate(true);
     }
 
-    private static ThemedButton iconButton(AE2Icon icon, BooleanSupplier available, Runnable action,
+    private static IconButton iconButton(AE2Icon icon, BooleanSupplier available, Runnable action,
         Consumer<RichTooltip> tooltip) {
         return new IconButton(() -> icon, action).available(available)
             .size(BUTTON_SIZE, BUTTON_SIZE)

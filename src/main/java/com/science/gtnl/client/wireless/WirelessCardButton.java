@@ -31,8 +31,8 @@ import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.value.BoolValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
-import com.gtnllib.gui.theme.ae2.AE2Buttons;
-import com.gtnllib.gui.theme.ae2.AE2Checkboxes;
+import com.gtnllib.gui.theme.ae2.AE2ButtonPainter;
+import com.gtnllib.gui.theme.ae2.AE2CheckboxPainter;
 import com.gtnllib.gui.theme.ae2.AE2Icon;
 import com.gtnllib.gui.widget.IconButton;
 import com.gtnllib.gui.widget.TabButton;
@@ -70,8 +70,8 @@ public class WirelessCardButton {
                 }
             };
             IDrawable look = id == TOGGLE_AUTO
-                ? AE2Checkboxes.checkbox(toggle, () -> on, () -> tr("auto_connect"), () -> available)
-                : AE2Buttons.iconButton(toggle, () -> on ? AE2Icon.PAUSE : AE2Icon.PLAY, () -> available);
+                ? AE2CheckboxPainter.checkbox(toggle, () -> on, () -> tr("auto_connect"), () -> available)
+                : AE2ButtonPainter.iconButton(toggle, () -> on ? AE2Icon.PAUSE : AE2Icon.PLAY, () -> available);
             widget = toggle.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
                 .background(false, IDrawable.EMPTY)
                 .background(true, IDrawable.EMPTY)
@@ -82,25 +82,25 @@ public class WirelessCardButton {
         } else {
             BooleanSupplier usable = () -> available;
             Runnable click = () -> panel.action(id);
-            ThemedButton button = switch (actionType) {
+            ThemedButton<?> button = switch (actionType) {
                 case OPEN_DETAILS, TOGGLE_GROUPING -> plain(usable, click);
                 case TELEPORT -> new IconButton(() -> AE2Icon.MOVE_TO, click);
                 case HIGHLIGHT -> new IconButton(() -> AE2Icon.VISIBLE, click);
                 case OPEN_DEVICE -> new IconButton(() -> AE2Icon.GEAR, click);
                 case OPEN_RENAME -> new IconButton(() -> AE2Icon.EDIT, click);
                 case REFRESH -> new TabButton(() -> AE2Icon.REFRESH, click);
-                default -> new ThemedButton().action(click);
+                default -> new ThemedButton<>().action(click);
             };
             if (actionType == TOGGLE_GROUPING)
-                button.overlay(AE2Checkboxes.checkbox(button, () -> on, () -> tr("merge_types"), usable));
+                button.overlay(AE2CheckboxPainter.checkbox(button, () -> on, () -> tr("merge_types"), usable));
             widget = button.available(usable);
         }
         if (isRowAction(id) || id == TOGGLE_GROUPING || id == REFRESH) widget.tooltipBuilder(this::tooltip)
             .tooltipAutoUpdate(true);
     }
 
-    public static ThemedButton plain(BooleanSupplier available, Runnable action) {
-        return new ThemedButton().action(action)
+    public static ThemedButton<?> plain(BooleanSupplier available, Runnable action) {
+        return new ThemedButton<>().action(action)
             .available(available)
             .background(IDrawable.EMPTY)
             .hoverBackground(IDrawable.EMPTY);

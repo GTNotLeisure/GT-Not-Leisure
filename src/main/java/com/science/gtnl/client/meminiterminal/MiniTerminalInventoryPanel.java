@@ -45,7 +45,8 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ae2.AE2Legacy;
-import com.gtnllib.gui.theme.ae2.AE2Scrollbars;
+import com.gtnllib.gui.theme.ae2.AE2Look;
+import com.gtnllib.gui.theme.ae2.AE2ScrollbarPainter;
 import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.science.gtnl.client.floatingwindow.FloatingWindowPanel;
 import com.science.gtnl.common.gui.ScreenThemes;
@@ -796,7 +797,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             boolean active = model.isDisplayOnline() && maximum > 0;
 
             int offset = active ? scrollbar.getCurrentScroll() * (scrollbar.getHeight() - 15) / maximum : 0;
-            if (skin != null) AE2Scrollbars.drawSmallScrollbar(
+            if (skin != null) AE2ScrollbarPainter.drawSmallScrollbar(
                 skin.variant,
                 scrollbar.getLeft(),
                 scrollbar.getTop() - 1,
@@ -1027,8 +1028,8 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private Skin(AE2Variant variant) {
             this.variant = variant;
-            states = AE2Legacy.legacyStates(variant);
-            terminal = AE2Legacy.legacyTerminal(variant);
+            states = AE2Legacy.legacyStates(AE2Look.of(variant));
+            terminal = AE2Legacy.legacyTerminal(AE2Look.of(variant));
         }
 
         public static @Nullable Skin current() {
@@ -1048,7 +1049,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         public void button(ResourceLocation texture, IIcon icon, boolean enabled, int x, int y) {
             frame(enabled, x, y);
             GuiDraw.drawTexture(
-                AE2Legacy.legacyStates(null)
+                AE2Legacy.legacyStates(AE2Look.plain())
                     .equals(texture) ? states : texture,
                 x,
                 y,
@@ -1063,7 +1064,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         }
 
         public void cell(int index, float x, float y, float size) {
-            AE2Legacy.drawLegacyState(variant, index, x, y, size);
+            AE2Legacy.drawLegacyState(AE2Look.of(variant), index, x, y, size);
         }
 
         public void closeEdges(VirtualMESlot[] slots) {

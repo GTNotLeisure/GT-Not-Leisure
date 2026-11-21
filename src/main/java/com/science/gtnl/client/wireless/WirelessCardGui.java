@@ -62,11 +62,11 @@ import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ae2.AE2ButtonDrawable;
-import com.gtnllib.gui.theme.ae2.AE2Buttons;
-import com.gtnllib.gui.theme.ae2.AE2Checkboxes;
+import com.gtnllib.gui.theme.ae2.AE2ButtonPainter;
+import com.gtnllib.gui.theme.ae2.AE2CheckboxPainter;
 import com.gtnllib.gui.theme.ae2.AE2Colors;
 import com.gtnllib.gui.theme.ae2.AE2Legacy;
-import com.gtnllib.gui.theme.ae2.AE2Scrollbars;
+import com.gtnllib.gui.theme.ae2.AE2Look;
 import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.gtnllib.gui.theme.ae2.ButtonText;
 import com.gtnllib.gui.widget.CycleDropdown;
@@ -139,7 +139,8 @@ public class WirelessCardGui extends ModularPanel {
         highlightTop = variant == null ? PLAIN_HIGHLIGHT_TOP : variant.highlightTop,
         highlightShadow = variant == null ? PLAIN_HIGHLIGHT_SHADOW : variant.highlightShadow,
         highlightTree = lightSelection ? variant.highlightShadow : highlightPalette.tree;
-    private final int scrollWidth = AE2Scrollbars.scrollbarWidth(variant), scrollSpace = scrollWidth + SCROLL_GAP;
+    private final int scrollWidth = AE2Look.of(variant)
+        .scrollbarWidth(), scrollSpace = scrollWidth + SCROLL_GAP;
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
     private final List<ButtonWidget<?>> chips = new ObjectArrayList<>();
@@ -237,8 +238,8 @@ public class WirelessCardGui extends ModularPanel {
                 .child(
                     new FooterInfo().expanded()
                         .height(AE2Theme.BUTTON_HEIGHT))
-                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.SWITCH_HEIGHT))
-                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.SWITCH_HEIGHT))
+                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.CHECKBOX_HEIGHT))
+                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.CHECKBOX_HEIGHT))
                 .child(visualisation.size(layout.visualisationWidth(), AE2Theme.BUTTON_HEIGHT))
                 .child(button(REFRESH).size(AE2Theme.BUTTON_HEIGHT, AE2Theme.BUTTON_HEIGHT)));
         child(notice);
@@ -421,7 +422,8 @@ public class WirelessCardGui extends ModularPanel {
         boolean available = chipAvailable(index);
         AE2ButtonDrawable.State state = AE2ButtonDrawable.State
             .of(chip, available, clientView().state() == CHIP_STATES[index]);
-        ButtonText style = AE2Buttons.buttonText(context, state, height);
+        ButtonText style = AE2Look.of(chip)
+            .buttonText(state, height);
         String count = Integer.toString(chipCount(index));
         int countWidth = fontRendererObj.getStringWidth(count), textY = y + style.y();
         String label = fontRendererObj
@@ -437,7 +439,7 @@ public class WirelessCardGui extends ModularPanel {
 
     private CycleDropdown<Integer> choice(String name, Supplier<String> label, IntFunction<String> option) {
         CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class).wheel(true);
-        IDrawable background = AE2Buttons.button(choice, () -> true, () -> false);
+        IDrawable background = AE2ButtonPainter.button(choice, () -> true, () -> false);
         return choice.optionToWidget(
             (value, selected) -> selected ? IDrawable.EMPTY.asWidget()
                 .size(0, 0) : optionWidget(option.apply(value)))
@@ -459,7 +461,8 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void drawChoice(String label, Widget<?> choice, GuiContext context, int x, int y, int width, int height) {
-        ButtonText style = AE2Buttons.buttonText(context, AE2ButtonDrawable.State.of(choice, true, false), height);
+        ButtonText style = AE2Look.of(choice)
+            .buttonText(AE2ButtonDrawable.State.of(choice, true, false), height);
         int textY = y + style.y();
         drawText(
             fontRendererObj.trimStringToWidth(label, Math.max(0, width - 16)),
@@ -646,11 +649,11 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private int autoWidth() {
-        return AE2Checkboxes.checkboxWidth(tr("auto_connect"));
+        return AE2CheckboxPainter.checkboxWidth(tr("auto_connect"));
     }
 
     private int mergeWidth() {
-        return AE2Checkboxes.checkboxWidth(tr("merge_types"));
+        return AE2CheckboxPainter.checkboxWidth(tr("merge_types"));
     }
 
     private String layoutKey() {
@@ -900,7 +903,12 @@ public class WirelessCardGui extends ModularPanel {
 
     void drawArrow(boolean expanded, int x, int y) {
         GL11.glColor4f(1, 1, 1, 1);
-        AE2Legacy.drawLegacyState(variant, expanded ? ARROW_DOWN : ARROW_RIGHT, x, y, WirelessCardTreeRows.ARROW_SIZE);
+        AE2Legacy.drawLegacyState(
+            AE2Look.of(variant),
+            expanded ? ARROW_DOWN : ARROW_RIGHT,
+            x,
+            y,
+            WirelessCardTreeRows.ARROW_SIZE);
         Platform.setupDrawFont();
     }
 
