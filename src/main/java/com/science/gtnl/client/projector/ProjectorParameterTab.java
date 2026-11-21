@@ -33,7 +33,6 @@ import com.science.gtnl.common.projector.ProjectorStructure;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import gregtech.api.enums.GTValues;
 
 @SideOnly(Side.CLIENT)
 public class ProjectorParameterTab {
@@ -100,8 +99,11 @@ public class ProjectorParameterTab {
     private CycleDropdown<Integer> hatchTierDropdown() {
         List<Integer> tiers = new ArrayList<>();
         for (int tier = 0; tier <= ProjectorPlan.MAX_HATCH_TIER; tier++) tiers.add(tier);
-        return new CycleDropdown<>(MENU + "hatch_tier", Integer.class).choices(tiers)
-            .optionToWidget((tier, forShown) -> CycleDropdown.iconOption(null, tier == null ? "" : GTValues.VN[tier]))
+        return new CycleDropdown<>(MENU + "hatch_tier", Integer.class).wheel(true)
+            .choices(tiers)
+            .optionToWidget(
+                (tier, forShown) -> CycleDropdown
+                    .iconOption(null, tier == null ? "" : ProjectorHatchPage.coloredTier(tier), Alignment.Center))
             .value(new ObjectValue.Dynamic<>(Integer.class, () -> working.hatchTier, tier -> working.hatchTier = tier))
             .size(CONTROL, SMALL);
     }
@@ -144,6 +146,7 @@ public class ProjectorParameterTab {
             choices.addAll(tiers.keySet());
             String fallback = StatCollector.translateToLocal(LANG + "channel_default");
             control = new CycleDropdown<>(MENU + "channel_" + Math.min(index, CHANNEL_MENUS - 1), Integer.class)
+                .wheel(true)
                 .choices(choices)
                 .optionToWidget(
                     (value, forShown) -> value == null || value == 0 ? CycleDropdown.iconOption(null, fallback)
@@ -161,7 +164,9 @@ public class ProjectorParameterTab {
     }
 
     private static NumberEntry entry(long min, long max, long reset, LongSupplier current, LongConsumer set) {
-        return new NumberEntry(null).bounds(min, max)
+        return new NumberEntry(null).wheel(true)
+            .bounds(min, max)
+            .textAlignment(Alignment.Center)
             .resetValue(reset)
             .follow(current)
             .onChange(set)

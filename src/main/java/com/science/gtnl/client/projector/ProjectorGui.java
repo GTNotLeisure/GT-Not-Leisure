@@ -524,7 +524,8 @@ public class ProjectorGui extends ModularPanel {
         return new Widget<>().size(AE2Theme.ICON_SIZE, AE2Theme.ICON_SIZE)
             .top(STATUS_INSET)
             .right(STATUS_INSET)
-            .background(look)
+            // Sibling backgrounds are all drawn before the preview, which would paint over this one.
+            .overlay(look)
             .disableThemeBackground(true)
             .disableHoverThemeBackground(true)
             .tooltipAutoUpdate(true)

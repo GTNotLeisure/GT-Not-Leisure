@@ -38,6 +38,7 @@ import gregtech.api.metatileentity.implementations.MTEHatchMuffler;
 import gregtech.api.metatileentity.implementations.MTEHatchOutput;
 import gregtech.api.metatileentity.implementations.MTEHatchOutputBus;
 import gregtech.api.metatileentity.implementations.MTETieredMachineBlock;
+import gregtech.common.tileentities.machines.IDualInputHatch;
 import gregtech.common.tileentities.machines.MTEHatchPatternProvider;
 import gregtech.common.tileentities.machines.multi.MTEIndustrialChisel;
 import gregtech.common.tileentities.machines.multi.MTEIndustrialExtruder;
@@ -54,7 +55,9 @@ import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.MTEHatch
 import gtPlusPlus.xmod.gregtech.api.metatileentity.implementations.base.MTESteamMultiBlockBase;
 import gtPlusPlus.xmod.gregtech.common.tileentities.machines.multi.processing.MTEIndustrialChiselLegacy;
 import gtPlusPlus.xmod.gregtech.common.tileentities.machines.multi.production.turbines.MTELargerTurbineBaseLegacy;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import kubatech.tileentity.gregtech.hatch.MTEHatchElectrode;
 import kubatech.tileentity.gregtech.multiblock.MTEIndustrialArcFurnace;
 import tectech.thing.metaTileEntity.hatch.MTEHatchCreativeData;
@@ -92,8 +95,11 @@ public class ProjectorMachines {
     private static final Class<?>[] CREATIVE = { MTEHatchInputDebug.class, MTEHatchInputBusDebug.class,
         MTEHatchEnergyDebug.class, MTEHatchCustomFluidBaseDebug.class, DebugEnergyHatch.class,
         MTEHatchCreativeData.class, MTEHatchCreativeUncertainty.class, MTEHatchDebugDataAccess.class };
+    private static final HatchElement[] SERIES_KINDS = { HatchElement.InputBus, HatchElement.OutputBus,
+        HatchElement.InputHatch, HatchElement.OutputHatch };
     private static int[] supported, hatches;
     private static byte[] kinds;
+    private static Int2ObjectOpenHashMap<String> series;
     private static Map<String, HatchElement> kindsByKey;
 
     private ProjectorMachines() {}
@@ -115,6 +121,11 @@ public class ProjectorMachines {
             matched = true;
         }
         return !matched && !spotKinds.isEmpty();
+    }
+
+    public static boolean isCreative(int id) {
+        IMetaTileEntity prototype = prototype(id);
+        return prototype != null && isAny(prototype, CREATIVE);
     }
 
     private static boolean isSpecial(Class<?> type) {
@@ -201,6 +212,42 @@ public class ProjectorMachines {
             hatches = ids.toIntArray();
         }
         return hatches;
+    }
+
+    // GT names the steps of one series differently, such as compressed and quantum buses or basic and advanced
+    // stocking buses; two hatches of one class at the same tier are different products instead.
+    public static String seriesOf(int id) {
+        return series().get(id);
+    }
+
+    private static synchronized Int2ObjectOpenHashMap<String> series() {
+        if (series == null) {
+            Map<String, IntArrayList> byKey = new HashMap<>();
+            for (int id : hatches()) {
+                if (!Arrays.asList(SERIES_KINDS)
+                    .contains(kindOf(id)) || isCreative(id)) continue;
+                byKey.computeIfAbsent(seriesKey(id), key -> new IntArrayList())
+                    .add(id);
+            }
+            Int2ObjectOpenHashMap<String> found = new Int2ObjectOpenHashMap<>();
+            for (Map.Entry<String, IntArrayList> entry : byKey.entrySet()) {
+                IntOpenHashSet tiers = new IntOpenHashSet();
+                boolean repeats = false;
+                for (int id : entry.getValue()) repeats |= !tiers.add(tier(id));
+                if (repeats) continue;
+                for (int id : entry.getValue()) found.put(id, entry.getKey());
+            }
+            series = found;
+        }
+        return series;
+    }
+
+    private static String seriesKey(int id) {
+        IMetaTileEntity prototype = prototype(id);
+        String key = prototype.getClass()
+            .getName();
+        if (!(prototype instanceof IDualInputHatch dual)) return key;
+        return key + (dual.supportsFluids() ? "|fluid" : "|item");
     }
 
     public static HatchElement kindOf(int id) {

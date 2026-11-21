@@ -430,7 +430,7 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private CycleDropdown<Integer> choice(String name, Supplier<String> label, IntFunction<String> option) {
-        CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class);
+        CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class).wheel(true);
         IDrawable background = AE2Theme.button(choice, () -> true, () -> false);
         return choice.optionToWidget(
             (value, selected) -> selected ? IDrawable.EMPTY.asWidget()

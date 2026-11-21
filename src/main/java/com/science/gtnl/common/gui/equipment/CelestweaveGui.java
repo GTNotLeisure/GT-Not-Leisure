@@ -347,7 +347,7 @@ public class CelestweaveGui extends EquipmentGui {
     @SideOnly(Side.CLIENT)
     private static StepSlider stepSlider(IntSyncValue value, int min, int max, int step, IntFunction<String> format,
         BooleanSupplier active) {
-        return new StepSlider()
+        return new StepSlider().wheel(true)
             .value(value::getIntValue, v -> { if (active.getAsBoolean()) value.setIntValue((int) Math.round(v)); })
             .range(min, max, Math.max(1, (max - min) / step))
             .format(v -> format.apply((int) Math.round(v)))
