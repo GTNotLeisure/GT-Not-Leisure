@@ -123,11 +123,12 @@ public class EquipmentSoundScreen extends ModularScreen {
                         EquipmentSoundConfig.save();
                         return true;
                     }),
-                new StepSlider().value(() -> channel.volume, value -> channel.volume = (float) value)
+                new StepSlider().wheel(true)
+                    .value(() -> channel.volume, value -> channel.volume = (float) value)
                     .range(0, 1, STEPS)
                     .milestones(MILESTONE_EVERY)
                     .format(value -> Math.round(value * 100) + "%")
-                    .activeWhen(() -> channel.enabled && audible.getAsBoolean())
+                    .available(() -> channel.enabled && audible.getAsBoolean())
                     .tagWidth(TAG_WIDTH)
 
                     .onRelease(EquipmentSoundConfig::save)));

@@ -306,7 +306,7 @@ public abstract class EquipmentGui {
         BooleanSupplier allowed, String hint) {
         BooleanSyncValue value = syncToggle(key, getter, setter, allowed);
         return new SlideSwitch().value(value::getBoolValue)
-            .availableWhen(allowed)
+            .available(allowed)
             .label(IKey.dynamic(() -> tr(lang)))
             .tooltipBuilder(tooltip -> stateTooltip(tooltip, hint, allowed, value::getBoolValue))
             .onMousePressed(mouse -> {

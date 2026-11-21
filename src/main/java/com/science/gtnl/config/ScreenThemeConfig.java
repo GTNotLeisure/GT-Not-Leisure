@@ -41,4 +41,9 @@ public class ScreenThemeConfig {
     @LangKey("gtnl.gui.config.screen_theme.mini_terminal")
     @DefaultEnum("DEFAULT")
     public static ScreenTheme miniTerminal = ScreenTheme.DEFAULT;
+
+    @Comment("Theme of the multiblock projector screen. DEFAULT: the ModularUI 2 default theme; AE2_LIGHT: the light AE2 1.21 theme; AE2_DARK: the dark AE2 1.21 theme; AE2_DARK_PURPLE: the dark AE2 1.21 theme with purple highlights")
+    @LangKey("gtnl.gui.config.screen_theme.projector")
+    @DefaultEnum("AE2_DARK")
+    public static ScreenTheme projector = ScreenTheme.AE2_DARK;
 }

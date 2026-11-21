@@ -75,7 +75,7 @@ public class DraconicFusionCrafting extends GTMMultiMachineBase<DraconicFusionCr
     @Nullable
     public static Integer getTierCasingFromBlock(Block block, int meta) {
         if (block == null) return null;
-        if (block == defcCasingBlock) return meta - 7;
+        if (block == defcCasingBlock && meta >= 8 && meta <= 12) return meta - 7;
         if (block == TTCasingsContainer.SpacetimeCompressionFieldGenerators && 2 == meta) return 6;
         return null;
     }

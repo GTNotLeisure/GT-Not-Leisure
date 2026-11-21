@@ -341,4 +341,29 @@ public class ClientConfig {
     @DefaultInt(9)
     @RangeInt(min = 4, max = 14)
     public static int portalGunCloseTicks = 9;
+
+    @Comment("Projector preview: outline connected hatch spots as one shape instead of one box per block")
+    @LangKey("gtnl.gui.config.client.projector_merge_outlines")
+    @DefaultBoolean(true)
+    public static boolean projectorMergeOutlines = true;
+
+    @Comment("Projector preview: hatch spot outlines show through the blocks in front of them")
+    @LangKey("gtnl.gui.config.client.projector_outlines_through_blocks")
+    @DefaultBoolean(false)
+    public static boolean projectorOutlinesThroughBlocks = false;
+
+    @Comment("Projector preview: outline hatch spots on every page, not only on the hatch page")
+    @LangKey("gtnl.gui.config.client.projector_hatch_outlines")
+    @DefaultBoolean(true)
+    public static boolean projectorHatchOutlines = true;
+
+    @Comment("Projector: changing a hatch's model or tier also changes the other spots of the same kind")
+    @LangKey("gtnl.gui.config.client.projector_same_kind")
+    @DefaultBoolean(true)
+    public static boolean projectorSameKind = true;
+
+    @Comment("Projector: choosing a casing changes its whole group of spots, not only the chosen spot")
+    @LangKey("gtnl.gui.config.client.projector_same_casing")
+    @DefaultBoolean(false)
+    public static boolean projectorSameCasing = false;
 }

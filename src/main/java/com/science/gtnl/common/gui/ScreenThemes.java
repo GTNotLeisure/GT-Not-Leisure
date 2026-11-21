@@ -35,6 +35,10 @@ public class ScreenThemes {
         return ScreenThemeConfig.miniTerminal.themeId;
     }
 
+    public static @Nullable String projector() {
+        return ScreenThemeConfig.projector.themeId;
+    }
+
     public static @Nullable String of(EquipmentScreenTheme theme) {
         return switch (theme) {
             case EQUIPMENT -> EquipmentTheme.selected();
