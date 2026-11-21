@@ -3,6 +3,8 @@ package com.science.gtnl.client.wireless;
 import static com.science.gtnl.client.wireless.WirelessCardGui.ROW_HEIGHT;
 import static net.minecraft.client.gui.Gui.drawRect;
 
+import org.lwjgl.opengl.GL11;
+
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
@@ -30,6 +32,8 @@ public class WirelessCardTreeRows {
 
     static void drawBackground(WirelessCardGui gui, int origin, int left, int right, int y, int depth, boolean group,
         boolean lit, boolean separator) {
+        // Item icons of earlier rows leave the alpha test on, which would drop the faint nesting shades.
+        GL11.glDisable(GL11.GL_ALPHA_TEST);
         if (lit) {
             int bottom = y + ROW_HEIGHT - 1;
             drawRect(left, y, right, bottom, gui.highlight);
