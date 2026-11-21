@@ -14,6 +14,8 @@ import static com.science.gtnl.common.wireless.WirelessCardActions.isRowAction;
 import static com.science.gtnl.common.wireless.WirelessCardActions.rowIndex;
 import static com.science.gtnl.common.wireless.WirelessCardActions.type;
 
+import java.util.function.BooleanSupplier;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -29,8 +31,12 @@ import com.cleanroommc.modularui.screen.RichTooltip;
 import com.cleanroommc.modularui.value.BoolValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
-import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.gtnllib.gui.theme.ae2.AE2Buttons;
+import com.gtnllib.gui.theme.ae2.AE2Checkboxes;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
+import com.gtnllib.gui.widget.IconButton;
+import com.gtnllib.gui.widget.TabButton;
+import com.gtnllib.gui.widget.ThemedButton;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import cpw.mods.fml.relauncher.Side;
@@ -64,8 +70,8 @@ public class WirelessCardButton {
                 }
             };
             IDrawable look = id == TOGGLE_AUTO
-                ? AE2Theme.toggleSwitch(toggle, () -> on, () -> tr("auto_connect"), () -> available)
-                : AE2Theme.iconButton(toggle, () -> on ? Icon.PAUSE : Icon.PLAY, () -> available);
+                ? AE2Checkboxes.checkbox(toggle, () -> on, () -> tr("auto_connect"), () -> available)
+                : AE2Buttons.iconButton(toggle, () -> on ? AE2Icon.PAUSE : AE2Icon.PLAY, () -> available);
             widget = toggle.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
                 .background(false, IDrawable.EMPTY)
                 .background(true, IDrawable.EMPTY)
@@ -74,23 +80,30 @@ public class WirelessCardButton {
                 .overlay(false, look)
                 .overlay(true, look);
         } else {
-            var button = new WirelessCardActionButton(() -> available).onClick(() -> panel.action(id));
-            widget = button;
-            switch (actionType) {
-                case OPEN_DETAILS -> button.plain();
-                case TELEPORT -> button.icon(() -> Icon.MOVE_TO);
-                case HIGHLIGHT -> button.icon(() -> Icon.VISIBLE);
-                case OPEN_DEVICE -> button.icon(() -> Icon.GEAR);
-                case OPEN_RENAME -> button.icon(() -> Icon.EDIT);
-                case REFRESH -> button.plain()
-                    .overlay(AE2Theme.tabButton(button, () -> Icon.REFRESH, () -> available));
-                case TOGGLE_GROUPING -> button.plain()
-                    .overlay(AE2Theme.toggleSwitch(button, () -> on, () -> tr("merge_types"), () -> available));
-                default -> {}
-            }
+            BooleanSupplier usable = () -> available;
+            Runnable click = () -> panel.action(id);
+            ThemedButton button = switch (actionType) {
+                case OPEN_DETAILS, TOGGLE_GROUPING -> plain(usable, click);
+                case TELEPORT -> new IconButton(() -> AE2Icon.MOVE_TO, click);
+                case HIGHLIGHT -> new IconButton(() -> AE2Icon.VISIBLE, click);
+                case OPEN_DEVICE -> new IconButton(() -> AE2Icon.GEAR, click);
+                case OPEN_RENAME -> new IconButton(() -> AE2Icon.EDIT, click);
+                case REFRESH -> new TabButton(() -> AE2Icon.REFRESH, click);
+                default -> new ThemedButton().action(click);
+            };
+            if (actionType == TOGGLE_GROUPING)
+                button.overlay(AE2Checkboxes.checkbox(button, () -> on, () -> tr("merge_types"), usable));
+            widget = button.available(usable);
         }
         if (isRowAction(id) || id == TOGGLE_GROUPING || id == REFRESH) widget.tooltipBuilder(this::tooltip)
             .tooltipAutoUpdate(true);
+    }
+
+    public static ThemedButton plain(BooleanSupplier available, Runnable action) {
+        return new ThemedButton().action(action)
+            .available(available)
+            .background(IDrawable.EMPTY)
+            .hoverBackground(IDrawable.EMPTY);
     }
 
     private static boolean sameDimension(NBTTagCompound row) {

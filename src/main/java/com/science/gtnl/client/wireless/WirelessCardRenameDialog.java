@@ -17,7 +17,7 @@ import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
-import com.gtnllib.gui.theme.AE2Theme;
+import com.gtnllib.gui.theme.ae2.AE2Buttons;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 
 import appeng.core.localization.GuiText;
@@ -101,7 +101,7 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
     private ButtonWidget<?> dialogButton(String key, Runnable action) {
         ButtonWidget<?> button = new ButtonWidget<>();
         return button.size(116, 20)
-            .overlay(AE2Theme.label(button, () -> StatCollector.translateToLocal(key), () -> true, () -> false))
+            .overlay(AE2Buttons.label(button, () -> StatCollector.translateToLocal(key), () -> true, () -> false))
             .onMousePressed(pressed -> {
                 if (pressed != 0 || finished) return false;
                 action.run();

@@ -44,7 +44,9 @@ import com.cleanroommc.modularui.widget.WidgetTree;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.theme.ae2.AE2Legacy;
+import com.gtnllib.gui.theme.ae2.AE2Scrollbars;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.science.gtnl.client.floatingwindow.FloatingWindowPanel;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.meminiterminal.MiniTerminalPinSettings;
@@ -794,7 +796,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
             boolean active = model.isDisplayOnline() && maximum > 0;
 
             int offset = active ? scrollbar.getCurrentScroll() * (scrollbar.getHeight() - 15) / maximum : 0;
-            if (skin != null) AE2Theme.drawSmallScrollbar(
+            if (skin != null) AE2Scrollbars.drawSmallScrollbar(
                 skin.variant,
                 scrollbar.getLeft(),
                 scrollbar.getTop() - 1,
@@ -1017,20 +1019,20 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private static final int BLANK = 255, PIN = 5 * 16 + 14, HALF = 8, CELL = 16, SLOT = 18, SHEET = 256;
         private static final float PIN_OPACITY = 0.4F;
-        private static final Skin[] THEMED = new Skin[Variant.values().length];
+        private static final Skin[] THEMED = new Skin[AE2Variant.values().length];
 
-        public final Variant variant;
+        public final AE2Variant variant;
         public final ResourceLocation states, terminal;
         private final LongOpenHashSet occupied = new LongOpenHashSet();
 
-        private Skin(Variant variant) {
+        private Skin(AE2Variant variant) {
             this.variant = variant;
-            states = AE2Theme.legacyStates(variant);
-            terminal = AE2Theme.legacyTerminal(variant);
+            states = AE2Legacy.legacyStates(variant);
+            terminal = AE2Legacy.legacyTerminal(variant);
         }
 
         public static @Nullable Skin current() {
-            Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
+            AE2Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
             if (variant == null) return null;
             Skin skin = THEMED[variant.ordinal()];
             if (skin == null) skin = THEMED[variant.ordinal()] = new Skin(variant);
@@ -1046,7 +1048,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         public void button(ResourceLocation texture, IIcon icon, boolean enabled, int x, int y) {
             frame(enabled, x, y);
             GuiDraw.drawTexture(
-                AE2Theme.legacyStates(null)
+                AE2Legacy.legacyStates(null)
                     .equals(texture) ? states : texture,
                 x,
                 y,
@@ -1061,7 +1063,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         }
 
         public void cell(int index, float x, float y, float size) {
-            AE2Theme.drawLegacyState(variant, index, x, y, size);
+            AE2Legacy.drawLegacyState(variant, index, x, y, size);
         }
 
         public void closeEdges(VirtualMESlot[] slots) {

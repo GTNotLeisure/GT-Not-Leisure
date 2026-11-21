@@ -234,8 +234,8 @@ public class CelestweaveGui extends EquipmentGui {
             labels.add(tr(SHORT_LANG + module.id));
             switches.add(
                 new SlideSwitch().value(() -> (state.getIntValue() & ACTIVE) != 0)
-                    .availableWhen(() -> (state.getIntValue() & INSTALLED) != 0)
-                    .liveWhen(() -> (state.getIntValue() & SHOWN) != 0)
+                    .available(() -> (state.getIntValue() & INSTALLED) != 0)
+                    .glowWhen(() -> (state.getIntValue() & SHOWN) != 0)
                     .label(IKey.dynamic(() -> tr(SHORT_LANG + module.id)))
                     .tooltipAutoUpdate(true)
                     .tooltipBuilder(tooltip -> {
@@ -347,11 +347,11 @@ public class CelestweaveGui extends EquipmentGui {
     @SideOnly(Side.CLIENT)
     private static StepSlider stepSlider(IntSyncValue value, int min, int max, int step, IntFunction<String> format,
         BooleanSupplier active) {
-        return new StepSlider()
+        return new StepSlider().wheel(true)
             .value(value::getIntValue, v -> { if (active.getAsBoolean()) value.setIntValue((int) Math.round(v)); })
             .range(min, max, Math.max(1, (max - min) / step))
             .format(v -> format.apply((int) Math.round(v)))
-            .activeWhen(active);
+            .available(active);
     }
 
     private static float guiScale(CelestweaveCosmeticOption option) {

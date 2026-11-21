@@ -18,9 +18,9 @@ import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.Size;
 import com.gtnllib.gui.settings.BlockPosFields;
+import com.gtnllib.gui.theme.LayoutTheme;
 import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.GhostItemSlot;
-import com.gtnllib.gui.widget.LayoutTheme;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.gui.equipment.EquipmentTheme;
@@ -74,7 +74,8 @@ public class PortalGunEditScreen extends ModularScreen {
         List<Size> placeSizes = new ObjectArrayList<>(List.of(caption));
         List<Widget<?>> placeCells = new ObjectArrayList<>(List.of(label(captions[1], style)));
         place.addTo(placeSizes, placeCells, style);
-        GhostItemSlot icon = new GhostItemSlot().item(saved.icon());
+        GhostItemSlot icon = new GhostItemSlot().item(saved.icon())
+            .clearable(true);
         String clear = tr("icon_clear");
 
         int iconRow = Math.max(style.rowHeight, GhostItemSlot.SIZE), top = pad + TEXT_HEIGHT + style.spacingLarge;

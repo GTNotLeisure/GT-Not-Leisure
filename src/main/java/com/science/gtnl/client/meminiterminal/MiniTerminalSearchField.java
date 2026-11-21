@@ -14,7 +14,7 @@ import com.cleanroommc.modularui.screen.viewport.ModularGuiContext;
 import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.widget.Widget;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.science.gtnl.common.gui.ScreenThemes;
 
 import appeng.client.gui.ScreenColor;
@@ -68,7 +68,7 @@ public class MiniTerminalSearchField extends Widget<MiniTerminalSearchField>
 
     @Override
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-        Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
+        AE2Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
         if (variant != null) {
             GL11.glColor4f(1, 1, 1, 1);
             variant.textField.draw(0, 0, getArea().width, getArea().height);
@@ -186,7 +186,7 @@ public class MiniTerminalSearchField extends Widget<MiniTerminalSearchField>
             field.setSelectionPos(field.getSelectionEnd());
         }
 
-        void draw(@Nullable Variant variant) {
+        void draw(@Nullable AE2Variant variant) {
             field.setTextColor(variant == null ? ColorUtils.searchboxText.getColor() : variant.colors.fieldText());
             if (variant == null) {
                 drawTextBox();
