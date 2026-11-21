@@ -45,9 +45,16 @@ public class WirelessCardTreeRows {
             right,
             y + ROW_HEIGHT,
             Math.min(depth, MAX_NEST_SHADE) * gui.palette.nestAlpha << 24 | gui.palette.nest & 0xFFFFFF);
-        if (!separator) return;
-        int start = lit || depth == 0 ? left : origin + iconX(depth, group) - 2;
-        drawRect(start, y + ROW_HEIGHT - 1, right, y + ROW_HEIGHT, lit ? gui.palette.line : gui.tint(SEPARATOR_ALPHA));
+        if (separator) {
+            int start = lit || depth == 0 ? left : origin + iconX(depth, group) - 2;
+            drawRect(
+                start,
+                y + ROW_HEIGHT - 1,
+                right,
+                y + ROW_HEIGHT,
+                lit ? gui.palette.line : gui.tint(SEPARATOR_ALPHA));
+        }
+        GL11.glEnable(GL11.GL_ALPHA_TEST);
     }
 
     static void drawTree(WirelessCardGui gui, int origin, int y, int depth, boolean group, int lines, boolean last,

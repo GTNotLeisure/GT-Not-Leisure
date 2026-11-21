@@ -154,8 +154,14 @@ public class PortalGunLookScreen extends ModularScreen {
                 .size(inner - CloseButton.SIZE - style.spacingMedium, TEXT_HEIGHT));
         panel.child(new CloseButton().corner(pad, style));
         ListWidget<IWidget, ?> list = new ListWidget<>().pos(pad, listTop)
-            .width(inner)
-            .height(() -> Math.min(content, screenHeight - SCREEN_MARGIN - listTop - footer), Unit.Measure.PIXEL);
+            .height(() -> Math.min(content, screenHeight - SCREEN_MARGIN - listTop - footer), Unit.Measure.PIXEL)
+            .showScrollShadows(false);
+        list.width(
+            () -> inner + Math.max(
+                0,
+                list.getScrollData()
+                    .getThickness()),
+            Unit.Measure.PIXEL);
         lines.forEach(list::child);
         panel.child(list);
         panel.child(

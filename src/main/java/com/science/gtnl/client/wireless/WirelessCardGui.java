@@ -549,7 +549,6 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public ModularScreen screen() {
-        AE2Theme.useMenuTheme(themeId, ScienceNotLeisure.MODID, NAME, DIMENSION_MENU, VISUALISATION_MENU);
         return new ModularScreen(ScienceNotLeisure.MODID, this) {
 
             @Override

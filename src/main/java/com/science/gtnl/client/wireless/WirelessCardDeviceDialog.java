@@ -33,6 +33,7 @@ import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ae2.AE2Icon;
 import com.gtnllib.gui.theme.ae2.AE2Look;
 import com.gtnllib.gui.widget.AE2Button;
+import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.GTNLListWidget;
 import com.gtnllib.gui.widget.HandleScrollData;
@@ -89,7 +90,9 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         int width = Math.min(MAX_WIDTH, owner.xSize - 20);
         int wellHeight = Math.max(1, (owner.ySize - 8 - CHROME - WELL_BORDER) / ROW_HEIGHT) * ROW_HEIGHT + WELL_BORDER;
         size(width, CHROME + wellHeight);
-        child(ButtonWidget.panelCloseButton());
+        child(
+            new CloseButton().top(4)
+                .right(4));
         scroll = new HandleScrollData().look(AE2Look.of(owner.variant))
             .rows(ROW_HEIGHT);
         rowWidth = width - EDGE * 2 - scroll.getThickness() - WELL_GAP - AE2Theme.INSET_EDGE * 2;

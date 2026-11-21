@@ -163,6 +163,7 @@ public class CelestweaveGui extends EquipmentGui {
             .top(this::contentY, Unit.Measure.PIXEL)
             .width(this::listWidth, Unit.Measure.PIXEL)
             .height(this::pageHeight, Unit.Measure.PIXEL)
+            .showScrollShadows(false)
             .setEnabledIf(widget -> page == index);
         lines.forEach(list::child);
         panel.child(list);

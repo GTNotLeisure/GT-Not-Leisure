@@ -18,6 +18,7 @@ import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.ae2.AE2ButtonPainter;
+import com.gtnllib.gui.widget.CloseButton;
 import com.science.gtnl.common.wireless.WirelessCardContainer;
 
 import appeng.core.localization.GuiText;
@@ -79,7 +80,9 @@ public class WirelessCardRenameDialog extends Dialog<Void> {
         this.container = owner.container;
         this.name = owner.textField(32);
         size(260, 96);
-        child(ButtonWidget.panelCloseButton());
+        child(
+            new CloseButton().top(4)
+                .right(4));
         child(
             IKey.str(GuiText.Renamer.getLocal())
                 .asWidget()
