@@ -196,7 +196,8 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
                 return;
             }
         }
-        int outputAmount = (int) Math.min(maxOutput, fueledAmount * multiplier);
+        int outputAmount = (int) Math.min(maxOutput, fueledAmount / multiplier);
+        if (outputAmount <= 0) return;
         if (currentSteam == 1) {
             addOutput(Materials.Steam.getGas(outputAmount));
         } else if (currentSteam == 2) {
@@ -204,7 +205,7 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
         } else {
             addOutput(Materials.DenseSupercriticalSteam.getGas(outputAmount));
         }
-        fueledAmount -= outputAmount;
+        fueledAmount -= (long) outputAmount * multiplier;
         if (fueledAmount <= 0) {
             fueledAmount = 0;
             currentOffer = null;
