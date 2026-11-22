@@ -52,10 +52,11 @@ public class WirelessCardSnapshot {
     }
 
     boolean sameView(WirelessCardSnapshot previous) {
-        return previous != null && payload.equals(previous.payload);
+        return previous == this || previous != null && payload.equals(previous.payload);
     }
 
     boolean sameActions(WirelessCardSnapshot previous) {
+        if (previous == this) return true;
         if (previous == null || !targets.keySet()
             .equals(previous.targets.keySet())
             || !devices.keySet()

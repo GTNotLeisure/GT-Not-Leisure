@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -48,6 +49,7 @@ public class WirelessClusterManager {
     private static final ScanSchedule SCANS = new ScanSchedule();
     private static final WirelessTopologyWatch WATCH = new WirelessTopologyWatch();
     private static final Map<Cluster<IGridNode, WirelessFrequency>, WirelessNetworkStatistics> STATISTICS = new Reference2ObjectOpenHashMap<>();
+    private static final Map<Cluster<IGridNode, WirelessFrequency>, Optional<IGridNode>> ANCHORS = new Reference2ObjectOpenHashMap<>();
     private static WirelessEntranceIndex entranceIndex = new WirelessEntranceIndex(TRACKER);
 
     private enum State {
@@ -161,6 +163,7 @@ public class WirelessClusterManager {
     }
 
     private static void publishClusters() {
+        ANCHORS.clear();
         WirelessLinkPersistence.synchronize(TRACKER, TOPOLOGY);
         PAUSES.clear();
         SAVED_ENTRANCES.clear();
@@ -375,17 +378,8 @@ public class WirelessClusterManager {
             for (var cluster : TRACKER.clusters()) {
                 if (!cluster.frequencies()
                     .contains(source)) continue;
-                IGridNode anchor = null;
-                String anchorKey = null;
-                for (IGridNode node : cluster.nodes()) {
-                    Address address = TOPOLOGY.entranceAddress(node);
-                    if (address == null) continue;
-                    String key = address.toString();
-                    if (anchorKey == null || key.compareTo(anchorKey) < 0) {
-                        anchor = node;
-                        anchorKey = key;
-                    }
-                }
+                IGridNode anchor = ANCHORS.computeIfAbsent(cluster, WirelessClusterManager::findAnchor)
+                    .orElse(null);
                 if (anchor == null) continue;
                 int entrances = 0;
                 for (Entrance entrance : entranceIndex.forCluster(cluster)) {
@@ -419,6 +413,21 @@ public class WirelessClusterManager {
                             .toString()));
             return result;
         }
+    }
+
+    private static Optional<IGridNode> findAnchor(Cluster<IGridNode, WirelessFrequency> cluster) {
+        IGridNode anchor = null;
+        String anchorKey = null;
+        for (IGridNode node : cluster.nodes()) {
+            Address address = TOPOLOGY.entranceAddress(node);
+            if (address == null) continue;
+            String key = address.toString();
+            if (anchorKey == null || key.compareTo(anchorKey) < 0) {
+                anchor = node;
+                anchorKey = key;
+            }
+        }
+        return Optional.ofNullable(anchor);
     }
 
     public static boolean setPaused(WirelessFrequency source, IWirelessLinkView view, boolean paused) {
@@ -669,6 +678,7 @@ public class WirelessClusterManager {
         TOPOLOGY.clear();
         STATES.clear();
         RETRY_AFTER.clear();
+        ANCHORS.clear();
         PAUSES.clear();
         SAVED_ENTRANCES.clear();
         RECOVERY.clear();
