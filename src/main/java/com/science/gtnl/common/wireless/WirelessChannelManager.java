@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -39,6 +41,9 @@ import appeng.tile.networking.TileCreativeEnergyController;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
@@ -52,6 +57,7 @@ public class WirelessChannelManager {
     private static Object2IntOpenHashMap<WirelessFrequency> entranceCounts;
     private static final Map<IGridConnection, Entrance> OWNED_CONNECTIONS = new Reference2ObjectOpenHashMap<>();
     private static final Map<IGrid, Allocation> ALLOCATIONS = new WeakHashMap<>();
+    private static final Int2ObjectOpenHashMap<LongSet> UNLOADED_CHUNKS = new Int2ObjectOpenHashMap<>();
     private static int nextId = 1;
     private static long allocationRevision;
     private static Map<IGridNode, Set<IGridConnection>> connectionSnapshot;
@@ -89,6 +95,10 @@ public class WirelessChannelManager {
             .thenComparingInt(Address::z)
             .thenComparing(Address::side);
 
+        public Address withoutSide() {
+            return new Address(dimension, x, y, z, ForgeDirection.UNKNOWN);
+        }
+
         public TileEntity tile() {
             World world = DimensionManager.getWorld(dimension);
             return world != null && world.blockExists(x, y, z) ? world.getTileEntity(x, y, z) : null;
@@ -109,6 +119,12 @@ public class WirelessChannelManager {
 
         public boolean isLive() {
             return hasConnection(sourceNode, connection) && hasConnection(targetNode, connection);
+        }
+
+        public boolean isValid() {
+            return isLive() && source.node() == sourceNode
+                && target.node() == targetNode
+                && WirelessFrequencies.hosts(frequency, source);
         }
     }
 
@@ -240,6 +256,7 @@ public class WirelessChannelManager {
         for (int id : ENTRANCES.keySet()
             .toIntArray()) disconnect(id);
         entranceSnapshot = List.of();
+        UNLOADED_CHUNKS.clear();
         OWNED_CONNECTIONS.clear();
         ALLOCATIONS.clear();
         WirelessClusterManager.clear();
@@ -303,14 +320,11 @@ public class WirelessChannelManager {
         if (event.phase != TickEvent.Phase.END) return;
         connectionSnapshot = new Reference2ObjectOpenHashMap<>();
         try (var ignored = WirelessLinkData.readBatch()) {
+            forgetUnloadedChunks();
             entranceCounts = null;
             WirelessFrequencies.tick();
             for (Entrance entrance : entrances()) {
-                if (!entrance.isLive() || entrance.source()
-                    .node() != entrance.sourceNode()
-                    || entrance.target()
-                        .node() != entrance.targetNode()
-                    || !WirelessFrequencies.hosts(entrance.frequency(), entrance.source())) {
+                if (!entrance.isValid()) {
                     disconnect(entrance.id());
                     WirelessClusterManager.invalidateTopology();
                 }
@@ -335,27 +349,42 @@ public class WirelessChannelManager {
     @SubscribeEvent
     public static void loadChunk(ChunkEvent.Load event) {
         if (event.world.isRemote) return;
+        forgetUnloadedChunks();
         if (WirelessLinkPersistence.discover(event.getChunk())) WirelessClusterManager.invalidateTopology();
     }
 
     @SubscribeEvent
     public static void unloadChunk(ChunkEvent.Unload event) {
         if (event.world.isRemote) return;
-        WirelessFrequencies.forget(address -> inChunk(address, event));
-        boolean changed = WirelessClusterManager.forgetTargets(address -> inChunk(address, event));
+        int dimension = event.world.provider.dimensionId;
+        LongSet chunks = UNLOADED_CHUNKS.get(dimension);
+        if (chunks == null) {
+            chunks = new LongOpenHashSet();
+            UNLOADED_CHUNKS.put(dimension, chunks);
+        }
+        chunks.add(ChunkCoordIntPair.chunkXZ2Int(event.getChunk().xPosition, event.getChunk().zPosition));
+    }
+
+    // Up to 100 chunks unload per tick and each forget scans every tracked node, so they are forgotten together.
+    // Anything that registers tiles must call this first, or a chunk reloaded in the same tick loses its new tiles.
+    static void forgetUnloadedChunks() {
+        if (UNLOADED_CHUNKS.isEmpty()) return;
+        Int2ObjectOpenHashMap<LongSet> chunks = new Int2ObjectOpenHashMap<>(UNLOADED_CHUNKS);
+        UNLOADED_CHUNKS.clear();
+        Predicate<Address> unloaded = address -> {
+            LongSet dimension = chunks.get(address.dimension());
+            return dimension != null
+                && dimension.contains(ChunkCoordIntPair.chunkXZ2Int(address.x() >> 4, address.z() >> 4));
+        };
+        WirelessFrequencies.forget(unloaded);
+        boolean changed = WirelessClusterManager.forgetTargets(unloaded);
         for (Entrance entrance : entrances()) {
-            if (inChunk(entrance.source(), event) || inChunk(entrance.target(), event)) {
+            if (unloaded.test(entrance.source()) || unloaded.test(entrance.target())) {
                 disconnect(entrance.id());
                 changed = true;
             }
         }
         if (changed) WirelessClusterManager.invalidateTopology();
-    }
-
-    private static boolean inChunk(Address address, ChunkEvent event) {
-        return address.dimension() == event.world.provider.dimensionId
-            && (address.x() >> 4) == event.getChunk().xPosition
-            && (address.z() >> 4) == event.getChunk().zPosition;
     }
 
     @SubscribeEvent

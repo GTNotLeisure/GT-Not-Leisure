@@ -26,7 +26,7 @@ public class WirelessCardSnapshot {
 
     WirelessCardSnapshot(NBTTagCompound payload, Long2ObjectMap<Device> targets, Long2ObjectMap<Device> devices,
         Long2ObjectMap<Machine> machines, Long2ObjectMap<Address> displayAddresses) {
-        this.payload = (NBTTagCompound) payload.copy();
+        this.payload = payload;
         this.targets = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(targets));
         this.devices = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(devices));
         this.machines = Long2ObjectMaps.unmodifiable(new Long2ObjectOpenHashMap<>(machines));

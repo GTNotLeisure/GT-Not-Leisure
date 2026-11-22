@@ -102,15 +102,7 @@ public class WirelessCardActionHandler {
             }
         } else if (action == TELEPORT && player instanceof EntityPlayerMP serverPlayer) {
             try {
-                switch (WirelessOperations.teleport(serverPlayer, binding.frequency(), row)) {
-                    case STALE -> message("stale");
-                    case UNAVAILABLE -> message("teleport_unavailable");
-                    case DENIED -> message("denied");
-                    case APPLIED -> {
-                        return;
-                    }
-                    default -> {}
-                }
+                if (teleported(WirelessOperations.teleport(serverPlayer, binding.frequency(), row))) return;
             } catch (PhysicalClusterTracker.ScanLimitException limit) {
                 message("stale");
             }
@@ -179,17 +171,23 @@ public class WirelessCardActionHandler {
     private boolean teleportDevice(Device device, WirelessCardBinding binding) {
         if (!(session.player instanceof EntityPlayerMP serverPlayer)) return false;
         try {
-            switch (WirelessOperations.teleport(serverPlayer, binding.frequency(), device.link(), device.node())) {
-                case STALE -> message("stale");
-                case UNAVAILABLE -> message("teleport_unavailable");
-                case DENIED -> message("denied");
-                case APPLIED -> {
-                    return true;
-                }
-                default -> {}
-            }
+            return teleported(
+                WirelessOperations.teleport(serverPlayer, binding.frequency(), device.link(), device.node()));
         } catch (PhysicalClusterTracker.ScanLimitException limit) {
             message("stale");
+        }
+        return false;
+    }
+
+    private boolean teleported(WirelessOperations.Result result) {
+        switch (result) {
+            case STALE -> message("stale");
+            case UNAVAILABLE -> message("teleport_unavailable");
+            case DENIED -> message("denied");
+            case APPLIED -> {
+                return true;
+            }
+            default -> {}
         }
         return false;
     }

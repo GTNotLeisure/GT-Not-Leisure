@@ -81,6 +81,7 @@ public class WirelessLinkPersistence {
     public static void placed(TileEntity tile) {
         World world = tile.getWorldObj();
         if (world == null || world.isRemote) return;
+        WirelessChannelManager.forgetUnloadedChunks();
         // Tiles moved by tools such as Matter Manipulator arrive through setTileEntity, without a chunk load.
         PLACED.add(tile);
         WirelessClusterManager.invalidateTopology();

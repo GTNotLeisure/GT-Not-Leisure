@@ -67,7 +67,9 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
     private final HandleScrollData scroll;
     private final FadingNotice notice = new FadingNotice().duration(5000);
     private final Set<String> expanded = new ObjectOpenHashSet<>();
-    private final int rowWidth, modeX, buttonsX;
+    private final int rowWidth, modeX, buttonsX, visibleRows;
+    private final List<LineRow> rows = new ObjectArrayList<>();
+    private int shownFrom, shownTo;
     private DeviceGroup group;
     private List<Line> lines = List.of();
     private List<NBTTagCompound> devices = List.of();
@@ -85,7 +87,8 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         restoredScroll = view.scroll();
         refreshData();
         int width = Math.min(MAX_WIDTH, owner.xSize - 20);
-        int wellHeight = Math.max(1, (owner.ySize - 8 - CHROME - WELL_BORDER) / ROW_HEIGHT) * ROW_HEIGHT + WELL_BORDER;
+        visibleRows = Math.max(1, (owner.ySize - 8 - CHROME - WELL_BORDER) / ROW_HEIGHT);
+        int wellHeight = visibleRows * ROW_HEIGHT + WELL_BORDER;
         size(width, CHROME + wellHeight);
         child(ButtonWidget.panelCloseButton());
         scroll = new HandleScrollData(owner.variant).rows(ROW_HEIGHT);
@@ -253,10 +256,57 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
     private void rebuildRows() {
         layout = signature();
         list.removeAll();
-        for (int i = 0; i < lines.size(); i++) list.child(
-            lines.get(i)
-                .section() ? new SectionLine(i) : new DeviceLine(i));
+        rows.clear();
+        shownFrom = shownTo = 0;
+        for (int i = 0; i < lines.size(); i++) {
+            LineRow row = lines.get(i)
+                .section() ? new SectionLine(i) : new DeviceLine(i);
+            rows.add(row);
+            list.child(row);
+        }
         list.scheduleResize();
+    }
+
+    // A row only owns its buttons while it is on screen; hundreds of devices would otherwise build thousands.
+    private void showVisibleRows() {
+        int first = scroll.getScroll() / ROW_HEIGHT;
+        int from = Math.max(0, first - 1), to = Math.min(rows.size(), first + visibleRows + 2);
+        if (from == shownFrom && to == shownTo) return;
+        for (int i = shownFrom; i < Math.min(shownTo, rows.size()); i++) {
+            if (i < from || i >= to) rows.get(i)
+                .show(false);
+        }
+        for (int i = from; i < to; i++) rows.get(i)
+            .show(true);
+        shownFrom = from;
+        shownTo = to;
+        list.scheduleResize();
+    }
+
+    @Override
+    public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
+        showVisibleRows();
+        super.draw(context, theme);
+    }
+
+    private abstract class LineRow extends ParentWidget<LineRow> {
+
+        protected final int index;
+        private boolean shown;
+
+        private LineRow(int index) {
+            this.index = index;
+            size(rowWidth, ROW_HEIGHT);
+        }
+
+        protected abstract void addButtons();
+
+        private void show(boolean visible) {
+            if (visible == shown) return;
+            shown = visible;
+            if (visible) addButtons();
+            else removeAll();
+        }
     }
 
     private Target renameTarget() {
@@ -331,13 +381,14 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         }).pos(buttonsX + BUTTON_STEP * 2, 4));
     }
 
-    private class DeviceLine extends ParentWidget<DeviceLine> {
-
-        private final int index;
+    private class DeviceLine extends LineRow {
 
         private DeviceLine(int index) {
-            this.index = index;
-            size(rowWidth, ROW_HEIGHT);
+            super(index);
+        }
+
+        @Override
+        protected void addButtons() {
             child(
                 new WirelessCardActionButton(this::remoteOpen).plain()
                     .onClick(() -> owner.openDevice(view(), data().getLong("targetId")))
@@ -437,13 +488,14 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         }
     }
 
-    private class SectionLine extends ParentWidget<SectionLine> {
-
-        private final int index;
+    private class SectionLine extends LineRow {
 
         private SectionLine(int index) {
-            this.index = index;
-            size(rowWidth, ROW_HEIGHT);
+            super(index);
+        }
+
+        @Override
+        protected void addButtons() {
             boolean machine = lineData(index).getBoolean("group");
             child(
                 new WirelessCardActionButton(() -> true).plain()

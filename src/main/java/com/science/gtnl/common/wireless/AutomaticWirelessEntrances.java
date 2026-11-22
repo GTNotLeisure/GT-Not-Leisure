@@ -87,16 +87,31 @@ public class AutomaticWirelessEntrances {
                         .orElse(null));
             }
             ordered.sort(Comparator.comparing(anchors::get, Comparator.nullsLast(order)));
-            missing = new Reference2ObjectOpenHashMap<>();
-            for (IGridNode node : work.missing) {
-                for (var cluster : ordered) {
-                    if (cluster.nodes()
-                        .contains(node)) {
-                        missing.computeIfAbsent(cluster, ignored -> new ObjectArrayList<>())
-                            .add(node);
-                        break;
+            Set<IGridNode> unassigned = new ReferenceOpenHashSet<>(work.missing);
+            Map<IGridNode, Cluster<IGridNode, WirelessFrequency>> owners = new Reference2ObjectOpenHashMap<>();
+            for (var cluster : ordered) {
+                if (unassigned.isEmpty()) break;
+                if (unassigned.size() < cluster.nodes()
+                    .size()) {
+                    for (var iterator = unassigned.iterator(); iterator.hasNext();) {
+                        IGridNode node = iterator.next();
+                        if (cluster.nodes()
+                            .contains(node)) {
+                            owners.put(node, cluster);
+                            iterator.remove();
+                        }
+                    }
+                } else {
+                    for (IGridNode node : cluster.nodes()) {
+                        if (unassigned.remove(node)) owners.put(node, cluster);
                     }
                 }
+            }
+            missing = new Reference2ObjectOpenHashMap<>();
+            for (IGridNode node : work.missing) {
+                var cluster = owners.get(node);
+                if (cluster != null) missing.computeIfAbsent(cluster, ignored -> new ObjectArrayList<>())
+                    .add(node);
             }
         }
 

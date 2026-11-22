@@ -14,8 +14,6 @@ import java.util.OptionalInt;
 import java.util.Set;
 import java.util.function.Predicate;
 
-import net.minecraftforge.common.util.ForgeDirection;
-
 import com.science.gtnl.common.wireless.IWirelessLinkView.ClusterView;
 import com.science.gtnl.common.wireless.PhysicalClusterTracker.Cluster;
 import com.science.gtnl.common.wireless.VerifiedEntranceRecovery.Candidate;
@@ -65,8 +63,10 @@ public class WirelessClusterManager {
 
         private static final int IDLE_INTERVAL = 600;
         private static final int RETRY_INTERVAL = 20;
+        private static final int MIN_INTERVAL = 10;
         private boolean dirty = true;
         private int remaining;
+        private int cooldown;
 
         void invalidate() {
             dirty = true;
@@ -76,14 +76,17 @@ public class WirelessClusterManager {
             return dirty;
         }
 
+        // Chunk loading and bulk placement invalidate on many consecutive ticks; a full scan visits every node.
         boolean tick() {
             if (remaining > 0) remaining--;
-            return dirty || remaining == 0;
+            if (cooldown > 0) cooldown--;
+            return dirty && cooldown == 0 || remaining == 0;
         }
 
         void beginScan() {
             dirty = false;
             remaining = IDLE_INTERVAL;
+            cooldown = MIN_INTERVAL;
         }
 
         void retrySoon() {
@@ -93,6 +96,7 @@ public class WirelessClusterManager {
         void clear() {
             dirty = true;
             remaining = 0;
+            cooldown = 0;
         }
     }
 
@@ -140,6 +144,7 @@ public class WirelessClusterManager {
     }
 
     private static void refresh(List<IGridNode> extraSeeds) {
+        WirelessChannelManager.forgetUnloadedChunks();
         try (var ignored = WirelessLinkData.readBatch()) {
             SCANS.beginScan();
             TOPOLOGY.beginScan();
@@ -196,11 +201,7 @@ public class WirelessClusterManager {
                 || paused(cluster, entrance.frequency())
                 || !cluster.frequencies()
                     .contains(canonical(entrance.frequency()))
-                || !verified && (!entrance.isLive() || entrance.source()
-                    .node() != entrance.sourceNode()
-                    || entrance.target()
-                        .node() != entrance.targetNode()
-                    || !WirelessFrequencies.hosts(entrance.frequency(), entrance.source()))) {
+                || !verified && !entrance.isValid()) {
                 WirelessChannelManager.disconnect(entrance.id());
             }
         }
@@ -374,14 +375,17 @@ public class WirelessClusterManager {
             for (var cluster : TRACKER.clusters()) {
                 if (!cluster.frequencies()
                     .contains(source)) continue;
-                IGridNode anchor = cluster.nodes()
-                    .stream()
-                    .filter(node -> TOPOLOGY.entranceAddress(node) != null)
-                    .min(
-                        Comparator.comparing(
-                            node -> TOPOLOGY.entranceAddress(node)
-                                .toString()))
-                    .orElse(null);
+                IGridNode anchor = null;
+                String anchorKey = null;
+                for (IGridNode node : cluster.nodes()) {
+                    Address address = TOPOLOGY.entranceAddress(node);
+                    if (address == null) continue;
+                    String key = address.toString();
+                    if (anchorKey == null || key.compareTo(anchorKey) < 0) {
+                        anchor = node;
+                        anchorKey = key;
+                    }
+                }
                 if (anchor == null) continue;
                 int entrances = 0;
                 for (Entrance entrance : entranceIndex.forCluster(cluster)) {
@@ -524,13 +528,7 @@ public class WirelessClusterManager {
             .stream()
             .map(TOPOLOGY::nodeAddress)
             .filter(Objects::nonNull)
-            .map(
-                address -> new Address(
-                    address.dimension(),
-                    address.x(),
-                    address.y(),
-                    address.z(),
-                    ForgeDirection.UNKNOWN))
+            .map(Address::withoutSide)
             .distinct()
             .toList();
     }
