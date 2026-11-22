@@ -502,7 +502,7 @@ gtnl.gui.config.other.applied_energistics=应用能源 2
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin=启用处理样板可配置容量
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin.tooltip=启用处理样板终端的可配置容量，需要重启游戏
 gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier=处理样板容量倍率
-gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=将处理样板终端容量设置为 16N 输入槽和 4N 输出槽，或反向排列。默认值 2 提供 32:8 容量。配置重载后重新打开终端即可生效
+gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=将处理样板终端容量设置为 16N 输入槽和 4N 输出槽，或反向排列。默认值 4 提供 64:16 容量。配置重载后重新打开终端即可生效
 
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange=装配线配方时间调整
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange.tooltip=大幅减少部分装配线配方所需时间

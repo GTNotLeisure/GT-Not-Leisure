@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.Nxer.TwistSpaceTechnology.common.modularizedMachine.ModularizedMachineLogic.MultiExecutionCoreMachineBase;
 import com.science.gtnl.api.IRecipeProcessingAwareDualHatch;
 
 import gregtech.api.metatileentity.MetaTileEntity;
@@ -17,63 +18,13 @@ import gregtech.api.util.GTUtility;
 import gregtech.common.tileentities.machines.IDualInputHatch;
 
 @Pseudo
-@Mixin(
-    value = MTEMultiBlockBase.class,
-    targets = {
-        "com.Nxer.twistSpaceTechnology.common.modularizedMachine.ModularizedMachineLogic.MultiExecutionCoreMachineBase" },
-    remap = false)
+@Mixin(value = { MTEMultiBlockBase.class, MultiExecutionCoreMachineBase.class }, remap = false)
 public abstract class MixinMTEMultiBlockBaseRecipeProcessing {
-
-    // @Shadow
-    // public ArrayList<IDualInputHatch> mDualInputHatches = new ArrayList<>();
-    // @Shadow
-    // public CheckRecipeResult checkRecipeResult;
-    // @Shadow
-    // public abstract void setResultIfFailure(CheckRecipeResult result) ;
 
     @Unique
     private MTEMultiBlockBase gtnl$cast() {
-        Object o = this;
-        return (MTEMultiBlockBase) o;
+        return (MTEMultiBlockBase) (Object) this;
     }
-    /*
-     * @Unique
-     * private static MethodHandle MH_mDualInputHatches;
-     * @Unique
-     * private static MethodHandle MH_setResultIfFailure;
-     * static {
-     * try {
-     * MH_mDualInputHatches = MethodHandles.lookup()
-     * .findGetter(MTEMultiBlockBase.class, "mDualInputHatches", ArrayList.class);
-     * MH_setResultIfFailure = MethodHandles.lookup()
-     * .findVirtual(
-     * MTEMultiBlockBase.class,
-     * "setResultIfFailure",
-     * MethodType.methodType(void.class, CheckRecipeResult.class));
-     * } catch (Exception e) {
-     * e.printStackTrace();
-     * throw new AssertionError(e);
-     * }
-     * }
-     * @Unique
-     * private void setResultIfFailure0(CheckRecipeResult endRecipeProcessing) {
-     * try {
-     * MH_setResultIfFailure.invoke((MTEMultiBlockBase) (Object) this, endRecipeProcessing);
-     * } catch (Throwable e) {
-     * e.printStackTrace();
-     * throw new AssertionError(e);
-     * }
-     * }
-     * @Unique
-     * private ArrayList<IDualInputHatch> mDualInputHatches0() {
-     * try {
-     * return (ArrayList<IDualInputHatch>) MH_mDualInputHatches.invoke((MTEMultiBlockBase) (Object) this);
-     * } catch (Throwable e) {
-     * e.printStackTrace();
-     * throw new AssertionError(e);
-     * }
-     * }
-     */
 
     @Inject(method = "startRecipeProcessing", at = { @At(value = "RETURN") }, require = 1)
     public void startRecipeProcessing(CallbackInfo c) {

@@ -1,5 +1,7 @@
 package com.science.gtnl.config;
 
+import static appeng.parts.reporting.PartPatternTerminalEx.exPatternInputsPages;
+
 import com.gtnewhorizon.gtnhlib.config.Config;
 import com.gtnewhorizon.gtnhlib.config.Config.Comment;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultBoolean;
@@ -60,7 +62,7 @@ public class OtherConfig {
         @Comment("Multiplier for Processing Pattern Terminal capacity. The effective layout is 16N:4N.")
         @LangKey("gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier")
         @RangeInt(min = 1, max = 64)
-        @DefaultInt(2)
-        public int processingPatternCapacityMultiplier = 2;
+        @DefaultInt(exPatternInputsPages)
+        public int processingPatternCapacityMultiplier = exPatternInputsPages;
     }
 }

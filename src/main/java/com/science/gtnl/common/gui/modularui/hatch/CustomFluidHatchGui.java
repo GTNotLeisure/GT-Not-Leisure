@@ -25,10 +25,9 @@ public class CustomFluidHatchGui extends MTEHatchBaseGui<CustomFluidHatch> {
             .childPadding(1)
             .crossAxisAlignment(Alignment.CrossAxis.START);
 
-        mainRow.child(createScreen(panel, syncManager, machine.getFluidTank()));
-        mainRow.child(
-            createIO(panel, syncManager, machine.getInputSlot(), machine.getOutputSlot(), machine.getFluidTank()));
-        mainRow.childIf(supportsFluidFilterScreen(), () -> createFilterScreen(panel, syncManager));
+        mainRow.child(createScreen(panel, syncManager));
+        mainRow.child(createScreenIO(panel, syncManager));
+        mainRow.childIf(supportsFilterScreen(), () -> createFilterScreen(panel, syncManager));
 
         return super.createContentSection(panel, syncManager).child(mainRow);
     }

@@ -502,7 +502,7 @@ gtnl.gui.config.other.applied_energistics=Прикладная энергети�
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin=Включить емкость шаблона обработки
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin.tooltip=Включите настраиваемую мощность для терминалов шаблона обработки. Требует перезапуска игры.
 gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier=Множитель мощности шаблона обработки
-gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=Установите емкость терминала шаблона обработки на 16N входных слотов и 4N выходных слотов или наоборот. Значение по умолчанию 2 обеспечивает пропускную способность 32:8. Применяется при открытии терминала после перезагрузки конфигурации.
+gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=Установите емкость терминала шаблона обработки на 16N входных слотов и 4N выходных слотов или наоборот. Значение по умолчанию 4 обеспечивает пропускную способность 64:16. Применяется при открытии терминала после перезагрузки конфигурации.
 
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange=Корректировка времени сборочной линии
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange.tooltip=Значительно сократите время, необходимое для выполнения определенных рецептов сборочной линии.

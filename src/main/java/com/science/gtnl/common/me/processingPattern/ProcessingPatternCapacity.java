@@ -2,9 +2,11 @@ package com.science.gtnl.common.me.processingPattern;
 
 import com.science.gtnl.config.OtherConfig;
 
+import appeng.parts.reporting.PartPatternTerminalEx;
+
 public class ProcessingPatternCapacity {
 
-    public static final int DEFAULT_MULTIPLIER = 2;
+    public static final int DEFAULT_MULTIPLIER = PartPatternTerminalEx.exPatternInputsPages;
     public static final int MAX_MULTIPLIER = 64;
     public static final int SLOTS_PER_PAGE = 16;
     public static final int SMALL_SIDE_SLOTS_PER_PAGE = 4;

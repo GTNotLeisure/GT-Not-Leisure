@@ -409,9 +409,7 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)),
 
     BLOCK_RENDERER_STRUCTURE_SCAN(new MixinBuilder("Multiblock structure scan optimizations")
-        .addClientMixins(
-            "blockRenderer6343.MixinGTConstructableScan",
-            "blockRenderer6343.MixinBWMetaGeneratedBlocksCasing")
+        .addClientMixins("blockRenderer6343.MixinGTConstructableScan")
         .setPhase(Phase.LATE)
         .addRequiredMod(new TargetModBuilder().setModId("blockrenderer6343"))),
 

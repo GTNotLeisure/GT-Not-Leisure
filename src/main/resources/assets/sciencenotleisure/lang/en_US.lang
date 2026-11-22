@@ -502,7 +502,7 @@ gtnl.gui.config.other.applied_energistics=Applied Energistics 2
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin=Enable Processing Pattern Capacity
 gtnl.gui.config.other.applied_energistics.enable_processing_pattern_capacity_mixin.tooltip=Enable configurable capacity for Processing Pattern Terminals. Requires a game restart.
 gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier=Processing Pattern Capacity Multiplier
-gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=Set the Processing Pattern Terminal capacity to 16N input slots and 4N output slots, or the reverse. The default value 2 provides 32:8 capacity. Applies when opening a terminal after configuration reload.
+gtnl.gui.config.other.applied_energistics.processing_pattern_capacity_multiplier.tooltip=Set the Processing Pattern Terminal capacity to 16N input slots and 4N output slots, or the reverse. The default value 4 provides 64:16 capacity. Applies when opening a terminal after configuration reload.
 
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange=Assembly Line Time Adjustment
 gtnl.gui.config.recipe.enableassemblinglinerecipestimechange.tooltip=Significantly reduce the time required for certain Assembly Line recipes.
