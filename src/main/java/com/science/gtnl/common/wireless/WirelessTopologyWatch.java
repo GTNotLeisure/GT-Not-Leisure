@@ -29,13 +29,7 @@ public class WirelessTopologyWatch implements IBlockStateListener {
     void update(Collection<Cluster<IGridNode, WirelessFrequency>> clusters, PhysicalMeTopology topology) {
         Map<World, LongSet> next = new Reference2ObjectOpenHashMap<>();
         Map<World, Long2ObjectMap<TileEntity>> nextTiles = new Reference2ObjectOpenHashMap<>();
-        for (var cluster : clusters) {
-            if (cluster.frequencies()
-                .isEmpty()) continue;
-            for (IGridNode node : cluster.nodes()) add(next, nextTiles, topology.nodeAddress(node));
-            for (WirelessFrequency source : cluster.frequencies())
-                add(next, nextTiles, WirelessFrequencies.controller(source));
-        }
+        for (var cluster : clusters) collect(cluster, topology, next, nextTiles);
         for (World world : tiles.keySet()) {
             if (!nextTiles.containsKey(world)) WorldListener.INSTANCE.unregisterBlockStateListener(world, this);
         }
@@ -46,21 +40,44 @@ public class WirelessTopologyWatch implements IBlockStateListener {
                     entry.getValue()
                         .keySet()))
                 continue;
-            Iterable<BlockPos> positions = () -> entry.getValue()
-                .keySet()
-                .longStream()
-                .mapToObj(
-                    position -> new BlockPos(
-                        CoordinatePacker.unpackX(position),
-                        CoordinatePacker.unpackY(position),
-                        CoordinatePacker.unpackZ(position)))
-                .iterator();
-            WorldListener.INSTANCE.registerBlockStateListener(entry.getKey(), this, positions);
+            register(entry.getKey(), entry.getValue());
         }
         watched.clear();
         watched.putAll(next);
         tiles.clear();
         tiles.putAll(nextTiles);
+    }
+
+    void add(Cluster<IGridNode, WirelessFrequency> cluster, PhysicalMeTopology topology) {
+        Map<World, Long2ObjectMap<TileEntity>> added = new Reference2ObjectOpenHashMap<>();
+        collect(cluster, topology, watched, added);
+        for (var entry : added.entrySet()) {
+            Long2ObjectMap<TileEntity> current = tiles
+                .computeIfAbsent(entry.getKey(), ignored -> new Long2ObjectOpenHashMap<>());
+            int before = current.size();
+            current.putAll(entry.getValue());
+            if (current.size() != before) register(entry.getKey(), current);
+        }
+    }
+
+    private static void collect(Cluster<IGridNode, WirelessFrequency> cluster, PhysicalMeTopology topology,
+        Map<World, LongSet> map, Map<World, Long2ObjectMap<TileEntity>> tiles) {
+        if (cluster.frequencies()
+            .isEmpty()) return;
+        for (IGridNode node : cluster.nodes()) add(map, tiles, topology.nodeAddress(node));
+        for (WirelessFrequency source : cluster.frequencies()) add(map, tiles, WirelessFrequencies.controller(source));
+    }
+
+    private void register(World world, Long2ObjectMap<TileEntity> watchedTiles) {
+        Iterable<BlockPos> positions = () -> watchedTiles.keySet()
+            .longStream()
+            .mapToObj(
+                position -> new BlockPos(
+                    CoordinatePacker.unpackX(position),
+                    CoordinatePacker.unpackY(position),
+                    CoordinatePacker.unpackZ(position)))
+            .iterator();
+        WorldListener.INSTANCE.registerBlockStateListener(world, this, positions);
     }
 
     private static void add(Map<World, LongSet> map, Map<World, Long2ObjectMap<TileEntity>> tiles, Address address) {

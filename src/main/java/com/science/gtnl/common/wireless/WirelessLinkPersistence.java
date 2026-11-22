@@ -18,6 +18,7 @@ import net.minecraft.world.gen.ChunkProviderServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.science.gtnl.common.wireless.PhysicalClusterTracker.Cluster;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Entrance;
 import com.science.gtnl.common.wireless.WirelessLinkData.Claim;
@@ -175,10 +176,22 @@ public class WirelessLinkPersistence {
     }
 
     static void synchronize(PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
+        IMPORTED.keySet()
+            .retainAll(synchronizeClusters(tracker.clusters(), tracker, topology));
+    }
+
+    // Only the full scan may prune IMPORTED: its seeds() first clears a replaced part's inherited slot claim.
+    static void synchronize(Collection<Cluster<IGridNode, WirelessFrequency>> clusters,
+        PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
+        synchronizeClusters(clusters, tracker, topology);
+    }
+
+    private static Set<IGridNode> synchronizeClusters(Collection<Cluster<IGridNode, WirelessFrequency>> clusters,
+        PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
         REMEMBERED_ENTRANCES.clear();
         Map<TileEntity, Map<Slot, Claim>> updates = new Reference2ObjectOpenHashMap<>();
         Set<IGridNode> retained = new ReferenceOpenHashSet<>();
-        for (var cluster : tracker.clusters()) {
+        for (var cluster : clusters) {
             Set<WirelessFrequency> paused = new ObjectOpenHashSet<>();
             if (!cluster.limited()) for (IGridNode node : cluster.nodes()) {
                 Claim saved = claim(node, topology);
@@ -214,13 +227,12 @@ public class WirelessLinkPersistence {
                 }
             }
         }
-        IMPORTED.keySet()
-            .retainAll(retained);
         updates.forEach((tile, claims) -> {
             save(tile, claims);
             if (claims.isEmpty()) TILES.remove(tile);
             else TILES.add(tile);
         });
+        return retained;
     }
 
     private static Claim claim(IGridNode node, PhysicalMeTopology topology) {

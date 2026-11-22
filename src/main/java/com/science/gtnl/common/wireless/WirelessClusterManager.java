@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 import com.science.gtnl.common.wireless.IWirelessLinkView.ClusterView;
+import com.science.gtnl.common.wireless.PhysicalClusterTracker.Change;
 import com.science.gtnl.common.wireless.PhysicalClusterTracker.Cluster;
 import com.science.gtnl.common.wireless.VerifiedEntranceRecovery.Candidate;
 import com.science.gtnl.common.wireless.VerifiedEntranceRecovery.Result;
@@ -140,9 +141,41 @@ public class WirelessClusterManager {
     }
 
     public static void refreshTarget(IGridNode target) {
-        refresh(List.of(target));
+        WirelessChannelManager.forgetUnloadedChunks();
+        if (SCANS.pending()) refresh(List.of(target));
+        else refreshAround(target);
         var cluster = TRACKER.clusterOf(target);
         if (cluster != null && cluster.limited()) throw new PhysicalClusterTracker.ScanLimitException();
+    }
+
+    // Must not touch SCANS or persistence seeds: beginScan would swallow a pending full scan and reset its cooldown.
+    private static void refreshAround(IGridNode target) {
+        try (var ignored = WirelessLinkData.readBatch()) {
+            TOPOLOGY.beginScan();
+            var change = TRACKER.refreshAround(
+                TOPOLOGY,
+                List.of(target),
+                node -> WirelessLinkPersistence.restore(node, TOPOLOGY),
+                WirelessFrequencies::canonical);
+            if (!reproduced(change)) SCANS.invalidate();
+            publish(change);
+        }
+    }
+
+    private static boolean reproduced(Change<IGridNode, WirelessFrequency> change) {
+        return change.removed()
+            .isEmpty()
+            || change.removed()
+                .size() == 1
+                && change.added()
+                    .size() == 1
+                && change.removed()
+                    .get(0)
+                    .nodes()
+                    .equals(
+                        change.added()
+                            .get(0)
+                            .nodes());
     }
 
     private static void refresh(List<IGridNode> extraSeeds) {
@@ -174,6 +207,20 @@ public class WirelessClusterManager {
         TOPOLOGY.retain(retained);
         RETRY_AFTER.keySet()
             .retainAll(retained);
+    }
+
+    private static void publish(Change<IGridNode, WirelessFrequency> change) {
+        for (var cluster : change.removed()) {
+            ANCHORS.remove(cluster);
+            PAUSES.remove(cluster);
+            SAVED_ENTRANCES.remove(cluster);
+        }
+        WirelessLinkPersistence.synchronize(change.added(), TRACKER, TOPOLOGY);
+        for (var cluster : change.added()) {
+            updateSavedState(cluster);
+            WATCH.add(cluster, TOPOLOGY);
+        }
+        reconcile();
     }
 
     private static void updateSavedState(Cluster<IGridNode, WirelessFrequency> cluster) {
@@ -631,8 +678,7 @@ public class WirelessClusterManager {
         }
 
         private void commit() {
-            TRACKER.commitClaims(WirelessFrequencies::canonical);
-            publishClusters();
+            publish(TRACKER.commitClaims(cluster, WirelessFrequencies::canonical));
             // Notifications raised during AE callbacks remain scheduled for the next tick's physical scan.
         }
     }
