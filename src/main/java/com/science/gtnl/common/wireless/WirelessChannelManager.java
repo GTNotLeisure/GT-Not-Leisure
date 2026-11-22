@@ -69,7 +69,7 @@ public class WirelessChannelManager {
             && (tile.getClass() == TileController.class || tile.getClass() == TileCreativeEnergyController.class);
     }
 
-    static void invalidateFrequencies() {
+    public static void invalidateFrequencies() {
         WirelessFrequencies.invalidate();
         entranceCounts = null;
     }
@@ -166,13 +166,10 @@ public class WirelessChannelManager {
 
     public static int capacity(IGrid grid) {
         Set<ChannelBudget.Position> controllers = new ObjectOpenHashSet<>();
-        // AE already indexes hosts by their concrete class; avoid scanning every cable and device for each GUI update.
         Class<?> controllerType = TileController.class;
         for (Class<? extends IGridHost> machine : grid.getMachinesClasses()) {
             if (!controllerType.isAssignableFrom(machine)) continue;
             for (IGridNode node : grid.getMachines(machine)) {
-                // AE retains empty machine-class buckets after removal. Only a controller that is
-                // still present can make this structure unsupported, not its historical class key.
                 // Keep the expression typed as TileEntity: AE2's controller superclass exposes optional mod APIs.
                 TileEntity controller = (TileEntity) node.getMachine();
                 if (!isSupportedController(controller) || controller.getWorldObj() == null) return 0;
@@ -231,7 +228,6 @@ public class WirelessChannelManager {
         ENTRANCES.put(id, entrance);
         entranceCountChanged(frequency, 1);
         OWNED_CONNECTIONS.put(connection, entrance);
-        // createGridConnection already schedules AE2's repath.
         invalidateAllocation(grid);
         invalidateAllocation(from.getGrid());
         return id;
@@ -323,7 +319,7 @@ public class WirelessChannelManager {
     @SubscribeEvent
     public static void tick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
-        // Kept between ticks on purpose: callers outside the tick would otherwise scan AE's connection lists.
+        // Connection hooks invalidate entries between ticks.
         connectionSnapshot = new Reference2ObjectOpenHashMap<>();
         try (var ignored = WirelessLinkData.readBatch()) {
             forgetUnloadedChunks();
@@ -346,7 +342,7 @@ public class WirelessChannelManager {
         }
     }
 
-    static boolean entrancesVerified() {
+    public static boolean entrancesVerified() {
         return entrancesVerified;
     }
 
@@ -369,9 +365,8 @@ public class WirelessChannelManager {
         chunks.add(ChunkCoordIntPair.chunkXZ2Int(event.getChunk().xPosition, event.getChunk().zPosition));
     }
 
-    // Up to 100 chunks unload per tick and each forget scans every tracked node, so they are forgotten together.
-    // Anything that registers tiles must call this first, or a chunk reloaded in the same tick loses its new tiles.
-    static void forgetUnloadedChunks() {
+    // Flush before registering tiles that reload in the same tick.
+    public static void forgetUnloadedChunks() {
         if (UNLOADED_CHUNKS.isEmpty()) return;
         Int2ObjectOpenHashMap<LongSet> chunks = new Int2ObjectOpenHashMap<>(UNLOADED_CHUNKS);
         UNLOADED_CHUNKS.clear();

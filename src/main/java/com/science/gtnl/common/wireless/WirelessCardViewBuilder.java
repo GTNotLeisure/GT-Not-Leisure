@@ -21,6 +21,7 @@ import com.science.gtnl.common.wireless.IWirelessLinkView.ClusterView;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Machine;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
+import com.science.gtnl.common.wireless.WirelessClusterManager.LinkState;
 import com.science.gtnl.common.wireless.WirelessMachineGroups.Row;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
@@ -29,7 +30,6 @@ import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGridNode;
 import appeng.api.parts.IPart;
 import gregtech.api.metatileentity.implementations.MTEMultiBlockBase;
-import it.unimi.dsi.fastutil.HashCommon;
 import it.unimi.dsi.fastutil.longs.Long2IntMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -37,6 +37,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
@@ -61,13 +62,14 @@ public class WirelessCardViewBuilder {
     private final Map<IGridNode, Presentation> presentations = new Reference2ObjectOpenHashMap<>();
     private WirelessCardSnapshot lastSnapshot;
     private Inputs lastInputs;
+    private Reference2ByteOpenHashMap<IGridNode> nextDeviceStates = new Reference2ByteOpenHashMap<>();
     private boolean lastInitializing;
 
-    void invalidatePresentation() {
+    public void invalidatePresentation() {
         presentationTick = Long.MIN_VALUE;
     }
 
-    boolean refreshPresentation(long tick) {
+    public boolean refreshPresentation(long tick) {
         if (presentationTick != Long.MIN_VALUE && tick >= presentationTick
             && tick - presentationTick < PRESENTATION_REFRESH_TICKS) return false;
         presentationTick = tick;
@@ -82,21 +84,22 @@ public class WirelessCardViewBuilder {
         return availability.computeIfAbsent(node, key -> RemoteDeviceSessions.probe(player, frequency, key));
     }
 
-    WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card, boolean force) {
+    public WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card, boolean force) {
         boolean refreshed = refreshPresentation(player.worldObj.getTotalWorldTime());
         if (refreshed && binding != null) WirelessMachineGroups.forgetRemovedGroupNames(binding.frequency());
         WirelessFrequency frequency = binding == null ? null : binding.frequency();
-        List<ClusterView> links = frequency == null ? List.of() : WirelessClusterManager.links(frequency);
+        List<LinkState> states = frequency == null ? List.of() : WirelessClusterManager.viewStates(frequency);
         NBTTagCompound tag = card.getTagCompound();
         Header header = Header.of(binding);
         Inputs inputs = new Inputs(
             binding,
             tag == null ? null : (NBTTagCompound) tag.copy(),
-            links,
-            deviceStates(links),
+            states,
+            deviceStates(states),
             header);
         if (!force && !refreshed && lastSnapshot != null && !lastInitializing && inputs.equals(lastInputs))
             return lastSnapshot;
+        List<ClusterView> links = frequency == null ? List.of() : WirelessClusterManager.links(frequency);
         displayAddresses.clear();
         machines.clear();
         devices.clear();
@@ -130,23 +133,28 @@ public class WirelessCardViewBuilder {
         data.setTag("dimensions", dimensions);
         lastSnapshot = new WirelessCardSnapshot(data, targets, devices, machines, displayAddresses);
         lastInputs = inputs;
+        nextDeviceStates = new Reference2ByteOpenHashMap<>(nextDeviceStates.size());
         lastInitializing = initializing;
         return lastSnapshot;
     }
 
-    private static long deviceStates(List<ClusterView> links) {
+    private Reference2ByteOpenHashMap<IGridNode> deviceStates(List<LinkState> states) {
         boolean channels = WirelessChannelManager.channelsEnabled();
-        long hash = 0;
-        for (ClusterView link : links) {
-            for (IGridNode node : link.members()) hash += HashCommon
-                .mix((long) System.identityHashCode(node) << 2 | DEVICE_STATES.indexOf(deviceState(node, channels)));
+        nextDeviceStates.clear();
+        for (LinkState state : states) {
+            for (IGridNode node : state.cluster()
+                .nodes()) nextDeviceStates.put(node, deviceStateCode(node, channels));
         }
-        return hash;
+        return nextDeviceStates;
     }
 
-    private static String deviceState(IGridNode node, boolean channels) {
-        return channels && node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !node.meetsChannelRequirements() ? "missing"
-            : node.isActive() ? "online" : "offline";
+    public static byte deviceStateCode(IGridNode node, boolean channels) {
+        return (byte) (channels && node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !node.meetsChannelRequirements() ? 0
+            : node.isActive() ? 2 : 1);
+    }
+
+    public static String deviceState(IGridNode node, boolean channels) {
+        return DEVICE_STATES.get(deviceStateCode(node, channels));
     }
 
     private long identifyMachine(Row group) {
@@ -396,8 +404,8 @@ public class WirelessCardViewBuilder {
     private record Presentation(Address address, NBTTagCompound data) {}
 
     // View data not covered here (names, icons, grouping, titles, channels) may lag until the presentation refresh.
-    private record Inputs(WirelessCardBinding binding, NBTTagCompound card, List<ClusterView> links, long deviceStates,
-        Header header) {}
+    private record Inputs(WirelessCardBinding binding, NBTTagCompound card, List<LinkState> links,
+        Reference2ByteOpenHashMap<IGridNode> deviceStates, Header header) {}
 
     private record Header(int entrances, int entranceLimit, Address source, boolean sourceLoaded, boolean sourceSplit,
         boolean channels, boolean allocated, int capacity, int used) {

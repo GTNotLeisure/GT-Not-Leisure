@@ -79,7 +79,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
 
     private record Line(NBTTagCompound data, boolean section, int depth, boolean expanded, int count, int online) {}
 
-    WirelessCardDeviceDialog(WirelessCardGui owner, DeviceView view) {
+    public WirelessCardDeviceDialog(WirelessCardGui owner, DeviceView view) {
         super("wireless_card_devices");
         this.owner = owner;
         this.key = view.key();
@@ -175,11 +175,11 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                         .child(done.size(DONE_WIDTH, AE2Theme.BUTTON_HEIGHT))));
     }
 
-    void receive(String text, int color) {
+    public void receive(String text, int color) {
         notice.show(text, color);
     }
 
-    DeviceView view() {
+    public DeviceView view() {
         return new DeviceView(key, Set.copyOf(expanded), scroll.getScroll());
     }
 
@@ -267,7 +267,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         list.scheduleResize();
     }
 
-    // A row only owns its buttons while it is on screen; hundreds of devices would otherwise build thousands.
+    // Create controls only for visible rows.
     private void showVisibleRows() {
         int first = scroll.getScroll() / ROW_HEIGHT;
         int from = Math.max(0, first - 1), to = Math.min(rows.size(), first + visibleRows + 2);
@@ -520,7 +520,6 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                     () -> Target.row(lineData(index)) != null,
                     () -> owner.openRename(Target.row(lineData(index))),
                     tooltip -> tooltip.addLine(tr(renameTooltip(lineData(index))))).pos(buttonsX, 4));
-            // Machine groups have no single position, as in the main list.
             if (!machine) addLocationButtons(this, index);
         }
 

@@ -16,6 +16,7 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.event.world.WorldEvent;
 
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
 import com.gtnewhorizon.gtnhlib.item.ItemStackNBT;
@@ -35,11 +36,13 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayFIFOQueue;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 
 @EventBusSubscriber
 public class WirelessBenchmark {
 
     public static final int MAX_CLUSTERS = 5000, MAX_DEVICES = 32;
+    public static final String SITE_KEY = "gtnlWirelessBenchmarkSite";
     private static final int COLUMNS = 40, ROWS = 8, MIXED_EVERY = 5, CONTROLLER_SPAN = 7, LINKS_PER_TICK = 4,
         SETTLE_TICKS = 40, SAMPLES = 20;
     private static final Map<UUID, Site> SITES = new Object2ObjectOpenHashMap<>();
@@ -48,20 +51,19 @@ public class WirelessBenchmark {
 
     private static class Site {
 
-        private final EntityPlayerMP player;
         private final World world;
-        private final List<Address> blocks = new ObjectArrayList<>();
+        private final String id = UUID.randomUUID()
+            .toString();
+        private final Map<Address, Block> blocks = new Object2ObjectOpenHashMap<>();
         private final List<Address> probe = new ObjectArrayList<>();
         private final ObjectArrayFIFOQueue<Address> pending = new ObjectArrayFIFOQueue<>();
-        private final WirelessFrequency frequency;
+        private WirelessFrequency frequency;
         private final Consumer<String> report;
         private int settle = SETTLE_TICKS;
         private int linked, failed;
 
-        private Site(EntityPlayerMP player, WirelessFrequency frequency, Consumer<String> report) {
-            this.player = player;
+        private Site(EntityPlayerMP player, Consumer<String> report) {
             this.world = player.worldObj;
-            this.frequency = frequency;
             this.report = report;
         }
     }
@@ -122,15 +124,17 @@ public class WirelessBenchmark {
                 throw new IllegalStateException(
                     "The site needs loaded air at " + address.x() + ", " + address.y() + ", " + address.z());
         }
-        for (Address address : controllers) world.setBlock(address.x(), address.y(), address.z(), controller);
-        world.setBlock(power.x(), power.y(), power.z(), energy);
+        Site site = new Site(player, report);
+        SITES.put(player.getUniqueID(), site);
+        for (Address address : controllers) place(site, address, controller);
+        place(site, power, energy);
         for (int cluster = 0; cluster < clusters; cluster++) {
             List<Address> row = rows.get(cluster);
             for (int i = 0; i < row.size(); i++) {
                 Address address = row.get(i);
                 Block kind = kinds
                     .get((cluster % MIXED_EVERY == MIXED_EVERY - 1 ? cluster + i : cluster) % kinds.size());
-                world.setBlock(address.x(), address.y(), address.z(), kind);
+                place(site, address, kind);
                 if (address.tile() instanceof IOrientable oriented && oriented.canBeRotated())
                     oriented.setOrientation(ForgeDirection.EAST, ForgeDirection.UP);
             }
@@ -138,11 +142,9 @@ public class WirelessBenchmark {
         TileEntity source = controllers.get(0)
             .tile();
         WirelessFrequency frequency = WirelessFrequencies.bind(source, player.getUniqueID());
-        Site site = new Site(player, frequency, report);
-        site.blocks.addAll(all);
+        site.frequency = frequency;
         site.probe.addAll(rows.get(0));
         for (List<Address> row : rows) site.pending.enqueue(row.get(0));
-        SITES.put(player.getUniqueID(), site);
         ItemStack card = GTNLItemList.WirelessFrequencyCard.get(1);
         new WirelessCardBinding(
             frequency,
@@ -156,7 +158,7 @@ public class WirelessBenchmark {
             "Placed " + clusters
                 + " subnets x "
                 + devices
-                + " interfaces from "
+                + " devices from "
                 + x
                 + ", "
                 + y
@@ -165,6 +167,18 @@ public class WirelessBenchmark {
                 + ". Linking "
                 + LINKS_PER_TICK
                 + " per tick; a bound card was added to your inventory.");
+    }
+
+    private static void place(Site site, Address address, Block block) {
+        if (!site.world.setBlock(address.x(), address.y(), address.z(), block)) throw new IllegalStateException(
+            "Could not place benchmark block at " + address + "; remove the partial site.");
+        site.blocks.put(address, block);
+        TileEntity tile = site.world.getTileEntity(address.x(), address.y(), address.z());
+        NBTTagCompound marker = new NBTTagCompound();
+        marker.setString(SITE_KEY, site.id);
+        IWirelessTileData.of(tile)
+            .setTag(IWirelessTileData.DEBUG_KEY, marker);
+        tile.markDirty();
     }
 
     private static Block block(ITileDefinition definition) {
@@ -212,6 +226,7 @@ public class WirelessBenchmark {
     public static void measure(EntityPlayerMP player, Consumer<String> report) {
         Site site = SITES.get(player.getUniqueID());
         if (site == null) throw new IllegalStateException("Build a benchmark site first.");
+        if (site.frequency == null) throw new IllegalStateException("Remove the incomplete benchmark site first.");
         if (!site.pending.isEmpty())
             throw new IllegalStateException("Still linking: " + site.pending.size() + " subnets left.");
         ItemStack card = null;
@@ -274,16 +289,7 @@ public class WirelessBenchmark {
         Map<IGridNode, Shape> full = shapes();
         int fullClusters = WirelessClusterManager.trackedClusters()
             .size();
-        long differing = scoped.entrySet()
-            .stream()
-            .filter(
-                entry -> !entry.getValue()
-                    .equals(full.get(entry.getKey())))
-            .count()
-            + full.keySet()
-                .stream()
-                .filter(node -> !scoped.containsKey(node))
-                .count();
+        long differing = differingNodes(scoped, full);
         report.accept(
             "Scoped state matches full rescan: " + (differing == 0 && scopedClusters == fullClusters)
                 + " (clusters "
@@ -299,17 +305,30 @@ public class WirelessBenchmark {
                 + ")");
     }
 
-    private record Shape(int size, Set<WirelessFrequency> frequencies, boolean blocked, boolean limited) {}
+    private record Shape(Set<IGridNode> nodes, Set<WirelessFrequency> frequencies, boolean blocked, boolean limited) {}
+
+    private static long differingNodes(Map<IGridNode, Shape> scoped, Map<IGridNode, Shape> full) {
+        Map<Shape, Shape> compared = new Reference2ObjectOpenHashMap<>();
+        Set<Shape> matched = new ReferenceOpenHashSet<>();
+        long differing = 0;
+        for (var entry : scoped.entrySet()) {
+            Shape previous = entry.getValue(), current = full.get(entry.getKey());
+            if (!compared.containsKey(previous)) {
+                compared.put(previous, current);
+                if (previous.equals(current)) matched.add(previous);
+            }
+            if (!matched.contains(previous) || compared.get(previous) != current) differing++;
+        }
+        for (IGridNode node : full.keySet()) {
+            if (!scoped.containsKey(node)) differing++;
+        }
+        return differing;
+    }
 
     private static Map<IGridNode, Shape> shapes() {
         Map<IGridNode, Shape> shapes = new Reference2ObjectOpenHashMap<>();
         for (var cluster : WirelessClusterManager.trackedClusters()) {
-            Shape shape = new Shape(
-                cluster.nodes()
-                    .size(),
-                cluster.frequencies(),
-                cluster.blocked(),
-                cluster.limited());
+            Shape shape = new Shape(cluster.nodes(), cluster.frequencies(), cluster.blocked(), cluster.limited());
             for (IGridNode node : cluster.nodes()) shapes.put(node, shape);
         }
         return shapes;
@@ -348,14 +367,45 @@ public class WirelessBenchmark {
     }
 
     public static void remove(EntityPlayerMP player, Consumer<String> report) {
-        Site site = SITES.remove(player.getUniqueID());
+        Site site = SITES.get(player.getUniqueID());
         if (site == null) throw new IllegalStateException("No benchmark site to remove.");
-        for (Address address : site.blocks) {
-            if (site.world.blockExists(address.x(), address.y(), address.z()))
-                site.world.setBlockToAir(address.x(), address.y(), address.z());
+        site.pending.clear();
+        // Detach wireless edges before controller removal can migrate the whole grid.
+        if (site.frequency != null) for (Entrance entrance : WirelessChannelManager.entrances()) {
+            if (!WirelessFrequencies.same(entrance.frequency(), site.frequency)) continue;
+            WirelessChannelManager.disconnect(entrance.id());
         }
+        site.frequency = null;
+        int removed = 0;
+        for (var iterator = site.blocks.entrySet()
+            .iterator(); iterator.hasNext();) {
+            var entry = iterator.next();
+            Address address = entry.getKey();
+            if (!site.world.blockExists(address.x(), address.y(), address.z())) continue;
+            TileEntity tile = site.world.getTileEntity(address.x(), address.y(), address.z());
+            if (site.world.getBlock(address.x(), address.y(), address.z()) == entry.getValue() && tile != null
+                && site.id.equals(
+                    IWirelessTileData.of(tile)
+                        .getCompoundTag(IWirelessTileData.DEBUG_KEY)
+                        .getString(SITE_KEY))) {
+                if (!site.world.setBlockToAir(address.x(), address.y(), address.z())) continue;
+                removed++;
+            }
+            iterator.remove();
+        }
+        if (site.blocks.isEmpty()) SITES.remove(player.getUniqueID());
         WirelessClusterManager.invalidateTopology();
-        report.accept("Removed " + site.blocks.size() + " benchmark blocks.");
+        report.accept(
+            "Removed " + removed
+                + " benchmark blocks; "
+                + site.blocks.size()
+                + " remain. Load their chunks and run bench remove again if needed.");
+    }
+
+    @SubscribeEvent
+    public static void unloadWorld(WorldEvent.Unload event) {
+        if (!event.world.isRemote) SITES.values()
+            .removeIf(site -> site.world == event.world);
     }
 
     public static void clear() {

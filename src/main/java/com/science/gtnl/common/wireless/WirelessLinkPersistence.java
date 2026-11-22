@@ -34,10 +34,6 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 
-/**
- * Claims live in tile-owned NBT, which is saved even after an AE proxy has invalidated its grid node.
- * No coordinate registry outlives a removed tile. Only loaded tiles are inspected; wireless links never load chunks.
- */
 public class WirelessLinkPersistence {
 
     private static final Set<TileEntity> TILES = new ReferenceOpenHashSet<>();
@@ -93,11 +89,11 @@ public class WirelessLinkPersistence {
         return found;
     }
 
-    static void discoverLoaded(Iterable<Chunk> chunks) {
+    public static void discoverLoaded(Iterable<Chunk> chunks) {
         for (Chunk chunk : chunks) discover(chunk);
     }
 
-    static Collection<IGridNode> seeds() {
+    public static Collection<IGridNode> seeds() {
         if (!initialized) {
             initialized = true;
             for (World world : DimensionManager.getWorlds()) {
@@ -165,30 +161,31 @@ public class WirelessLinkPersistence {
         return seeds;
     }
 
-    static boolean hasPendingSeeds() {
+    public static boolean hasPendingSeeds() {
         return pendingSeeds;
     }
 
-    static Set<WirelessFrequency> restore(IGridNode node, PhysicalMeTopology topology) {
+    public static Set<WirelessFrequency> restore(IGridNode node, PhysicalMeTopology topology) {
         if (IMPORTED.containsKey(node)) return Set.of();
         Claim saved = claim(node, topology);
         return saved == null ? Set.of() : upgrade(saved.frequencies());
     }
 
-    static void synchronize(PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
+    public static void synchronize(PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker,
+        PhysicalMeTopology topology) {
+        REMEMBERED_ENTRANCES.clear();
         IMPORTED.keySet()
             .retainAll(synchronizeClusters(tracker.clusters(), tracker, topology));
     }
 
     // Only the full scan may prune IMPORTED: its seeds() first clears a replaced part's inherited slot claim.
-    static void synchronize(Collection<Cluster<IGridNode, WirelessFrequency>> clusters,
+    public static void synchronize(Collection<Cluster<IGridNode, WirelessFrequency>> clusters,
         PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
         synchronizeClusters(clusters, tracker, topology);
     }
 
     private static Set<IGridNode> synchronizeClusters(Collection<Cluster<IGridNode, WirelessFrequency>> clusters,
         PhysicalClusterTracker<IGridNode, WirelessFrequency> tracker, PhysicalMeTopology topology) {
-        REMEMBERED_ENTRANCES.clear();
         Map<TileEntity, Map<Slot, Claim>> updates = new Reference2ObjectOpenHashMap<>();
         Set<IGridNode> retained = new ReferenceOpenHashSet<>();
         for (var cluster : clusters) {
@@ -202,8 +199,7 @@ public class WirelessLinkPersistence {
                 if (endpoint == null) continue;
                 retained.add(node);
                 IMPORTED.put(node, endpoint);
-                // Even a quarantined component needs node/slot identity tracking: replacing a part of the same
-                // class must not import its predecessor's saved claim. Its payload stays untouched until recovery.
+                // Track replaced parts even while a limited component retains its saved payload.
                 if (cluster.limited()) continue;
                 Map<Slot, Claim> claims = updates
                     .computeIfAbsent(endpoint.tile(), tile -> WirelessLinkData.read(IWirelessTileData.of(tile)));
@@ -243,7 +239,7 @@ public class WirelessLinkPersistence {
             .equals(endpoint.kind()) ? saved : null;
     }
 
-    static Set<WirelessFrequency> pausedSources(Collection<IGridNode> nodes, PhysicalMeTopology topology) {
+    public static Set<WirelessFrequency> pausedSources(Collection<IGridNode> nodes, PhysicalMeTopology topology) {
         Set<WirelessFrequency> paused = new ObjectOpenHashSet<>();
         for (IGridNode node : nodes) {
             Claim saved = claim(node, topology);
@@ -255,7 +251,7 @@ public class WirelessLinkPersistence {
         return paused;
     }
 
-    static Set<IGridNode> savedEntrances(Collection<IGridNode> nodes, WirelessFrequency source,
+    public static Set<IGridNode> savedEntrances(Collection<IGridNode> nodes, WirelessFrequency source,
         PhysicalMeTopology topology) {
         Set<IGridNode> result = new ReferenceOpenHashSet<>();
         for (IGridNode node : nodes) {
@@ -267,7 +263,7 @@ public class WirelessLinkPersistence {
         return result;
     }
 
-    static void rememberEntrance(Entrance entrance, PhysicalMeTopology topology) {
+    public static void rememberEntrance(Entrance entrance, PhysicalMeTopology topology) {
         if (entrance == null) return;
         IGridNode node = entrance.targetNode();
         RememberedEntrance remembered = REMEMBERED_ENTRANCES.get(entrance);
@@ -301,7 +297,7 @@ public class WirelessLinkPersistence {
         REMEMBERED_ENTRANCES.put(entrance, new RememberedEntrance(endpoint, tileData.getTag(WirelessLinkData.KEY)));
     }
 
-    static void forgetEntrance(Entrance entrance) {
+    public static void forgetEntrance(Entrance entrance) {
         REMEMBERED_ENTRANCES.remove(entrance);
     }
 
@@ -313,7 +309,7 @@ public class WirelessLinkPersistence {
         return result;
     }
 
-    static Map<IGridNode, String> names(Collection<IGridNode> nodes) {
+    public static Map<IGridNode, String> names(Collection<IGridNode> nodes) {
         Map<IGridNode, String> names = new Reference2ObjectOpenHashMap<>();
         for (IGridNode node : nodes) {
             if (node.getMachine() instanceof ICustomNameObject named) names.put(node, customName(named));
@@ -325,7 +321,7 @@ public class WirelessLinkPersistence {
         return named.hasCustomName() ? Objects.toString(named.getCustomName(), "") : "";
     }
 
-    static String cleanName(String value) {
+    public static String cleanName(String value) {
         if (value == null) return "";
         return value.codePoints()
             .filter(c -> !Character.isISOControl(c) && c != 0xA7 && !(c >= 0xD800 && c <= 0xDFFF))
@@ -335,7 +331,7 @@ public class WirelessLinkPersistence {
             .strip();
     }
 
-    static void renameDevice(IGridNode node, String shown, String name, PhysicalMeTopology topology) {
+    public static void renameDevice(IGridNode node, String shown, String name, PhysicalMeTopology topology) {
         Endpoint endpoint = endpoint(node, topology);
         if (endpoint == null || !endpoint.loaded()
             || endpoint.node() != node
@@ -353,7 +349,7 @@ public class WirelessLinkPersistence {
         }
     }
 
-    static void setPaused(Collection<IGridNode> nodes, WirelessFrequency source, boolean paused,
+    public static void setPaused(Collection<IGridNode> nodes, WirelessFrequency source, boolean paused,
         PhysicalMeTopology topology) {
         for (IGridNode node : nodes) {
             Endpoint endpoint = endpoint(node, topology);
@@ -401,7 +397,7 @@ public class WirelessLinkPersistence {
             .getName() : null;
     }
 
-    static boolean loaded(TileEntity tile) {
+    public static boolean loaded(TileEntity tile) {
         World world = tile.getWorldObj();
         return world != null && !world.isRemote
             && !tile.isInvalid()
@@ -414,7 +410,7 @@ public class WirelessLinkPersistence {
         if (WirelessLinkData.write(IWirelessTileData.of(tile), claims)) tile.markDirty();
     }
 
-    static boolean forget(Predicate<Address> removed) {
+    public static boolean forget(Predicate<Address> removed) {
         REMEMBERED_ENTRANCES.keySet()
             .removeIf(entrance -> removed.test(entrance.source()) || removed.test(entrance.target()));
         boolean forgotten = IMPORTED.values()
@@ -423,7 +419,7 @@ public class WirelessLinkPersistence {
         return TILES.removeIf(tile -> tile.getWorldObj() != null && removed.test(address(tile))) || forgotten;
     }
 
-    static Address address(TileEntity tile) {
+    public static Address address(TileEntity tile) {
         return new Address(
             tile.getWorldObj().provider.dimensionId,
             tile.xCoord,
@@ -432,7 +428,7 @@ public class WirelessLinkPersistence {
             ForgeDirection.UNKNOWN);
     }
 
-    static void clear() {
+    public static void clear() {
         PLACED.clear();
         TILES.clear();
         IMPORTED.clear();

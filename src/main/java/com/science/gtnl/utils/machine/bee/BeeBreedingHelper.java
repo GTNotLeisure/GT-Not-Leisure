@@ -17,6 +17,7 @@ import net.minecraftforge.fluids.FluidRegistry;
 import net.minecraftforge.oredict.OreDictionary;
 
 import forestry.api.apiculture.BeeManager;
+import forestry.api.apiculture.EnumBeeChromosome;
 import forestry.api.apiculture.EnumBeeType;
 import forestry.api.apiculture.IAlleleBeeSpecies;
 import forestry.api.apiculture.IBee;
@@ -31,13 +32,16 @@ import forestry.core.genetics.mutations.MutationConditionRequiresResource;
 import forestry.core.genetics.mutations.MutationConditionRequiresResourceOreDict;
 import forestry.core.utils.InventoryUtil;
 
-public final class BeeBreedingHelper {
+public class BeeBreedingHelper {
 
     private static final Random RANDOM = new Random();
 
-    private static Map<String, IAlleleBeeSpecies> uidSpeciesCache = null;
+    private static volatile Catalog catalog;
 
-    private static Map<String, List<MutationData>> mutationsByUidCache = null;
+    private record Catalog(IBeeRoot root, int templateCount, int mutationCount, int alleleCount,
+        Map<String, IAlleleBeeSpecies> species, List<IAlleleBeeSpecies> registered,
+        Map<String, List<MutationData>> mutationsByResult, List<MutationData> mutations,
+        Map<String, IAllele[]> templates) {}
 
     private BeeBreedingHelper() {}
 
@@ -70,230 +74,67 @@ public final class BeeBreedingHelper {
         return species != null ? species.getUID() : null;
     }
 
-    private static String stripBeePrefix(String name) {
-        if (name == null || name.isEmpty()) return name;
+    public static boolean isQueen(ItemStack stack) {
+        return isBee(stack) && getBeeRoot().getType(stack) == EnumBeeType.QUEEN;
+    }
 
-        if (name.length() > 9 && name.regionMatches(true, 0, "SpeciesTE", 0, 9)) {
-            return name.substring(9);
-        }
-
-        if (name.length() > 7 && name.regionMatches(true, 0, "species", 0, 7)) {
-            return name.substring(7);
-        }
-        return name;
+    public static boolean isFemale(ItemStack stack) {
+        if (!isBee(stack)) return false;
+        EnumBeeType type = getBeeRoot().getType(stack);
+        return type == EnumBeeType.PRINCESS || type == EnumBeeType.QUEEN;
     }
 
     public static String getSpeciesDisplayName(String input) {
-        return input == null || input.isEmpty() ? "" : computeSpeciesDisplayName(input);
+        if (input == null || input.isEmpty()) return "";
+        IAlleleBeeSpecies species = getSpeciesByUID(input);
+        if (species == null) species = getSpeciesByName(input);
+        return BeeSpeciesSearch.displayName(species == null ? input : species.getUID());
     }
 
-    private static String computeSpeciesDisplayName(String input) {
-
-        IAlleleBeeSpecies uidSpecies = getSpeciesByUID(input);
-        if (uidSpecies != null) {
-            String name = uidSpecies.getName();
-            if (name != null && !name.isEmpty() && !"name".equalsIgnoreCase(name)) {
-                return name;
-            }
-
-            String uln = uidSpecies.getUnlocalizedName();
-            String display = extractDisplayFromUnlocalizedName(uln);
-            if (display != null) return display;
-        }
-
-        String display = extractDisplayFromUnlocalizedName(input);
-        if (display != null) return display;
-
-        IAlleleBeeSpecies species = findSpeciesByUnlocalizedName(input);
-        if (species != null) {
-            String name = species.getName();
-            if (name != null && !name.isEmpty() && !"name".equalsIgnoreCase(name)) {
-                return name;
-            }
-        }
-        return Character.toUpperCase(input.charAt(0)) + input.substring(1);
-    }
-
-    private static String extractDisplayFromUnlocalizedName(String uln) {
-        int lastDot = uln.lastIndexOf('.');
-        if (lastDot >= 0) {
-            String name = uln.substring(lastDot + 1);
-            name = stripBeePrefix(name);
-            if (!name.isEmpty()) {
-                return Character.toUpperCase(name.charAt(0)) + name.substring(1);
-            }
-        }
-
-        String stripped = stripBeePrefix(uln);
-        if (!stripped.equals(uln) && !stripped.isEmpty()) {
-            return Character.toUpperCase(stripped.charAt(0)) + stripped.substring(1);
-        }
-        return null;
-    }
-
-    private static IAlleleBeeSpecies findSpeciesByUnlocalizedName(String uln) {
-        IBeeRoot root = getBeeRoot();
-        if (root == null) return null;
-        Map<String, IAllele[]> templates = root.getGenomeTemplates();
-        if (templates != null) {
-            for (IAllele[] template : templates.values()) {
-                if (template != null && template.length > 0 && template[0] instanceof IAlleleBeeSpecies) {
-                    IAlleleBeeSpecies s = (IAlleleBeeSpecies) template[0];
-                    if (uln.equalsIgnoreCase(s.getUnlocalizedName())) return s;
-                }
-            }
-        }
-        for (IBeeMutation mutation : root.getMutations(false)) {
-            IAllele[] template = mutation.getTemplate();
-            if (template.length > 0 && template[0] instanceof IAlleleBeeSpecies) {
-                IAlleleBeeSpecies s = (IAlleleBeeSpecies) template[0];
-                if (uln.equalsIgnoreCase(s.getUnlocalizedName())) return s;
-            }
-        }
-        return null;
-    }
-
-    public static String getCanonicalUID(String rawName) {
-        if (rawName == null || rawName.isEmpty()) return rawName;
-
-        IAlleleBeeSpecies species = getSpeciesByUID(rawName);
-        if (species != null) return species.getUID();
-
-        species = getSpeciesByName(rawName);
-        if (species != null) return species.getUID();
-
-        String display = getSpeciesDisplayName(rawName);
-        if (!display.isEmpty() && !display.equals(rawName)) {
-            species = getSpeciesByName(display);
-            if (species != null) return species.getUID();
-        }
-        return rawName;
-    }
-
-    private static String extractReadableName(String uln) {
-        int lastDot = uln.lastIndexOf('.');
-        String name = lastDot >= 0 ? uln.substring(lastDot + 1) : uln;
-        return stripBeePrefix(name);
+    public static String getCanonicalUID(String value) {
+        if (value == null || value.isEmpty()) return value;
+        IAlleleBeeSpecies species = getSpeciesByUID(value);
+        if (species == null) species = getSpeciesByName(value);
+        return species == null ? value : species.getUID();
     }
 
     public static IAlleleBeeSpecies getSpeciesByUID(String uid) {
         if (uid == null || uid.isEmpty()) return null;
-        ensureCaches();
-        return uidSpeciesCache != null ? uidSpeciesCache.get(uid) : null;
+        Catalog cache = ensureCaches();
+        return cache == null ? null
+            : cache.species()
+                .get(uid);
     }
 
-    private static String getDisplayNameForSpecies(IAlleleBeeSpecies species) {
-
-        String name = species.getName();
-        if (name != null && !name.isEmpty() && !"name".equalsIgnoreCase(name)) {
-            return name;
-        }
-
-        String uln = species.getUnlocalizedName();
-        if (uln == null || uln.isEmpty()) return "";
-        int lastDot = uln.lastIndexOf('.');
-        if (lastDot >= 0) {
-            String extracted = uln.substring(lastDot + 1);
-            extracted = stripBeePrefix(extracted);
-            if (!extracted.isEmpty()) {
-                return Character.toUpperCase(extracted.charAt(0)) + extracted.substring(1);
-            }
-        }
-
-        String stripped = stripBeePrefix(uln);
-        if (!stripped.equals(uln) && !stripped.isEmpty()) {
-            return Character.toUpperCase(stripped.charAt(0)) + stripped.substring(1);
-        }
-        return Character.toUpperCase(uln.charAt(0)) + uln.substring(1);
+    public static IAlleleBeeSpecies getSpeciesByName(String name) {
+        if (name == null || name.isEmpty() || getBeeRoot() == null) return null;
+        return BeeSpeciesSearch.resolve(name);
     }
 
     public static boolean tryMutation(double chance) {
         return RANDOM.nextDouble() * 100 < chance;
     }
 
-    public static IAlleleBeeSpecies getSpeciesByName(String speciesName) {
-        IBeeRoot root = getBeeRoot();
-        if (root == null) return null;
-
-        Map<String, IAllele[]> templates = root.getGenomeTemplates();
-        if (templates != null) {
-            for (IAllele[] template : templates.values()) {
-                if (template != null && template.length > 0 && template[0] instanceof IAlleleBeeSpecies) {
-                    IAlleleBeeSpecies species = (IAlleleBeeSpecies) template[0];
-                    if (matchSpeciesName(species, speciesName)) {
-                        return species;
-                    }
-                }
-            }
-        }
-
-        for (IAllele allele : root.getDefaultTemplate()) {
-            if (allele instanceof IAlleleBeeSpecies) {
-                IAlleleBeeSpecies species = (IAlleleBeeSpecies) allele;
-                if (matchSpeciesName(species, speciesName)) {
-                    return species;
-                }
-            }
-        }
-
-        for (IBeeMutation mutation : root.getMutations(false)) {
-            IAllele[] template = mutation.getTemplate();
-            if (template.length > 0 && template[0] instanceof IAlleleBeeSpecies) {
-                IAlleleBeeSpecies species = (IAlleleBeeSpecies) template[0];
-                if (matchSpeciesName(species, speciesName)) {
-                    return species;
-                }
-            }
-        }
-        return null;
-    }
-
-    private static boolean matchSpeciesName(IAlleleBeeSpecies species, String speciesName) {
-        if (species == null || speciesName == null) return false;
-
-        if (species.getName() != null && species.getName()
-            .equalsIgnoreCase(speciesName)) {
-            return true;
-        }
-
-        if (species.getUnlocalizedName() != null) {
-            if (species.getUnlocalizedName()
-                .equalsIgnoreCase(speciesName)) {
-                return true;
-            }
-
-            String readable = extractReadableName(species.getUnlocalizedName());
-            if (readable.equalsIgnoreCase(speciesName)) {
-                return true;
-            }
-
-            String display = getDisplayNameForSpecies(species);
-            if (display.equalsIgnoreCase(speciesName)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static List<MutationData> getMutationsForUID(String uid) {
-        ensureCaches();
-        if (mutationsByUidCache == null) return new ArrayList<>();
-        List<MutationData> cached = mutationsByUidCache.get(uid);
-
-        return cached != null ? new ArrayList<>(cached) : new ArrayList<>();
+        Catalog cache = ensureCaches();
+        return cache == null ? new ArrayList<>()
+            : new ArrayList<>(
+                cache.mutationsByResult()
+                    .getOrDefault(uid, List.of()));
     }
 
     public static List<IAlleleBeeSpecies> getRegisteredSpecies() {
-        ensureCaches();
-        return uidSpeciesCache == null ? Collections.emptyList() : new ArrayList<>(uidSpeciesCache.values());
+        Catalog cache = ensureCaches();
+        return cache == null ? List.of() : cache.registered();
     }
 
     public static List<MutationData> getAllMutations() {
-        ensureCaches();
-        List<MutationData> mutations = new ArrayList<>();
-        if (mutationsByUidCache != null) mutationsByUidCache.values()
-            .forEach(mutations::addAll);
-        return mutations;
+        Catalog cache = ensureCaches();
+        return cache == null ? List.of() : cache.mutations();
+    }
+
+    public static void invalidateCaches() {
+        catalog = null;
     }
 
     public static BreedingStep findRegisteredStep(String parent1, String parent2, String result, double chance) {
@@ -320,82 +161,121 @@ public final class BeeBreedingHelper {
         return Collections.unmodifiableList(requirements);
     }
 
-    public static ItemStack createDrone(String speciesName) {
-        IBeeRoot root = getBeeRoot();
-        if (root == null) return null;
-
-        IAlleleBeeSpecies species = getSpeciesByUID(speciesName);
-        if (species == null) species = getSpeciesByName(speciesName);
-        if (species == null) return null;
-
-        IAllele[] template = root.getTemplate(species.getUID());
-        if (template == null) return null;
-
-        IBeeGenome genome = root.templateAsGenome(template);
-        IBee bee = root.getBee(null, genome);
-        if (bee == null) return null;
-        return root.getMemberStack(bee, EnumBeeType.DRONE.ordinal());
+    public static ItemStack createDrone(String species) {
+        return createBee(species, EnumBeeType.DRONE);
     }
 
-    public static ItemStack createPrincess(String speciesName) {
-        IBeeRoot root = getBeeRoot();
-        if (root == null) return null;
-
-        IAlleleBeeSpecies species = getSpeciesByUID(speciesName);
-        if (species == null) species = getSpeciesByName(speciesName);
-        if (species == null) return null;
-
-        IAllele[] template = root.getTemplate(species.getUID());
-        if (template == null) return null;
-
-        IBeeGenome genome = root.templateAsGenome(template);
-        IBee bee = root.getBee(null, genome);
-        if (bee == null) return null;
-        return root.getMemberStack(bee, EnumBeeType.PRINCESS.ordinal());
+    public static ItemStack createPrincess(String species) {
+        return createBee(species, EnumBeeType.PRINCESS);
     }
 
-    private static void ensureCaches() {
-        if (uidSpeciesCache != null && mutationsByUidCache != null) return;
+    public static ItemStack createBee(String speciesName, EnumBeeType type) {
+        Catalog cache = ensureCaches();
+        if (cache == null) return null;
+        String uid = getCanonicalUID(speciesName);
+        IAlleleBeeSpecies species = cache.species()
+            .get(uid);
+        if (species == null) return null;
+        IAllele[] template = cache.templates()
+            .get(uid);
+        if (template == null) {
+            template = cache.root()
+                .getDefaultTemplate()
+                .clone();
+            template[EnumBeeChromosome.SPECIES.ordinal()] = species;
+        }
+        IBeeGenome genome = cache.root()
+            .templateAsGenome(template);
+        IBee bee = cache.root()
+            .getBee(null, genome);
+        return bee == null ? null
+            : cache.root()
+                .getMemberStack(bee, type.ordinal());
+    }
+
+    private static Catalog ensureCaches() {
         IBeeRoot root = getBeeRoot();
-        if (root == null) return;
-
-        Map<String, IAlleleBeeSpecies> speciesMap = new HashMap<>();
-        Map<String, List<MutationData>> mutationsMap = new HashMap<>();
-
+        if (root == null) return null;
         Map<String, IAllele[]> templates = root.getGenomeTemplates();
-        if (templates != null) {
-            for (IAllele[] template : templates.values()) {
-                if (template != null && template.length > 0 && template[0] instanceof IAlleleBeeSpecies) {
-                    IAlleleBeeSpecies s = (IAlleleBeeSpecies) template[0];
-                    if (AlleleManager.alleleRegistry == null
-                        || !AlleleManager.alleleRegistry.isBlacklisted(s.getUID())) {
-                        speciesMap.putIfAbsent(s.getUID(), s);
-                    }
-                }
-            }
+        var mutations = root.getMutations(false);
+        Map<String, IAllele> alleles = AlleleManager.alleleRegistry == null ? Map.of()
+            : AlleleManager.alleleRegistry.getRegisteredAlleles();
+        Catalog previous = catalog;
+        int templateCount = templates == null ? 0 : templates.size();
+        if (previous != null && previous.root() == root
+            && previous.templateCount() == templateCount
+            && previous.mutationCount() == mutations.size()
+            && previous.alleleCount() == alleles.size()) return previous;
+        Map<String, IAlleleBeeSpecies> species = new HashMap<>();
+        Map<String, IAllele[]> genomes = new HashMap<>();
+        for (IAllele allele : alleles.values()) registerSpecies(species, allele);
+        if (templates != null) for (IAllele[] template : templates.values()) {
+            if (template == null || template.length <= EnumBeeChromosome.SPECIES.ordinal()) continue;
+            IAllele allele = template[EnumBeeChromosome.SPECIES.ordinal()];
+            registerSpecies(species, allele);
+            if (allele instanceof IAlleleBeeSpecies bee && species.containsKey(bee.getUID()))
+                genomes.put(bee.getUID(), template);
         }
-
-        for (IBeeMutation mutation : root.getMutations(false)) {
-            IAllele[] resultTemplate = mutation.getTemplate();
-            if (resultTemplate.length == 0 || !(resultTemplate[0] instanceof IAlleleBeeSpecies)) continue;
-            IAlleleBeeSpecies resultSpecies = (IAlleleBeeSpecies) resultTemplate[0];
-            if (!speciesMap.containsKey(resultSpecies.getUID())) continue;
-
-            IAllele parent1Allele = mutation.getAllele0();
-            IAllele parent2Allele = mutation.getAllele1();
-            String p1 = parent1Allele != null ? parent1Allele.getUID() : "";
-            String p2 = parent2Allele != null ? parent2Allele.getUID() : "";
-            if (!speciesMap.containsKey(p1) || !speciesMap.containsKey(p2)) continue;
-            List<FoundationRequirement> requirements = readFoundations(mutation);
-            mutationsMap.computeIfAbsent(resultSpecies.getUID(), k -> new ArrayList<>())
-                .add(new MutationData(p1, p2, resultSpecies.getUID(), mutation.getBaseChance(), requirements));
+        for (IBeeMutation mutation : mutations) {
+            registerSpecies(species, mutation.getAllele0());
+            registerSpecies(species, mutation.getAllele1());
+            IAllele[] template = mutation.getTemplate();
+            if (template == null || template.length <= EnumBeeChromosome.SPECIES.ordinal()) continue;
+            IAllele allele = template[EnumBeeChromosome.SPECIES.ordinal()];
+            registerSpecies(species, allele);
+            if (allele instanceof IAlleleBeeSpecies bee && species.containsKey(bee.getUID()))
+                genomes.putIfAbsent(bee.getUID(), template);
         }
-
-        uidSpeciesCache = speciesMap;
-        mutationsByUidCache = mutationsMap;
+        Map<String, List<MutationData>> byResult = new HashMap<>();
+        List<MutationData> all = new ArrayList<>();
+        for (IBeeMutation mutation : mutations) {
+            IAllele[] template = mutation.getTemplate();
+            if (template == null || template.length <= EnumBeeChromosome.SPECIES.ordinal()
+                || !(template[EnumBeeChromosome.SPECIES.ordinal()] instanceof IAlleleBeeSpecies result)) continue;
+            IAllele parent1 = mutation.getAllele0(), parent2 = mutation.getAllele1();
+            double chance = mutation.getBaseChance();
+            if (parent1 == null || parent2 == null
+                || !species.containsKey(parent1.getUID())
+                || !species.containsKey(parent2.getUID())
+                || !species.containsKey(result.getUID())
+                || !Double.isFinite(chance)
+                || chance <= 0) continue;
+            MutationData data = new MutationData(
+                parent1.getUID(),
+                parent2.getUID(),
+                result.getUID(),
+                chance,
+                readFoundations(mutation));
+            byResult.computeIfAbsent(result.getUID(), ignored -> new ArrayList<>())
+                .add(data);
+            all.add(data);
+        }
+        byResult.replaceAll((uid, values) -> List.copyOf(values));
+        List<IAlleleBeeSpecies> registered = new ArrayList<>(species.values());
+        registered.sort(
+            (left, right) -> left.getUID()
+                .compareTo(right.getUID()));
+        Catalog next = new Catalog(
+            root,
+            templateCount,
+            mutations.size(),
+            alleles.size(),
+            Map.copyOf(species),
+            List.copyOf(registered),
+            Map.copyOf(byResult),
+            List.copyOf(all),
+            Map.copyOf(genomes));
+        catalog = next;
+        return next;
     }
 
-    public static final class FoundationRequirement {
+    private static void registerSpecies(Map<String, IAlleleBeeSpecies> species, IAllele allele) {
+        if (allele instanceof IAlleleBeeSpecies bee
+            && (AlleleManager.alleleRegistry == null || !AlleleManager.alleleRegistry.isBlacklisted(bee.getUID())))
+            species.putIfAbsent(bee.getUID(), bee);
+    }
+
+    public static class FoundationRequirement {
 
         private final ItemStack block;
         private final String oreName;
