@@ -6,6 +6,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.DoubleFunction;
 
+import com.cleanroommc.modularui.api.ITheme;
+import com.cleanroommc.modularui.api.IThemeApi;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.factory.ClientGUI;
@@ -34,7 +36,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 public class PortalGunLookScreen extends ModularScreen {
 
     private static final String LANG = "item.gtnl.portal_gun.look.";
-    private static final int WIDTH = 280, TEXT_HEIGHT = 10, SLIDER_WIDTH = 96, SCREEN_MARGIN = 16;
+    private static final int WIDTH = 280, TEXT_HEIGHT = 10, SLIDER_WIDTH = 96, SCREEN_MARGIN = 16, PANEL_EDGE = 2;
     private static final DoubleFunction<String> WHOLE = StepSlider.whole();
 
     private record Section(String title, List<Control> controls) {}
@@ -130,6 +132,17 @@ public class PortalGunLookScreen extends ModularScreen {
         return controls;
     }
 
+    private static int scrollbarWidth() {
+        String id = ScreenThemes.portalGun();
+        ITheme theme = id == null ? IThemeApi.get()
+            .getDefaultTheme()
+            : IThemeApi.get()
+                .getTheme(id);
+        return theme.getScrollbarTheme()
+            .getTheme()
+            .getDefaultWidth();
+    }
+
     private static ModularPanel panel() {
         LayoutTheme style = EquipmentTheme.layout(ScreenThemes.portalGun());
         int pad = style.padding, inner = WIDTH - pad * 2;
@@ -146,7 +159,8 @@ public class PortalGunLookScreen extends ModularScreen {
         }
         int content = lines.size() * style.rowHeight, listTop = pad + TEXT_HEIGHT + style.spacingLarge;
         int footer = style.spacingMedium + TEXT_HEIGHT + style.spacingMedium + style.buttonHeight + pad;
-        ModularPanel panel = new ModularPanel("portal_gun_look").width(WIDTH)
+        ModularPanel panel = new ModularPanel("portal_gun_look")
+            .width(WIDTH + Math.max(0, scrollbarWidth() + PANEL_EDGE - pad))
             .height(() -> Math.min(listTop + content + footer, screenHeight - SCREEN_MARGIN), Unit.Measure.PIXEL);
         panel.child(
             Layout.label(IKey.lang(LANG + "title"), style)
