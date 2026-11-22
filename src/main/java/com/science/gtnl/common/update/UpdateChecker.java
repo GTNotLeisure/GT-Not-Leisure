@@ -26,6 +26,11 @@ import cpw.mods.fml.common.versioning.VersionParser;
 
 public class UpdateChecker {
 
+    private static final Pattern RELEASE_TAG = Pattern.compile("[vV]?[0-9]+(\\.[0-9]+)*(?:-hotfix[0-9]+)?");
+    private static final Pattern COMMIT_ID = Pattern.compile("[a-fA-F0-9]{40}");
+    private static final Pattern BRANCH_SEPARATORS = Pattern.compile("[^A-Za-z0-9._-]+");
+    private static final Pattern BRANCH_EDGE_SEPARATORS = Pattern.compile("^-+|-+$");
+
     private static CompletableFuture<Result> check;
     private static volatile String currentVersion = Tags.VERSION;
 
@@ -85,6 +90,7 @@ public class UpdateChecker {
         JsonArray releases = api(build, "/releases?per_page=100").getAsJsonArray();
         String latest = null;
         String link = null;
+        String installedVersion = unprefixedVersion(build.version);
         for (JsonElement entry : releases) {
             JsonObject release = entry.getAsJsonObject();
             if (release.get("draft")
@@ -94,24 +100,27 @@ public class UpdateChecker {
                 continue;
             String tag = release.get("tag_name")
                 .getAsString();
-            if (!tag.matches("[vV]?[0-9]+(\\.[0-9]+)*(?:-hotfix[0-9]+)?")) continue;
-            String normalized = tag.replaceFirst("^[vV]", "");
+            if (!RELEASE_TAG.matcher(tag)
+                .matches()) continue;
+            String normalized = unprefixedVersion(tag);
             if (!VersionParser.parseRange(build.releaseRange)
                 .containsVersion(new DefaultArtifactVersion(normalized))) continue;
-            if (compare(normalized, build.version.replaceFirst("^[vV]", "")) <= 0) continue;
-            String asset = installAsset(
-                release.getAsJsonArray("assets"),
-                "sciencenotleisure-" + tag.replaceFirst("^[vV]", "") + ".jar");
+            if (compare(normalized, installedVersion) <= 0) continue;
+            String asset = installAsset(release.getAsJsonArray("assets"), "sciencenotleisure-" + normalized + ".jar");
             if (asset == null)
                 asset = installAsset(release.getAsJsonArray("assets"), "sciencenotleisure-" + tag + ".jar");
-            if (asset != null
-                && (latest == null || compare(tag.replaceFirst("^[vV]", ""), latest.replaceFirst("^[vV]", "")) > 0)) {
+            if (asset != null && (latest == null || compare(normalized, unprefixedVersion(latest)) > 0)) {
                 latest = tag;
                 requireDownloadUrl(build, asset);
                 link = asset;
             }
         }
         return new Result(latest, link, latest != null, null);
+    }
+
+    public static String unprefixedVersion(String version) {
+        return !version.isEmpty() && (version.charAt(0) == 'v' || version.charAt(0) == 'V') ? version.substring(1)
+            : version;
     }
 
     private static Result development(BuildIdentity build) throws Exception {
@@ -128,7 +137,8 @@ public class UpdateChecker {
         if (manifest != null) {
             candidate = manifest.get("commit")
                 .getAsString();
-            if (!candidate.matches("[a-fA-F0-9]{40}")) throw new IOException("Invalid manifest commit");
+            if (!COMMIT_ID.matcher(candidate)
+                .matches()) throw new IOException("Invalid manifest commit");
             display = manifest.get("version")
                 .getAsString();
             link = installAsset(
@@ -137,8 +147,10 @@ public class UpdateChecker {
                     .getAsString());
         } else {
             // Older published builds already encode the exact branch hash and source commit.
-            String branchName = build.branch.replaceAll("[^A-Za-z0-9._-]+", "-")
-                .replaceAll("^-+|-+$", "");
+            String branchName = BRANCH_EDGE_SEPARATORS.matcher(
+                BRANCH_SEPARATORS.matcher(build.branch)
+                    .replaceAll("-"))
+                .replaceAll("");
             Pattern name = Pattern.compile(
                 "sciencenotleisure-" + Pattern.quote(branchName + "-" + key + "-") + "([a-fA-F0-9]{8,40})\\.jar");
             for (JsonElement entry : assets) {

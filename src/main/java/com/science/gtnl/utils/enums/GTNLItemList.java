@@ -1,6 +1,7 @@
 package com.science.gtnl.utils.enums;
 
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -1619,6 +1620,8 @@ public enum GTNLItemList implements IItemContainer {
     public boolean mDeprecated;
     public boolean mWarned;
 
+    private static final Pattern DISPLAY_NAME_SEPARATOR = Pattern.compile("\\W");
+
     public ItemStack mStack;
 
     // endregion
@@ -1765,7 +1768,7 @@ public enum GTNLItemList implements IItemContainer {
 
         // CamelCase alphanumeric words from aDisplayName
         StringBuilder tCamelCasedDisplayNameBuilder = new StringBuilder();
-        final String[] tDisplayNameWords = aDisplayName.split("\\W");
+        final String[] tDisplayNameWords = DISPLAY_NAME_SEPARATOR.split(aDisplayName);
         for (String tWord : tDisplayNameWords) {
             if (!tWord.isEmpty()) tCamelCasedDisplayNameBuilder.append(
                 tWord.substring(0, 1)

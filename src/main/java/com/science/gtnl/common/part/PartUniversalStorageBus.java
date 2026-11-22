@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.science.gtnl.api.ICustomGui;
 import com.science.gtnl.common.gui.GTNLGuiHandler;
+import com.science.gtnl.common.me.OreDictionaryFilter;
 import com.science.gtnl.common.part.universal.UniversalBusHelper;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.GuiType;
@@ -74,7 +75,6 @@ import appeng.util.IterationCounter;
 import appeng.util.Platform;
 import appeng.util.prioitylist.FuzzyPriorityList;
 import appeng.util.prioitylist.IPartitionList;
-import appeng.util.prioitylist.OreFilteredList;
 import appeng.util.prioitylist.PrecisePriorityList;
 import appeng.util.target.TileTarget;
 import appeng.util.target.TileTargetCache;
@@ -126,6 +126,7 @@ public class PartUniversalStorageBus extends PartUpgradeable implements IStorage
     public String previousOreFilterString = "";
 
     private final TileTargetCache targetCache = new TileTargetCache();
+    private OreDictionaryFilter oreFilter;
 
     public PartUniversalStorageBus(ItemStack is) {
         super(is);
@@ -276,6 +277,15 @@ public class PartUniversalStorageBus extends PartUpgradeable implements IStorage
     @Override
     public String getFilter() {
         return this.oreFilterString;
+    }
+
+    public OreDictionaryFilter getOreFilter() {
+        String expression = oreFilterString.trim();
+        if (oreFilter == null || !oreFilter.expression()
+            .equals(expression)) {
+            oreFilter = new OreDictionaryFilter(expression);
+        }
+        return oreFilter;
     }
 
     @Override
@@ -508,7 +518,7 @@ public class PartUniversalStorageBus extends PartUpgradeable implements IStorage
             final Map<IAEStackType<?>, List<IAEStack<?>>> configured = UniversalBusHelper
                 .groupConfig(this.config, this.getActiveConfigSlots());
             // With an ore filter card the items are filtered by the ore expression, item config slots are ignored.
-            final OreFilteredList oreList = oreFilter ? new OreFilteredList(this.oreFilterString) : null;
+            final OreDictionaryFilter oreList = oreFilter ? getOreFilter() : null;
             final boolean itemsByOre = oreList != null && !oreList.isEmpty();
             if (oreFilter) configured.remove(ITEM_STACK_TYPE);
             final boolean anyConfigured = !configured.isEmpty() || itemsByOre;

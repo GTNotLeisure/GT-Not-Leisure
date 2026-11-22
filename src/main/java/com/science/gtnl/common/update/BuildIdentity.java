@@ -3,17 +3,21 @@ package com.science.gtnl.common.update;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import com.science.gtnl.Tags;
 
-final class BuildIdentity {
+public class BuildIdentity {
 
-    final String repository;
-    final String branch;
-    final String commit;
-    final String channel;
-    final String version;
-    final String releaseRange;
+    private static final Pattern REPOSITORY_NAME = Pattern.compile("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+");
+    private static final Pattern COMMIT_ID = Pattern.compile("[a-fA-F0-9]{40}");
+
+    public final String repository;
+    public final String branch;
+    public final String commit;
+    public final String channel;
+    public final String version;
+    public final String releaseRange;
 
     private BuildIdentity(Properties properties) {
         repository = properties.getProperty("repository", "");
@@ -24,18 +28,19 @@ final class BuildIdentity {
         releaseRange = properties.getProperty("releaseRange", "");
     }
 
-    static BuildIdentity load() throws Exception {
+    public static BuildIdentity load() throws Exception {
         Properties properties = new Properties();
         try (InputStream stream = BuildIdentity.class.getResourceAsStream("/gtnl-build.properties")) {
             if (stream == null) throw new IOException("Missing gtnl-build.properties");
             properties.load(stream);
         }
         BuildIdentity identity = new BuildIdentity(properties);
-        if (!identity.repository.matches("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")) {
+        if (!REPOSITORY_NAME.matcher(identity.repository)
+            .matches()) {
             throw new IOException("Invalid build repository");
         }
-        if (!"local".equals(identity.channel) && !identity.commit.matches("[a-fA-F0-9]{40}"))
-            throw new IOException("Invalid build commit");
+        if (!"local".equals(identity.channel) && !COMMIT_ID.matcher(identity.commit)
+            .matches()) throw new IOException("Invalid build commit");
         return identity;
     }
 }

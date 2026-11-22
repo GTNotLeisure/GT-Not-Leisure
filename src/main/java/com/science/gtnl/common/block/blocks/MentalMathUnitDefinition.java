@@ -1,12 +1,16 @@
 package com.science.gtnl.common.block.blocks;
 
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 public record MentalMathUnitDefinition(String name, long bytes, int parallelism) {
 
+    private static final Pattern UNIT_NAME = Pattern.compile("[a-z0-9_]+");
+
     public MentalMathUnitDefinition {
         Objects.requireNonNull(name, "name");
-        if (!name.matches("[a-z0-9_]+")) {
+        if (!UNIT_NAME.matcher(name)
+            .matches()) {
             throw new IllegalArgumentException(
                 "Unit names must contain only lowercase letters, digits and underscores");
         }

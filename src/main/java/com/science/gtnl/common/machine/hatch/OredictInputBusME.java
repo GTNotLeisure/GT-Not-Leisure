@@ -2,6 +2,7 @@ package com.science.gtnl.common.machine.hatch;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Objects;
 import java.util.function.Predicate;
 
 import net.minecraft.entity.player.EntityPlayer;
@@ -22,6 +23,7 @@ import com.cleanroommc.modularui.value.sync.PanelSyncManager;
 import com.science.gtnl.api.mixinHelper.ICommonMetaTileEntityInventory;
 import com.science.gtnl.api.mixinHelper.IMetaTileEntityInventoryHandler;
 import com.science.gtnl.common.gui.modularui.hatch.OredictInputBusMEGui;
+import com.science.gtnl.common.me.OreDictionaryFilter;
 import com.science.gtnl.utils.enums.GTNLItemList;
 
 import appeng.api.config.Actionable;
@@ -39,7 +41,6 @@ import appeng.me.GridAccessException;
 import appeng.me.helpers.AENetworkProxy;
 import appeng.me.helpers.IGridProxyable;
 import appeng.util.item.AEItemStack;
-import appeng.util.prioitylist.OreFilteredList;
 import gregtech.api.enums.GTValues;
 import gregtech.api.interfaces.IDataCopyable;
 import gregtech.api.interfaces.ITexture;
@@ -74,6 +75,8 @@ public class OredictInputBusME extends MTEHatchInputBusME
     public String oreDict;
     public boolean isSuper;
     private IStackWatcher superWatcher;
+    private String cachedFilterExpression;
+    private Predicate<IAEItemStack> cachedFilter;
 
     public OredictInputBusME(int aID, String aName, String aNameRegional, boolean isSuper) {
         super(aID, true, aName, aNameRegional);
@@ -232,8 +235,21 @@ public class OredictInputBusME extends MTEHatchInputBusME
     }
 
     public Predicate<IAEItemStack> createFilter() {
-        if (!hasFilter()) return null;
-        return OreFilteredList.makeFilter(oreDict);
+        String expression = getFilterExpression();
+        if (!Objects.equals(expression, cachedFilterExpression)) {
+            cachedFilter = expression == null ? null : compileFilter(expression);
+            cachedFilterExpression = expression;
+        }
+        return cachedFilter;
+    }
+
+    @Nullable
+    public String getFilterExpression() {
+        return hasFilter() ? oreDict : null;
+    }
+
+    public Predicate<IAEItemStack> compileFilter(String expression) {
+        return OreDictionaryFilter.makeFilter(expression);
     }
 
     @Override

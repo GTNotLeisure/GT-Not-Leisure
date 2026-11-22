@@ -4,10 +4,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.gtnewhorizon.gtnhlib.util.ItemUtil;
 
 import appeng.api.storage.data.IAEItemStack;
@@ -15,6 +18,12 @@ import appeng.core.AELog;
 import appeng.util.prioitylist.IPartitionList;
 
 public class ItemFilteredList implements IPartitionList<IAEItemStack> {
+
+    private static final Pattern REGEX_SPECIAL_CHARACTERS = Pattern
+        .compile(".*[\\^\\$\\.\\*\\+\\?\\{\\}\\[\\]\\|\\(\\)].*");
+    private static final Cache<String, Predicate<String>> NAME_MATCHERS = CacheBuilder.newBuilder()
+        .maximumSize(256)
+        .build();
 
     public final Predicate<IAEItemStack> filterPredicate;
 
@@ -51,38 +60,29 @@ public class ItemFilteredList implements IPartitionList<IAEItemStack> {
     public static Predicate<ItemStack> makeMatcher(String filter) {
         if (filter.isEmpty()) return null;
 
-        // modid:itemname@meta
-        String modid = null;
-        String name = null;
         Integer meta = null;
-
         try {
-            // 解析 meta
-            String[] metaSplit = filter.split("@", 2);
-            String beforeMeta = metaSplit[0];
-            if (metaSplit.length > 1) {
+            int metaIndex = filter.indexOf('@');
+            String beforeMeta = metaIndex < 0 ? filter : filter.substring(0, metaIndex);
+            if (metaIndex >= 0) {
                 try {
-                    meta = Integer.parseInt(metaSplit[1]);
-                } catch (NumberFormatException ignored) {
-                    meta = null;
-                }
+                    meta = Integer.parseInt(filter.substring(metaIndex + 1));
+                } catch (NumberFormatException ignored) {}
             }
 
-            // 解析 modid 和 registry name
-            String[] parts = beforeMeta.split(":", 2);
-            if (parts.length == 2) {
-                modid = parts[0].trim();
-                name = parts[1].trim();
-            } else {
-                name = beforeMeta.trim();
-            }
-
-            final String fModid = modid;
-            final String fName = name;
+            int separator = beforeMeta.indexOf(':');
+            String modid = separator < 0 ? ""
+                : beforeMeta.substring(0, separator)
+                    .trim();
+            String name = beforeMeta.substring(separator + 1)
+                .trim();
+            Predicate<String> modMatcher = modid.isEmpty() ? value -> true : makeNameMatcher(modid);
+            Predicate<String> nameMatcher = name.isEmpty() ? value -> true : makeNameMatcher(name);
             final Integer fMeta = meta;
 
             return (stack) -> {
                 if (ItemUtil.isStackInvalid(stack)) return false;
+                if (fMeta != null && stack.getItemDamage() != fMeta) return false;
 
                 String rl = Item.itemRegistry.getNameForObject(stack.getItem());
                 if (rl == null || rl.isEmpty()) return false;
@@ -98,32 +98,38 @@ public class ItemFilteredList implements IPartitionList<IAEItemStack> {
                     namePart = rl;
                 }
 
-                if (fModid != null && !fModid.isEmpty() && !matchesRegexOrWildcard(modIDPart, fModid)) return false;
-                if (fName != null && !fName.isEmpty() && !matchesRegexOrWildcard(namePart, fName)) return false;
-                return fMeta == null || stack.getItemDamage() == fMeta;
+                return modMatcher.test(modIDPart) && nameMatcher.test(namePart);
             };
 
-        } catch (Exception e) {
+        } catch (PatternSyntaxException e) {
             AELog.debug("Failed to parse item filter: " + filter, e);
             return null;
         }
     }
 
     public static boolean matchesRegexOrWildcard(String value, String pattern) {
-        if (pattern.equals("*")) return true;
+        return makeNameMatcher(pattern).test(value);
+    }
 
-        boolean isRegex = pattern.matches(".*[\\^\\$\\.\\*\\+\\?\\{\\}\\[\\]\\|\\(\\)].*");
+    public static Predicate<String> makeNameMatcher(String pattern) {
+        Predicate<String> matcher = NAME_MATCHERS.getIfPresent(pattern);
+        if (matcher != null) return matcher;
 
-        if (isRegex) {
-            Pattern p = Pattern.compile(pattern);
-            return p.matcher(value)
-                .matches();
-        } else if (pattern.contains("*")) {
-            String regex = pattern.replace("*", ".*");
-            return Pattern.matches(regex, value);
+        if (pattern.equals("*")) {
+            matcher = value -> true;
         } else {
-            return value.equalsIgnoreCase(pattern);
+            boolean regex = REGEX_SPECIAL_CHARACTERS.matcher(pattern)
+                .matches();
+            if (regex || pattern.indexOf('*') >= 0) {
+                Pattern compiled = Pattern.compile(regex ? pattern : pattern.replace("*", ".*"));
+                matcher = value -> compiled.matcher(value)
+                    .matches();
+            } else {
+                matcher = value -> value.equalsIgnoreCase(pattern);
+            }
         }
+        NAME_MATCHERS.put(pattern, matcher);
+        return matcher;
     }
 
     public static class ItemListMatcher implements Predicate<IAEItemStack> {
@@ -138,7 +144,12 @@ public class ItemFilteredList implements IPartitionList<IAEItemStack> {
         @Override
         public boolean test(IAEItemStack t) {
             if (t == null) return false;
-            return cache.compute(new ItemRef(t), (k, v) -> (v != null) ? v : matcher.test(t.getItemStack()));
+            ItemRef key = new ItemRef(t);
+            Boolean result = cache.get(key);
+            if (result != null) return result;
+            boolean matched = matcher.test(t.getItemStack());
+            Boolean previous = cache.putIfAbsent(key, matched);
+            return previous == null ? matched : previous;
         }
     }
 
@@ -148,7 +159,7 @@ public class ItemFilteredList implements IPartitionList<IAEItemStack> {
         public final int meta;
         public final int hash;
 
-        ItemRef(IAEItemStack stack) {
+        public ItemRef(IAEItemStack stack) {
             this.item = stack.getItem();
             this.meta = stack.getItemDamage();
             this.hash = item.hashCode() ^ meta;

@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.minecraft.block.Block;
 
@@ -14,6 +16,8 @@ import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.common.blocks.BlockCasingsAbstract;
 
 public class StructureUtils {
+
+    private static final Pattern UPPERCASE_LETTERS = Pattern.compile("[A-Z]");
 
     public static String BASE_PATH = "/assets/";
     public static ConcurrentHashMap<String, String[][]> MULTIBLOCK_CACHE = new ConcurrentHashMap<>();
@@ -134,10 +138,12 @@ public class StructureUtils {
 
     public static String[][] replaceLetters(String[][] array, String replacement) {
         String[][] outputArray = new String[array.length][];
+        Matcher matcher = UPPERCASE_LETTERS.matcher("");
         for (int i = 0; i < array.length; i++) {
             outputArray[i] = new String[array[i].length];
             for (int j = 0; j < array[i].length; j++) {
-                outputArray[i][j] = array[i][j].replaceAll("[A-Z]", replacement);
+                outputArray[i][j] = matcher.reset(array[i][j])
+                    .replaceAll(replacement);
             }
         }
         return outputArray;

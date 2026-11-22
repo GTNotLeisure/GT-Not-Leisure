@@ -103,9 +103,13 @@ public class TypeFilteredInputBusME extends OredictInputBusME {
     }
 
     @Override
-    public Predicate<IAEItemStack> createFilter() {
-        if (!hasFilter()) return null;
-        return ItemFilteredList.makeFilter(buildFilterString());
+    public String getFilterExpression() {
+        return hasFilter() ? buildFilterString() : null;
+    }
+
+    @Override
+    public Predicate<IAEItemStack> compileFilter(String expression) {
+        return ItemFilteredList.makeFilter(expression);
     }
 
     @Nullable
@@ -206,7 +210,7 @@ public class TypeFilteredInputBusME extends OredictInputBusME {
         if (aNBT.hasKey("meta")) meta = aNBT.getInteger("meta");
     }
 
-    private String normalizeFilterValue(@Nullable String value) {
+    public String normalizeFilterValue(@Nullable String value) {
         if (value == null) {
             return null;
         }
