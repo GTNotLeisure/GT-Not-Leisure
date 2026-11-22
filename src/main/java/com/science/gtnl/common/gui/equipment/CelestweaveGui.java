@@ -40,9 +40,12 @@ import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.Size;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ButtonPurpose;
+import com.gtnllib.gui.theme.MUI2Fixes;
+import com.gtnllib.gui.theme.ae2.AE2Look;
 import com.gtnllib.gui.widget.SlideSwitch;
 import com.gtnllib.gui.widget.StepSlider;
 import com.gtnllib.utils.ColorMath;
+import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.celestweave.CelestweaveThemeAccent;
 import com.science.gtnl.common.celestweave.CelestweaveBackpack;
 import com.science.gtnl.common.celestweave.CelestweaveBackpackData;
@@ -163,8 +166,8 @@ public class CelestweaveGui extends EquipmentGui {
             .top(this::contentY, Unit.Measure.PIXEL)
             .width(this::listWidth, Unit.Measure.PIXEL)
             .height(this::pageHeight, Unit.Measure.PIXEL)
-            .showScrollShadows(false)
             .setEnabledIf(widget -> page == index);
+        MUI2Fixes.noScrollShadows(list);
         lines.forEach(list::child);
         panel.child(list);
     }
@@ -442,7 +445,7 @@ public class CelestweaveGui extends EquipmentGui {
                 .leftRel(1f)
                 .background(IDrawable.EMPTY)
                 .disableThemeBackground(false);
-        AE2Theme.sliderHandles(picker, themeId);
+        AE2Theme.polish(picker, AE2Look.ofTheme(themeId), ScienceNotLeisure.MODID, panel.getName());
         return picker;
     }
 

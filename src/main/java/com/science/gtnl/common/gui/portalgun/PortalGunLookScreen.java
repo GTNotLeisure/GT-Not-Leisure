@@ -19,7 +19,9 @@ import com.gtnllib.config.GTNLLibConfig;
 import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.settings.SettingControls;
 import com.gtnllib.gui.settings.SettingControls.Control;
+import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.LayoutTheme;
+import com.gtnllib.gui.theme.MUI2Fixes;
 import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.StepSlider;
 import com.science.gtnl.ScienceNotLeisure;
@@ -46,6 +48,7 @@ public class PortalGunLookScreen extends ModularScreen {
     private PortalGunLookScreen() {
         super(ScienceNotLeisure.MODID, panel());
         useTheme(ScreenThemes.portalGun());
+        AE2Theme.polish(this);
     }
 
     public static void open() {
@@ -168,8 +171,8 @@ public class PortalGunLookScreen extends ModularScreen {
                 .size(inner - CloseButton.SIZE - style.spacingMedium, TEXT_HEIGHT));
         panel.child(new CloseButton().corner(pad, style));
         ListWidget<IWidget, ?> list = new ListWidget<>().pos(pad, listTop)
-            .height(() -> Math.min(content, screenHeight - SCREEN_MARGIN - listTop - footer), Unit.Measure.PIXEL)
-            .showScrollShadows(false);
+            .height(() -> Math.min(content, screenHeight - SCREEN_MARGIN - listTop - footer), Unit.Measure.PIXEL);
+        MUI2Fixes.noScrollShadows(list);
         list.width(
             () -> inner + Math.max(
                 0,
