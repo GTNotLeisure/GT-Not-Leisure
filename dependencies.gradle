@@ -32,7 +32,6 @@ dependencies {
     compileOnlyApi("com.github.GTNewHorizons:BloodMagic:1.9.18:dev")
     compileOnlyApi("com.github.GTNewHorizons:ThaumicBases:1.9.22:dev")
     compileOnlyApi("com.github.GTNewHorizons:ThaumicEnergistics:1.8.0-GTNH:dev")
-    compileOnlyApi(rfg.deobf("curse.maven:thaumcraft-nei-plugin-225095:2241913")) { transitive = false } // Deprecated, use Aspect Recipe Index
     compileOnlyApi("com.github.GTNewHorizons:AspectRecipeIndex:1.1.6:dev")
     compileOnlyApi("com.github.GTNewHorizons:ThaumicHorizons:1.8.28:dev")
     compileOnlyApi("com.github.GTNewHorizons:VisualProspecting:1.5.42:dev")
@@ -98,6 +97,7 @@ configurations.configureEach {
     exclude group: "com.github.GTNewHorizons", module: "CodeChickenLib"
     exclude group: "com.github.GTNewHorizons", module: "Hodgepodge"
     exclude group: "com.github.GTNewHorizons", module: "Baubles"
+    exclude group: "com.github.GTNewHorizons", module: "Mobs-Info"
 }
 
 // deps may transitively add Baubles, so we replace it
