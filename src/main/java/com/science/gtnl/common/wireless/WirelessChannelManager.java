@@ -269,6 +269,7 @@ public class WirelessChannelManager {
         WirelessFrequencies.clear();
         nextId = 1;
         allocationRevision = 0;
+        connectionSnapshot = null;
     }
 
     public static List<Entrance> entrances() {
@@ -321,6 +322,7 @@ public class WirelessChannelManager {
     @SubscribeEvent
     public static void tick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        // Kept between ticks on purpose: callers outside the tick would otherwise scan AE's connection lists.
         connectionSnapshot = new Reference2ObjectOpenHashMap<>();
         try (var ignored = WirelessLinkData.readBatch()) {
             forgetUnloadedChunks();
@@ -340,8 +342,6 @@ public class WirelessChannelManager {
             }
             WirelessAutoConnect.tick();
             WirelessCopiedLinks.tick();
-        } finally {
-            connectionSnapshot = null;
         }
     }
 
