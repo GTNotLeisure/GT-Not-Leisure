@@ -410,7 +410,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
     public CheckRecipeResult checkProcessing() {
         if (this.tierMachine != this.getTierMachine(mInventory[1])) {
             stopMachine(ShutDownReasonRegistry.NONE);
-            return SimpleCheckRecipeResult.ofFailure("missing_schematic");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.missing_schematic");
         }
 
         if (renderer != null) {
@@ -419,7 +419,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
 
         if (isResetting) {
             this.reset();
-            return SimpleCheckRecipeResult.ofSuccess("meteor_reset");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.meteor_reset");
         }
 
         setElectricityStats();
@@ -434,7 +434,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
             }
             setElectricityStats();
             if (!checkIsBlock()) {
-                return SimpleCheckRecipeResult.ofSuccess("meteor_waiting");
+                return SimpleCheckRecipeResult.ofSuccess("gtnl.meteor_waiting");
             }
             isWaiting = false;
             isStartInitialized = false;
@@ -487,7 +487,7 @@ public class MeteorMiner extends MultiMachineBase<MeteorMiner> implements ISurvi
             }
         }
 
-        return SimpleCheckRecipeResult.ofSuccess("meteor_mining");
+        return SimpleCheckRecipeResult.ofSuccess("gtnl.meteor_mining");
     }
 
     public int getTierMachine(ItemStack inventory) {

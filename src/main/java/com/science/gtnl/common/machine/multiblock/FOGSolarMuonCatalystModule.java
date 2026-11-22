@@ -81,7 +81,7 @@ public class FOGSolarMuonCatalystModule extends MTEBaseModule implements IFOGMod
                 }
 
                 if (recipe.getMetadataOrDefault(SolorMuonCatalystMetadata.INSTANCE, false) && !isAllUpgrade()) {
-                    return SimpleCheckRecipeResult.ofFailure("not_enough_upgrade");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.not_enough_upgrade");
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }

@@ -532,13 +532,13 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
                 if (research == null || requiredVis == null) return CheckRecipeResultRegistry.NO_RECIPE;
 
                 if (!isResearchComplete(research)) {
-                    return SimpleCheckRecipeResult.ofFailure("missing_arcane_research");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.missing_arcane_research");
                 }
                 if (getArcaneWand() == null) {
-                    return SimpleCheckRecipeResult.ofFailure("missing_arcane_wand");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.missing_arcane_wand");
                 }
                 if (getAffordableCrafts(requiredVis, 1) <= 0) {
-                    return SimpleCheckRecipeResult.ofFailure("insufficient_vis");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.insufficient_vis");
                 }
 
                 return CheckRecipeResultRegistry.SUCCESSFUL;
@@ -558,11 +558,11 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
                 AspectList requiredVis = recipe.getMetadata(ARCANE_VIS);
                 if (requiredVis == null) return CheckRecipeResultRegistry.NO_RECIPE;
                 if (getArcaneWand() == null) {
-                    return SimpleCheckRecipeResult.ofFailure("missing_arcane_wand");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.missing_arcane_wand");
                 }
                 FakeThaumcraftPlayer player = getOwnerPlayer();
                 if (player == null || !consumeVis(scaleAspects(requiredVis, calculatedParallels), player, true)) {
-                    return SimpleCheckRecipeResult.ofFailure("insufficient_vis");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.insufficient_vis");
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }

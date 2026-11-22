@@ -190,7 +190,7 @@ public class ETGWEyeOfHarmonyModule extends EternalGregTechWorkshopModule {
     public CheckRecipeResult checkProcessing() {
         ItemStack controllerStack = getControllerSlot();
         if (controllerStack == null) {
-            return SimpleCheckRecipeResult.ofFailure("no_planet_block");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.no_planet_block");
         }
 
         lagPreventer++;
@@ -225,15 +225,15 @@ public class ETGWEyeOfHarmonyModule extends EternalGregTechWorkshopModule {
 
         if (enableRawStarMatter) {
             if (getStellarPlasmaStored() < currentRecipe.getHeliumRequirement() * 0.8) {
-                return SimpleCheckRecipeResult.ofFailure("no_stellar_plasma");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.no_stellar_plasma");
             }
         } else {
             if (getHydrogenStored() < currentRecipe.getHydrogenRequirement()) {
-                return SimpleCheckRecipeResult.ofFailure("no_hydrogen");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.no_hydrogen");
             }
 
             if (getHeliumStored() < currentRecipe.getHeliumRequirement()) {
-                return SimpleCheckRecipeResult.ofFailure("no_helium");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.no_helium");
             }
         }
 

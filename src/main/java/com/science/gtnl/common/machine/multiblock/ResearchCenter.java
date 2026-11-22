@@ -267,7 +267,7 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
         this.eAmpereFlow = ampereFlow;
         this.mMaxProgresstime = 20;
         this.mEfficiencyIncrease = 10000;
-        return SimpleCheckRecipeResult.ofSuccess("researching");
+        return SimpleCheckRecipeResult.ofSuccess("gtnl.researching");
     }
 
     @Override
@@ -522,7 +522,7 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
             this.mEUt = 0;
             this.eRequiredData = 0;
             this.eAmpereFlow = 0;
-            return SimpleCheckRecipeResult.ofSuccess("scanning");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.scanning");
         }
 
         return outputFull != null ? outputFull : CheckRecipeResultRegistry.NO_RECIPE;
@@ -550,7 +550,7 @@ public class ResearchCenter extends MTEResearchStation implements IResearchStati
         this.eAmpereFlow = 0;
         this.computationRequired = this.computationRemaining = 0;
         applyPacketLossDecayFrom(0);
-        return SimpleCheckRecipeResult.ofSuccess("scanning");
+        return SimpleCheckRecipeResult.ofSuccess("gtnl.scanning");
     }
 
     private List<ItemStack> getScannerCandidateItems() {

@@ -691,12 +691,12 @@ public class OredictInputBusME extends MTEHatchInputBusME
                         if (result == null || result.getStackSize() != toExtract) {
                             controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
                             checkRecipeResult = SimpleCheckRecipeResult
-                                .ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                                .ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                         }
                     } catch (final GridAccessException ignored) {
                         controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
                         checkRecipeResult = SimpleCheckRecipeResult
-                            .ofFailurePersistOnShutdown("stocking_hatch_fail_extraction");
+                            .ofFailurePersistOnShutdown("gtnl.stocking_hatch_fail_extraction");
                     }
                 }
                 savedStackSizes[i] = 0;

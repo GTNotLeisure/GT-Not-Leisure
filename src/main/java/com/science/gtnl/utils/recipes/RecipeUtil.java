@@ -476,5 +476,5 @@ public class RecipeUtil {
 
     @NotNull
     public static final CheckRecipeResult NOT_IN_SPACE_STATION = SimpleCheckRecipeResult
-        .ofFailure("not_in_space_station");
+        .ofFailure("gtnl.not_in_space_station");
 }

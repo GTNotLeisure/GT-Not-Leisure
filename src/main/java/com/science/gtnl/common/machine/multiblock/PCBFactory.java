@@ -285,7 +285,7 @@ public class PCBFactory extends WirelessEnergyMultiMachineBase<PCBFactory>
                         }
                     }
                     if (!nanitesFound) {
-                        return SimpleCheckRecipeResult.ofFailure("nanites_missing");
+                        return SimpleCheckRecipeResult.ofFailure("gtnl.nanites_missing");
                     }
                 }
 

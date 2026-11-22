@@ -62,6 +62,7 @@ import com.science.gtnl.utils.machine.bee.BeeSpeciesArchive;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 
 import forestry.api.apiculture.IAlleleBeeSpecies;
+import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Textures;
 import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
@@ -310,7 +311,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 allTasksBlocked = true;
                 missingDroneSpecies = targetBeeSpecies;
                 markBreedingChanged();
-                return SimpleCheckRecipeResult.ofFailure("bee_breeder_unreachable_target");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_unreachable_target");
             }
             ItemStack drone = BeeBreedingHelper.createDrone(targetBeeSpecies);
             mOutputItems = drone == null ? new ItemStack[] { princess } : new ItemStack[] { princess, drone };
@@ -326,7 +327,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
             missingDroneSpecies = breedingPlan.getFirstMissingSpecies();
             if (missingDroneSpecies.isEmpty()) missingDroneSpecies = targetBeeSpecies;
             markBreedingChanged();
-            return SimpleCheckRecipeResult.ofFailure("bee_breeder_missing_drone");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_missing_drone");
         }
 
         int requiredTier = readySteps.stream()
@@ -344,7 +345,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         updateMissingFoundations(readySteps);
         if (!missingFoundations.isEmpty()) {
             allTasksBlocked = true;
-            return SimpleCheckRecipeResult.ofFailure("bee_breeder_missing_foundation");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_missing_foundation");
         }
 
         double chanceBonus = getMutationChanceBonus();
@@ -365,15 +366,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private CheckRecipeResult insufficientBreedingVoltage(int requiredTier) {
         allTasksBlocked = true;
         missingDroneSpecies = "";
-        return SimpleCheckRecipeResult.ofFailure(switch (requiredTier) {
-            case VoltageIndex.EV -> "bee_breeder_voltage_ev";
-            case VoltageIndex.IV -> "bee_breeder_voltage_iv";
-            case VoltageIndex.LuV -> "bee_breeder_voltage_luv";
-            case VoltageIndex.ZPM -> "bee_breeder_voltage_zpm";
-            case VoltageIndex.UV -> "bee_breeder_voltage_uv";
-            case VoltageIndex.UHV -> "bee_breeder_voltage_uhv";
-            default -> "bee_breeder_voltage_hv";
-        });
+        return CheckRecipeResultRegistry.insufficientVoltage(GTValues.V[requiredTier]);
     }
 
     private void prepareBreedingCycle(long eut) {
@@ -444,7 +437,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 activeFoundationsChecked = true;
             }
             if (!missingFoundations.isEmpty()) {
-                checkRecipeResult = SimpleCheckRecipeResult.ofFailure("bee_breeder_missing_foundation");
+                checkRecipeResult = SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_missing_foundation");
                 return false;
             }
         }

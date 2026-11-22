@@ -97,9 +97,9 @@ public class DataCenter extends TTMultiMachineBase implements ISurvivalConstruct
                 + 1024L * mDataAccessHatches.size());
             mMaxProgresstime = 20;
             mEfficiencyIncrease = 10000;
-            return SimpleCheckRecipeResult.ofSuccess("providing_data");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.providing_data");
         }
-        return SimpleCheckRecipeResult.ofFailure("no_data");
+        return SimpleCheckRecipeResult.ofFailure("gtnl.no_data");
     }
 
     @Override

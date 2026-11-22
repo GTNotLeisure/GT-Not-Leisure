@@ -175,14 +175,14 @@ public class EnergyInfuser extends TTMultiMachineBase implements IConstructable,
         mStoredItems.addAll(toStore);
 
         if (!mStoredItems.isEmpty()) {
-            return SimpleCheckRecipeResult.ofSuccess("charging");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.charging");
         }
 
         if (toStore.isEmpty()) {
-            return SimpleCheckRecipeResult.ofFailure("no_chargeable_item");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.no_chargeable_item");
         }
 
-        return SimpleCheckRecipeResult.ofSuccess("charging");
+        return SimpleCheckRecipeResult.ofSuccess("gtnl.charging");
     }
 
     @Override

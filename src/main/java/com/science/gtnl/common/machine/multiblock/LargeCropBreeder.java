@@ -194,7 +194,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         if (!archive.containsKey(targetCrop)) {
             List<ICropMutation> route = getPlan().steps;
             if (route.isEmpty()) {
-                return SimpleCheckRecipeResult.ofFailure("gtnl_crop_no_route");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.crop_no_route");
             }
             mutation = route.get(0);
             crop = mutation.getOutput();
@@ -221,11 +221,11 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         ItemStack[] catalysts = mutation == null ? new ItemStack[0] : getStoredInputs().toArray(new ItemStack[0]);
         int[] consume = mutation == null ? new int[0] : breedingConsumption(mutation, parents, catalysts);
         if (!validConsumption(consume, catalysts)) {
-            return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.crop_requirements");
         }
         FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL * limit);
         limit = Math.min(limit, depleteInputQuantity(fertilizer, true) / FERTILIZER_PER_PARALLEL);
-        if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
+        if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_fertilizer");
         int parallels = 1;
         if (mutation == null || !consumesPerParallel(mutation, consume)) parallels = limit;
         else if (limit > 1) {
@@ -252,7 +252,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             eut *= 4;
             duration = Math.max(1, duration / 2);
         }
-        if (!depleteInput(fertilizer)) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
+        if (!depleteInput(fertilizer)) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_fertilizer");
         for (int i = 0; i < consume.length; i++) if (consume[i] > 0) catalysts[i].stackSize -= consume[i];
         updateSlots();
         activeCrop = crop.getId();
@@ -310,9 +310,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     private CheckRecipeResult startWashing() {
         SeedStats stats = archive.get(targetCrop);
-        if (stats == null) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_unarchived");
+        if (stats == null) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_wash_unarchived");
         int stat = chooseWashStat(stats);
-        if (stat == 0) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_max");
+        if (stat == 0) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_wash_max");
         if (getMaxInputVoltage() < BASE_EUT || getMaxInputEu() < BASE_EUT)
             return CheckRecipeResultRegistry.insufficientPower(BASE_EUT);
         activeWashStat = stat;

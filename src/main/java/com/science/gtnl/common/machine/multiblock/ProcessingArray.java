@@ -192,10 +192,10 @@ public class ProcessingArray extends MultiMachineBase<ProcessingArray> implement
     @NotNull
     public CheckRecipeResult checkProcessing() {
         refreshControllerStateIfNeeded();
-        if (mLastRecipeMap == null) return SimpleCheckRecipeResult.ofFailure("no_machine");
+        if (mLastRecipeMap == null) return SimpleCheckRecipeResult.ofFailure("gtnl.no_machine");
         if (mLockedToSingleRecipe && mSingleRecipeCheck != null
             && mSingleRecipeCheck.getRecipeMap() != mLastRecipeMap) {
-            return SimpleCheckRecipeResult.ofFailure("machine_mismatch");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.machine_mismatch");
         }
 
         syncInputRecipeMapsIfNeeded();
@@ -220,7 +220,7 @@ public class ProcessingArray extends MultiMachineBase<ProcessingArray> implement
                 if (GTMod.proxy.mLowGravProcessing && (recipe.mSpecialValue == -100 || recipe.mSpecialValue == -300)
                     && !MTEBasicMachine
                         .isValidForLowGravity(recipe, getBaseMetaTileEntity().getWorld().provider.dimensionId)) {
-                    return SimpleCheckRecipeResult.ofFailure("high_gravity");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.high_gravity");
                 }
                 return CheckRecipeResultRegistry.SUCCESSFUL;
             }

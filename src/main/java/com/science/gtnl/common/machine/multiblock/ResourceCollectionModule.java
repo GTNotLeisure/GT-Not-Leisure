@@ -229,7 +229,7 @@ public class ResourceCollectionModule extends TileEntityModuleBase {
                 int recipeReq = recipe.getMetadataOrDefault(ResourceCollectionModuleMetadata.INSTANCE, 0);
                 ItemStack miningDrone = findMiningDrone();
                 if (miningDrone == null) {
-                    return SimpleCheckRecipeResult.ofFailure("no_mining_drone");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.no_mining_drone");
                 }
 
                 if (miningDrone.stackSize > 16) {
@@ -254,7 +254,7 @@ public class ResourceCollectionModule extends TileEntityModuleBase {
                         return CheckRecipeResultRegistry.SUCCESSFUL;
                     }
 
-                    return SimpleCheckRecipeResult.ofFailure("no_mining_drone");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.no_mining_drone");
                 }
 
                 return super.validateRecipe(recipe);

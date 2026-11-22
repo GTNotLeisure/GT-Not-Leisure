@@ -418,11 +418,11 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         if (thingsActive > 0 && eCertainStatus == 0) {
             thingsActive += eOutputData.size();
             eAmpereFlow = 1 + (thingsActive >> 2);
-            return SimpleCheckRecipeResult.ofSuccess("computing");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.computing");
         } else {
             eAmpereFlow = 1;
             availableData.set(0);
-            return SimpleCheckRecipeResult.ofSuccess("no_computing");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.no_computing");
         }
     }
 

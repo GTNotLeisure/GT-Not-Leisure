@@ -339,7 +339,7 @@ public class BloodSoulSacrificialArray extends GTMMultiMachineBase<BloodSoulSacr
                                 currentEssence = currentEssence - calculatedParallels * needEssence;
                                 return foundResult.checkRecipeResult;
                             }
-                            checkRecipeResult = SimpleCheckRecipeResult.ofFailure("metadata.blood");
+                            checkRecipeResult = SimpleCheckRecipeResult.ofFailure("gtnl.require_blood");
                         }
                     }
                 }
@@ -401,7 +401,7 @@ public class BloodSoulSacrificialArray extends GTMMultiMachineBase<BloodSoulSacr
                     }
                 }
 
-                return SimpleCheckRecipeResult.ofFailure("metadata.blood");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.require_blood");
             }
 
             @NotNull

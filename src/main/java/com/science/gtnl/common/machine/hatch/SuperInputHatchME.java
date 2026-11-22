@@ -305,7 +305,7 @@ public class SuperInputHatchME extends MTEHatchInputME implements IConfiguration
         } catch (GridAccessException e) {
             processingRecipe = false;
             controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-            return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_hatch_fail_extraction");
+            return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_hatch_fail_extraction");
         }
 
         for (int i = 0; i < SLOT_COUNT; i++) {
@@ -322,7 +322,7 @@ public class SuperInputHatchME extends MTEHatchInputME implements IConfiguration
             if (result == null || result.getStackSize() != toExtract) {
                 controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
                 checkRecipeResult = SimpleCheckRecipeResult
-                    .ofFailurePersistOnShutdown("stocking_hatch_fail_extraction");
+                    .ofFailurePersistOnShutdown("gtnl.stocking_hatch_fail_extraction");
             }
         }
 
