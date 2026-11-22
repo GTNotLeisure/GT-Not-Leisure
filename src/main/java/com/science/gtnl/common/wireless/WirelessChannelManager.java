@@ -266,6 +266,7 @@ public class WirelessChannelManager {
         WirelessAutoConnect.clear();
         WirelessCopiedLinks.clear();
         WirelessOperations.clear();
+        WirelessBenchmark.clear();
         WirelessFrequencies.clear();
         nextId = 1;
         allocationRevision = 0;

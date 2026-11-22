@@ -575,6 +575,19 @@ public class WirelessClusterManager {
             .contains(canonical(source)) ? cluster : null;
     }
 
+    static int trackedNodes() {
+        return TRACKER.nodes()
+            .size();
+    }
+
+    static List<Cluster<IGridNode, WirelessFrequency>> trackedClusters() {
+        return TRACKER.clusters();
+    }
+
+    static boolean scanPending() {
+        return SCANS.pending();
+    }
+
     public static Address deviceAddress(IGridNode node) {
         return TOPOLOGY.nodeAddress(node);
     }
