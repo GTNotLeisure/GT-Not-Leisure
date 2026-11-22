@@ -22,8 +22,16 @@ import gregtech.common.modularui2.widget.builder.ItemSlotGridBuilder;
 
 public class HumongousDualInputHatchGui extends MTEHatchBaseGui<HumongousDualInputHatch> {
 
+    public static final String REFUND_ACTION = "refund_all";
+
     public HumongousDualInputHatchGui(HumongousDualInputHatch hatch) {
         super(hatch);
+    }
+
+    @Override
+    public void registerSyncValues(PanelSyncManager syncManager) {
+        super.registerSyncValues(syncManager);
+        syncManager.registerSyncedAction(REFUND_ACTION, false, true, buffer -> machine.refundAll());
     }
 
     @Override
@@ -93,7 +101,8 @@ public class HumongousDualInputHatchGui extends MTEHatchBaseGui<HumongousDualInp
             .overlay(GTGuiTextures.OVERLAY_BUTTON_EXPORT)
             .addTooltipLine(StatCollector.translateToLocal("gtnl.hatch.humongous_dual_input.tooltip.return_contents"))
             .onMousePressed(mouseButton -> {
-                syncManager.callSyncedAction("refund_all", buffer -> {});
+                if (mouseButton != 0) return false;
+                syncManager.callSyncedAction(REFUND_ACTION);
                 return true;
             })
             .size(16, 16);
