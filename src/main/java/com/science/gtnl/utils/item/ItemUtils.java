@@ -540,13 +540,6 @@ public class ItemUtils {
                 ScienceNotLeisure.network.sendToServer(new WirelessPickBlock(result, inv.currentItem));
                 return true;
             } else {
-                int slot = inv.currentItem;
-                // int windowId = player.inventoryContainer.windowId;
-                // mc.playerController.windowClick(windowId, slot + 36, 0, 0, player);
-                // int emptySlot = inv.getFirstEmptyStack();
-                // if (emptySlot != -1) {
-                // mc.playerController.windowClick(windowId, emptySlot, 0, 0, player);
-                // }
                 ScienceNotLeisure.network.sendToServer(new WirelessPickBlock(result, inv.currentItem));
                 return true;
             }

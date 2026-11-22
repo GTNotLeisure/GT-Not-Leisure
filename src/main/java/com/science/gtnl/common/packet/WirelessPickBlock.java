@@ -21,7 +21,6 @@ import appeng.api.networking.security.PlayerSource;
 import appeng.api.networking.storage.IStorageGrid;
 import appeng.core.localization.PlayerMessages;
 import appeng.helpers.WirelessTerminalGuiObject;
-import appeng.util.Platform;
 import appeng.util.item.AEItemStack;
 import cpw.mods.fml.common.network.ByteBufUtils;
 import io.netty.buffer.ByteBuf;
@@ -55,26 +54,27 @@ public class WirelessPickBlock extends ServerboundPacket {
         if (stack == null || slot < 0 || slot >= player.inventory.mainInventory.length) return;
 
         ItemStack handItem = player.inventory.getStackInSlot(slot);
+        if (handItem != null && handItem.stackSize > handItem.getMaxStackSize()) return;
         ItemStack needItem = stack.copy();
-        if (handItem != null) {
-            if (handItem.stackSize > handItem.getMaxStackSize()) return;
-            else needItem.stackSize = handItem.getMaxStackSize();
-        }
+        needItem.stackSize = handItem == null ? Math.min(needItem.stackSize, needItem.getMaxStackSize())
+            : needItem.getMaxStackSize();
+        if (needItem.stackSize <= 0) return;
 
         ServerThreadUtil.addScheduledTask(() -> {
-            readPlayer(player, needItem, this);
-            if (needItem != null && needItem.stackSize != 0) {
+            if (player.inventory.getStackInSlot(slot) != null && getFirstEmptySlot(player) == -1) return;
+            readPlayer(player, needItem);
+            if (needItem.stackSize != 0) {
                 readBaubles(player, needItem, slot);
             }
         });
     }
 
-    public void readPlayer(EntityPlayerMP player, ItemStack needItem, WirelessPickBlock message) {
+    public void readPlayer(EntityPlayerMP player, ItemStack needItem) {
         for (int i = 0; i < player.inventory.getSizeInventory(); i++) {
             ItemStack item = player.inventory.getStackInSlot(i);
             if (item == null) continue;
             if (item.getItem() instanceof IWirelessTermHandler wt && wt.canHandle(item)) {
-                if (work(item, player, needItem, message.slot, i, 0, Integer.MIN_VALUE)) {
+                if (work(item, player, needItem, slot, i, 0)) {
                     needItem.stackSize = 0;
                     return;
                 }
@@ -98,23 +98,14 @@ public class WirelessPickBlock extends ServerboundPacket {
             ItemStack item = baubles.getStackInSlot(i);
             if (item == null) continue;
             if (item.getItem() instanceof IWirelessTermHandler wt && wt.canHandle(item)) {
-                if (work(item, player, exitem, slot, i, 1, Integer.MIN_VALUE)) {
+                if (work(item, player, exitem, slot, i, 1)) {
                     return;
                 }
             }
         }
     }
 
-    private boolean work(ItemStack item, EntityPlayerMP player, ItemStack exItem, int slot, int x, int y, int z) {
-        if (Platform.isClient()) return true;
-        // int handItemConnt = 0;
-        // if (player.inventory.getStackInSlot(slot) != null) {
-        // ItemStack vitem = player.inventory.getStackInSlot(slot);
-        // if (exItem.getItem() != vitem.getItem() || exItem.getItemDamage() != vitem.getItemDamage()
-        // || exItem.getTagCompound() != vitem.getTagCompound()) return true;
-        // handItemConnt = player.inventory.getStackInSlot(slot).stackSize;
-        // }
-
+    private boolean work(ItemStack item, EntityPlayerMP player, ItemStack exItem, int slot, int x, int y) {
         WirelessTerminalGuiObject obj = MEHandler.getTerminalGuiObject(item, player, x, y);
 
         if (obj == null) {
@@ -141,6 +132,7 @@ public class WirelessPickBlock extends ServerboundPacket {
                             .setStackSize(aeItem.getStackSize()),
                         Actionable.MODULATE,
                         new PlayerSource(player, obj));
+                    if (aeitem == null || aeitem.getStackSize() <= 0) return false;
 
                     ItemStack from = player.inventory.getStackInSlot(slot);
                     int emptySlot = getFirstEmptySlot(player);
@@ -148,10 +140,7 @@ public class WirelessPickBlock extends ServerboundPacket {
                         player.inventory.setInventorySlotContents(emptySlot, from);
                     }
 
-                    player.inventory.setInventorySlotContents(
-                        slot,
-                        aeitem.setStackSize(aeitem.getStackSize()) // +handItemConnt)
-                            .getItemStack());
+                    player.inventory.setInventorySlotContents(slot, aeitem.getItemStack());
 
                     player.updateHeldItem();
                     if (emptySlot != -1 && from != null) {
