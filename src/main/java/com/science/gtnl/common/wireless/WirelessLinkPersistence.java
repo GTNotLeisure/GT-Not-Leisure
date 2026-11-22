@@ -62,11 +62,7 @@ public class WirelessLinkPersistence {
         }
 
         IGridNode node() {
-            if (tile instanceof IPartHost host) {
-                IPart part = host.getPart(slot.side());
-                return part == null ? null : slot.external() ? part.getExternalFacingNode() : part.getGridNode();
-            }
-            return !slot.external() && tile instanceof IGridHost host ? host.getGridNode(slot.side()) : null;
+            return WirelessChannelManager.nodeAt(tile, slot.side(), slot.external());
         }
     }
 

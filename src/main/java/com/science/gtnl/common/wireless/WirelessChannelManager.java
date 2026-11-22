@@ -105,13 +105,16 @@ public class WirelessChannelManager {
         }
 
         public IGridNode node() {
-            TileEntity tile = tile();
-            if (tile instanceof IPartHost host) {
-                IPart part = host.getPart(side);
-                return part == null ? null : part.getGridNode();
-            }
-            return tile instanceof IGridHost host ? host.getGridNode(side) : null;
+            return nodeAt(tile(), side, false);
         }
+    }
+
+    public static IGridNode nodeAt(TileEntity tile, ForgeDirection side, boolean external) {
+        if (tile instanceof IPartHost host) {
+            IPart part = host.getPart(side);
+            return part == null ? null : external ? part.getExternalFacingNode() : part.getGridNode();
+        }
+        return !external && tile instanceof IGridHost host ? host.getGridNode(side) : null;
     }
 
     public record Entrance(int id, WirelessFrequency frequency, Address source, Address target, IGridNode sourceNode,
