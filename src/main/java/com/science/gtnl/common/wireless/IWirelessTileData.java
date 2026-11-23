@@ -7,7 +7,8 @@ public interface IWirelessTileData {
 
     String KEY = "GTNLWirelessLinks";
     String FREQUENCY_KEY = "GTNLWirelessFrequency";
-    String[] KEYS = { KEY, FREQUENCY_KEY };
+    String DEBUG_KEY = "GTNLWirelessDebug";
+    String[] KEYS = { KEY, FREQUENCY_KEY, DEBUG_KEY };
 
     NBTTagCompound gtnl$wirelessData();
 

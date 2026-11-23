@@ -2,8 +2,6 @@ package com.science.gtnl.common.wireless;
 
 import java.util.UUID;
 
-import net.minecraftforge.common.util.ForgeDirection;
-
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
 
 public record WirelessFrequency(UUID id, Address legacy) {
@@ -18,9 +16,7 @@ public record WirelessFrequency(UUID id, Address legacy) {
     }
 
     public static WirelessFrequency legacy(Address position) {
-        return new WirelessFrequency(
-            null,
-            new Address(position.dimension(), position.x(), position.y(), position.z(), ForgeDirection.UNKNOWN));
+        return new WirelessFrequency(null, position.withoutSide());
     }
 
     public boolean isLegacy() {

@@ -1,5 +1,7 @@
 package com.science.gtnl.common.wireless.remote;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -282,12 +284,12 @@ public class RemoteDeviceSessions {
 
     @SubscribeEvent
     public static void chunkUnload(ChunkEvent.Unload event) {
-        if (SESSIONS.isEmpty()) return;
+        if (event.world.isRemote || SESSIONS.isEmpty()) return;
         Chunk chunk = event.getChunk();
-        var unloaded = SESSIONS.values()
-            .stream()
-            .filter(session -> inChunk(session.host.tile(), chunk))
-            .toList();
+        List<RemoteDeviceSession> unloaded = new ArrayList<>();
+        for (RemoteDeviceSession session : SESSIONS.values()) {
+            if (inChunk(session.host.tile(), chunk)) unloaded.add(session);
+        }
         for (RemoteDeviceSession session : unloaded) {
             if (session.isOpen()) closeWindow(session, RemoteDeviceState.UNLOADED);
             else close(session);

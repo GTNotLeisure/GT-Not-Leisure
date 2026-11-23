@@ -17,9 +17,11 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 
 import com.science.gtnl.common.me.InterfaceNameLocalization;
+import com.science.gtnl.common.wireless.IWirelessLinkView.ClusterView;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Device;
 import com.science.gtnl.common.wireless.WirelessCardSnapshot.Machine;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
+import com.science.gtnl.common.wireless.WirelessClusterManager.LinkState;
 import com.science.gtnl.common.wireless.WirelessMachineGroups.Row;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceSessions;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
@@ -35,6 +37,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.Reference2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
 
@@ -57,12 +60,16 @@ public class WirelessCardViewBuilder {
     private WirelessInterfaceView interfaces = new WirelessInterfaceView();
     private final Map<IGridNode, RemoteDeviceSessions.Availability> availability = new Reference2ObjectOpenHashMap<>();
     private final Map<IGridNode, Presentation> presentations = new Reference2ObjectOpenHashMap<>();
+    private WirelessCardSnapshot lastSnapshot;
+    private Inputs lastInputs;
+    private Reference2ByteOpenHashMap<IGridNode> nextDeviceStates = new Reference2ByteOpenHashMap<>();
+    private boolean lastInitializing;
 
-    void invalidatePresentation() {
+    public void invalidatePresentation() {
         presentationTick = Long.MIN_VALUE;
     }
 
-    boolean refreshPresentation(long tick) {
+    public boolean refreshPresentation(long tick) {
         if (presentationTick != Long.MIN_VALUE && tick >= presentationTick
             && tick - presentationTick < PRESENTATION_REFRESH_TICKS) return false;
         presentationTick = tick;
@@ -77,17 +84,28 @@ public class WirelessCardViewBuilder {
         return availability.computeIfAbsent(node, key -> RemoteDeviceSessions.probe(player, frequency, key));
     }
 
-    WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card) {
+    public WirelessCardSnapshot build(EntityPlayer player, WirelessCardBinding binding, ItemStack card, boolean force) {
+        boolean refreshed = refreshPresentation(player.worldObj.getTotalWorldTime());
+        if (refreshed && binding != null) WirelessMachineGroups.forgetRemovedGroupNames(binding.frequency());
+        WirelessFrequency frequency = binding == null ? null : binding.frequency();
+        List<LinkState> states = frequency == null ? List.of() : WirelessClusterManager.viewStates(frequency);
+        NBTTagCompound tag = card.getTagCompound();
+        Header header = Header.of(binding);
+        Inputs inputs = new Inputs(
+            binding,
+            tag == null ? null : (NBTTagCompound) tag.copy(),
+            states,
+            deviceStates(states),
+            header);
+        if (!force && !refreshed && lastSnapshot != null && !lastInitializing && inputs.equals(lastInputs))
+            return lastSnapshot;
+        List<ClusterView> links = frequency == null ? List.of() : WirelessClusterManager.links(frequency);
         displayAddresses.clear();
         machines.clear();
         devices.clear();
         nextMachineIds = new Reference2LongOpenHashMap<>();
         nextDeviceIds = new Object2LongOpenHashMap<>();
-        if (refreshPresentation(player.worldObj.getTotalWorldTime()) && binding != null)
-            WirelessMachineGroups.forgetRemovedGroupNames(binding.frequency());
-        WirelessFrequency frequency = binding == null ? null : binding.frequency();
-        List<IWirelessLinkView> all = frequency == null ? List.of()
-            : new ObjectArrayList<>(WirelessClusterManager.links(frequency));
+        List<IWirelessLinkView> all = new ObjectArrayList<>(links);
         Map<IWirelessLinkView, List<Listed>> members = new Reference2ObjectOpenHashMap<>();
         for (IWirelessLinkView link : all) members.put(link, devices(player, frequency, link));
         boolean initializing = startup.waiting(all);
@@ -102,23 +120,7 @@ public class WirelessCardViewBuilder {
         data.setBoolean("bound", binding != null);
         writeStatistics(data, all, members);
         data.setInteger("total", all.size());
-        data.setInteger("entrances", binding == null ? 0 : WirelessChannelManager.entranceCount(binding.frequency()));
-        data.setInteger("entranceLimit", WirelessChannelManager.entranceLimit());
-        if (binding != null) {
-            var controller = WirelessFrequencies.controller(binding.frequency());
-            var sourceAddress = controller == null ? binding.location() : controller;
-            data.setString("source", coordinates(sourceAddress));
-            writeDimensionName(dimensions, sourceAddress.dimension());
-            IGridNode source = WirelessFrequencies.controllerNode(binding.frequency());
-            data.setBoolean("sourceLoaded", source != null);
-            data.setBoolean("sourceSplit", WirelessFrequencies.split(binding.frequency()));
-            data.setBoolean("channels", WirelessChannelManager.channelsEnabled());
-            if (source != null && source.getGrid() != null) {
-                var allocation = WirelessChannelManager.allocation(source.getGrid());
-                data.setInteger("capacity", WirelessChannelManager.capacity(source.getGrid()));
-                data.setInteger("used", allocation == null ? -1 : allocation.used());
-            }
-        }
+        header.write(data, dimensions);
         Object2LongOpenHashMap<Target> nextIds = new Object2LongOpenHashMap<>();
         Long2ObjectLinkedOpenHashMap<Device> targets = new Long2ObjectLinkedOpenHashMap<>();
         NBTTagList entries = new NBTTagList();
@@ -129,7 +131,30 @@ public class WirelessCardViewBuilder {
         machineIds = nextMachineIds;
         data.setTag("rows", entries);
         data.setTag("dimensions", dimensions);
-        return new WirelessCardSnapshot(data, targets, devices, machines, displayAddresses);
+        lastSnapshot = new WirelessCardSnapshot(data, targets, devices, machines, displayAddresses);
+        lastInputs = inputs;
+        nextDeviceStates = new Reference2ByteOpenHashMap<>(nextDeviceStates.size());
+        lastInitializing = initializing;
+        return lastSnapshot;
+    }
+
+    private Reference2ByteOpenHashMap<IGridNode> deviceStates(List<LinkState> states) {
+        boolean channels = WirelessChannelManager.channelsEnabled();
+        nextDeviceStates.clear();
+        for (LinkState state : states) {
+            for (IGridNode node : state.cluster()
+                .nodes()) nextDeviceStates.put(node, deviceStateCode(node, channels));
+        }
+        return nextDeviceStates;
+    }
+
+    public static byte deviceStateCode(IGridNode node, boolean channels) {
+        return (byte) (channels && node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !node.meetsChannelRequirements() ? 0
+            : node.isActive() ? 2 : 1);
+    }
+
+    public static String deviceState(IGridNode node, boolean channels) {
+        return DEVICE_STATES.get(deviceStateCode(node, channels));
     }
 
     private long identifyMachine(Row group) {
@@ -160,10 +185,7 @@ public class WirelessCardViewBuilder {
             if (!node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !remote.hasScreen()) continue;
             Address address = WirelessClusterManager.deviceAddress(node);
             if (address == null) continue;
-            String state = channels && node.hasFlag(GridFlags.REQUIRE_CHANNEL) && !node.meetsChannelRequirements()
-                ? "missing"
-                : node.isActive() ? "online" : "offline";
-            devices.add(new Listed(node, address, state, remote.state()));
+            devices.add(new Listed(node, address, deviceState(node, channels), remote.state()));
         }
         devices.sort(
             Comparator.comparingInt((Listed device) -> DEVICE_STATES.indexOf(device.state()))
@@ -380,4 +402,46 @@ public class WirelessCardViewBuilder {
     private record Listed(IGridNode node, Address address, String state, RemoteDeviceState remote) {}
 
     private record Presentation(Address address, NBTTagCompound data) {}
+
+    // View data not covered here (names, icons, grouping, titles, channels) may lag until the presentation refresh.
+    private record Inputs(WirelessCardBinding binding, NBTTagCompound card, List<LinkState> links,
+        Reference2ByteOpenHashMap<IGridNode> deviceStates, Header header) {}
+
+    private record Header(int entrances, int entranceLimit, Address source, boolean sourceLoaded, boolean sourceSplit,
+        boolean channels, boolean allocated, int capacity, int used) {
+
+        static Header of(WirelessCardBinding binding) {
+            int limit = WirelessChannelManager.entranceLimit();
+            if (binding == null) return new Header(0, limit, null, false, false, false, false, 0, -1);
+            WirelessFrequency frequency = binding.frequency();
+            Address controller = WirelessFrequencies.controller(frequency);
+            IGridNode source = WirelessFrequencies.controllerNode(frequency);
+            boolean allocated = source != null && source.getGrid() != null;
+            var allocation = allocated ? WirelessChannelManager.allocation(source.getGrid()) : null;
+            return new Header(
+                WirelessChannelManager.entranceCount(frequency),
+                limit,
+                controller == null ? binding.location() : controller,
+                source != null,
+                WirelessFrequencies.split(frequency),
+                WirelessChannelManager.channelsEnabled(),
+                allocated,
+                allocated ? WirelessChannelManager.capacity(source.getGrid()) : 0,
+                allocation == null ? -1 : allocation.used());
+        }
+
+        void write(NBTTagCompound data, NBTTagCompound dimensions) {
+            data.setInteger("entrances", entrances);
+            data.setInteger("entranceLimit", entranceLimit);
+            if (source == null) return;
+            data.setString("source", coordinates(source));
+            writeDimensionName(dimensions, source.dimension());
+            data.setBoolean("sourceLoaded", sourceLoaded);
+            data.setBoolean("sourceSplit", sourceSplit);
+            data.setBoolean("channels", channels);
+            if (!allocated) return;
+            data.setInteger("capacity", capacity);
+            data.setInteger("used", used);
+        }
+    }
 }

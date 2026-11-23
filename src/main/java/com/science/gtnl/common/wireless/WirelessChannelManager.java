@@ -5,9 +5,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.Predicate;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.tileentity.TileEntity;
+import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -39,6 +41,9 @@ import appeng.tile.networking.TileCreativeEnergyController;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
@@ -52,6 +57,7 @@ public class WirelessChannelManager {
     private static Object2IntOpenHashMap<WirelessFrequency> entranceCounts;
     private static final Map<IGridConnection, Entrance> OWNED_CONNECTIONS = new Reference2ObjectOpenHashMap<>();
     private static final Map<IGrid, Allocation> ALLOCATIONS = new WeakHashMap<>();
+    private static final Int2ObjectOpenHashMap<LongSet> UNLOADED_CHUNKS = new Int2ObjectOpenHashMap<>();
     private static int nextId = 1;
     private static long allocationRevision;
     private static Map<IGridNode, Set<IGridConnection>> connectionSnapshot;
@@ -63,7 +69,7 @@ public class WirelessChannelManager {
             && (tile.getClass() == TileController.class || tile.getClass() == TileCreativeEnergyController.class);
     }
 
-    static void invalidateFrequencies() {
+    public static void invalidateFrequencies() {
         WirelessFrequencies.invalidate();
         entranceCounts = null;
     }
@@ -89,19 +95,26 @@ public class WirelessChannelManager {
             .thenComparingInt(Address::z)
             .thenComparing(Address::side);
 
+        public Address withoutSide() {
+            return new Address(dimension, x, y, z, ForgeDirection.UNKNOWN);
+        }
+
         public TileEntity tile() {
             World world = DimensionManager.getWorld(dimension);
             return world != null && world.blockExists(x, y, z) ? world.getTileEntity(x, y, z) : null;
         }
 
         public IGridNode node() {
-            TileEntity tile = tile();
-            if (tile instanceof IPartHost host) {
-                IPart part = host.getPart(side);
-                return part == null ? null : part.getGridNode();
-            }
-            return tile instanceof IGridHost host ? host.getGridNode(side) : null;
+            return nodeAt(tile(), side, false);
         }
+    }
+
+    public static IGridNode nodeAt(TileEntity tile, ForgeDirection side, boolean external) {
+        if (tile instanceof IPartHost host) {
+            IPart part = host.getPart(side);
+            return part == null ? null : external ? part.getExternalFacingNode() : part.getGridNode();
+        }
+        return !external && tile instanceof IGridHost host ? host.getGridNode(side) : null;
     }
 
     public record Entrance(int id, WirelessFrequency frequency, Address source, Address target, IGridNode sourceNode,
@@ -109,6 +122,12 @@ public class WirelessChannelManager {
 
         public boolean isLive() {
             return hasConnection(sourceNode, connection) && hasConnection(targetNode, connection);
+        }
+
+        public boolean isValid() {
+            return isLive() && source.node() == sourceNode
+                && target.node() == targetNode
+                && WirelessFrequencies.hosts(frequency, source);
         }
     }
 
@@ -147,13 +166,10 @@ public class WirelessChannelManager {
 
     public static int capacity(IGrid grid) {
         Set<ChannelBudget.Position> controllers = new ObjectOpenHashSet<>();
-        // AE already indexes hosts by their concrete class; avoid scanning every cable and device for each GUI update.
         Class<?> controllerType = TileController.class;
         for (Class<? extends IGridHost> machine : grid.getMachinesClasses()) {
             if (!controllerType.isAssignableFrom(machine)) continue;
             for (IGridNode node : grid.getMachines(machine)) {
-                // AE retains empty machine-class buckets after removal. Only a controller that is
-                // still present can make this structure unsupported, not its historical class key.
                 // Keep the expression typed as TileEntity: AE2's controller superclass exposes optional mod APIs.
                 TileEntity controller = (TileEntity) node.getMachine();
                 if (!isSupportedController(controller) || controller.getWorldObj() == null) return 0;
@@ -212,7 +228,6 @@ public class WirelessChannelManager {
         ENTRANCES.put(id, entrance);
         entranceCountChanged(frequency, 1);
         OWNED_CONNECTIONS.put(connection, entrance);
-        // createGridConnection already schedules AE2's repath.
         invalidateAllocation(grid);
         invalidateAllocation(from.getGrid());
         return id;
@@ -240,15 +255,18 @@ public class WirelessChannelManager {
         for (int id : ENTRANCES.keySet()
             .toIntArray()) disconnect(id);
         entranceSnapshot = List.of();
+        UNLOADED_CHUNKS.clear();
         OWNED_CONNECTIONS.clear();
         ALLOCATIONS.clear();
         WirelessClusterManager.clear();
         WirelessAutoConnect.clear();
         WirelessCopiedLinks.clear();
         WirelessOperations.clear();
+        WirelessBenchmark.clear();
         WirelessFrequencies.clear();
         nextId = 1;
         allocationRevision = 0;
+        connectionSnapshot = null;
     }
 
     public static List<Entrance> entrances() {
@@ -301,16 +319,14 @@ public class WirelessChannelManager {
     @SubscribeEvent
     public static void tick(TickEvent.ServerTickEvent event) {
         if (event.phase != TickEvent.Phase.END) return;
+        // Connection hooks invalidate entries between ticks.
         connectionSnapshot = new Reference2ObjectOpenHashMap<>();
         try (var ignored = WirelessLinkData.readBatch()) {
+            forgetUnloadedChunks();
             entranceCounts = null;
             WirelessFrequencies.tick();
             for (Entrance entrance : entrances()) {
-                if (!entrance.isLive() || entrance.source()
-                    .node() != entrance.sourceNode()
-                    || entrance.target()
-                        .node() != entrance.targetNode()
-                    || !WirelessFrequencies.hosts(entrance.frequency(), entrance.source())) {
+                if (!entrance.isValid()) {
                     disconnect(entrance.id());
                     WirelessClusterManager.invalidateTopology();
                 }
@@ -323,39 +339,51 @@ public class WirelessChannelManager {
             }
             WirelessAutoConnect.tick();
             WirelessCopiedLinks.tick();
-        } finally {
-            connectionSnapshot = null;
         }
     }
 
-    static boolean entrancesVerified() {
+    public static boolean entrancesVerified() {
         return entrancesVerified;
     }
 
     @SubscribeEvent
     public static void loadChunk(ChunkEvent.Load event) {
         if (event.world.isRemote) return;
+        forgetUnloadedChunks();
         if (WirelessLinkPersistence.discover(event.getChunk())) WirelessClusterManager.invalidateTopology();
     }
 
     @SubscribeEvent
     public static void unloadChunk(ChunkEvent.Unload event) {
         if (event.world.isRemote) return;
-        WirelessFrequencies.forget(address -> inChunk(address, event));
-        boolean changed = WirelessClusterManager.forgetTargets(address -> inChunk(address, event));
+        int dimension = event.world.provider.dimensionId;
+        LongSet chunks = UNLOADED_CHUNKS.get(dimension);
+        if (chunks == null) {
+            chunks = new LongOpenHashSet();
+            UNLOADED_CHUNKS.put(dimension, chunks);
+        }
+        chunks.add(ChunkCoordIntPair.chunkXZ2Int(event.getChunk().xPosition, event.getChunk().zPosition));
+    }
+
+    // Flush before registering tiles that reload in the same tick.
+    public static void forgetUnloadedChunks() {
+        if (UNLOADED_CHUNKS.isEmpty()) return;
+        Int2ObjectOpenHashMap<LongSet> chunks = new Int2ObjectOpenHashMap<>(UNLOADED_CHUNKS);
+        UNLOADED_CHUNKS.clear();
+        Predicate<Address> unloaded = address -> {
+            LongSet dimension = chunks.get(address.dimension());
+            return dimension != null
+                && dimension.contains(ChunkCoordIntPair.chunkXZ2Int(address.x() >> 4, address.z() >> 4));
+        };
+        WirelessFrequencies.forget(unloaded);
+        boolean changed = WirelessClusterManager.forgetTargets(unloaded);
         for (Entrance entrance : entrances()) {
-            if (inChunk(entrance.source(), event) || inChunk(entrance.target(), event)) {
+            if (unloaded.test(entrance.source()) || unloaded.test(entrance.target())) {
                 disconnect(entrance.id());
                 changed = true;
             }
         }
         if (changed) WirelessClusterManager.invalidateTopology();
-    }
-
-    private static boolean inChunk(Address address, ChunkEvent event) {
-        return address.dimension() == event.world.provider.dimensionId
-            && (address.x() >> 4) == event.getChunk().xPosition
-            && (address.z() >> 4) == event.getChunk().zPosition;
     }
 
     @SubscribeEvent
