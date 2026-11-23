@@ -67,6 +67,7 @@ public class ProjectorStructures {
         }
         if (running.step(STEP_NANOS)) {
             CACHE.put(running.settings, running.result());
+            ProjectorSimulation.share(running.result());
             lastAsked = null;
             running = null;
         }

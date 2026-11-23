@@ -25,6 +25,7 @@ import com.gtnewhorizon.gtnhlib.util.AboveHotbarHUD;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnewhorizon.structurelib.event.BlockChangeNotifier;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.item.items.MultiblockProjector;
 import com.science.gtnl.common.packet.OpenProjectorPacket;
 import com.science.gtnl.common.packet.ProjectorPlanPacket;
@@ -396,7 +397,7 @@ public class ProjectorClient {
     }
 
     private static void updateCompletion() {
-        if (!CHECK.isComplete()) {
+        if (!CHECK.isComplete() || StructureAnimations.ownActive()) {
             completeTicks = 0;
             return;
         }

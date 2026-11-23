@@ -1,7 +1,9 @@
 package com.science.gtnl.common.projector;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -94,6 +96,16 @@ public class ProjectorSimulation {
     private IGregTechTileEntity base;
     private ISurvivalBuildEnvironment environment;
     private ProjectorStructure result;
+    private static final Object LOCK = new Object();
+    private static final int SHARED_RESULTS = 4;
+    private static final Map<ProjectorPlan.Settings, ProjectorStructure> SHARED = Collections
+        .synchronizedMap(new LinkedHashMap<>(8, 0.75f, true) {
+
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<ProjectorPlan.Settings, ProjectorStructure> eldest) {
+                return size() > SHARED_RESULTS;
+            }
+        });
 
     public ProjectorSimulation(ProjectorPlan.Settings settings, int elementBudget) {
         this.settings = settings;
@@ -110,7 +122,21 @@ public class ProjectorSimulation {
         return result;
     }
 
+    // GT and StructureLib code runs in here; the client and an integrated server never run it at the same time.
     public boolean step(long budgetNanos) {
+        synchronized (LOCK) {
+            return stepLocked(budgetNanos);
+        }
+    }
+
+    // For other GT code that fills a simulation world outside a simulation, such as an animation's copy.
+    public static void locked(Runnable work) {
+        synchronized (LOCK) {
+            work.run();
+        }
+    }
+
+    private boolean stepLocked(long budgetNanos) {
         long start = System.nanoTime();
         long deadline = start + budgetNanos;
         boolean updates = RunnableMachineUpdate.isCurrentThreadEnabled();
@@ -131,7 +157,21 @@ public class ProjectorSimulation {
             nanos += System.nanoTime() - start;
             if (result != null) result.nanos = nanos;
         }
+        if (stage == Stage.DONE && result != null) result.freezeFronts();
         return stage == Stage.DONE;
+    }
+
+    // A finished result is only read from then on, so the client's result serves an integrated server too.
+    public static void share(ProjectorStructure structure) {
+        if (structure.failure.isEmpty()) SHARED.put(structure.settings, structure);
+    }
+
+    public static ProjectorStructure shared(ProjectorPlan.Settings settings) {
+        return SHARED.get(settings);
+    }
+
+    public static void clearShared() {
+        SHARED.clear();
     }
 
     private void fail(Throwable error) {

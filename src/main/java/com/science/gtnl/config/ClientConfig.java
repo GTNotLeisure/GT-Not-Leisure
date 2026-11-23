@@ -357,6 +357,11 @@ public class ClientConfig {
     @DefaultBoolean(true)
     public static boolean projectorHatchOutlines = true;
 
+    @Comment("Build animations: shake the camera of nearby players when a machine lands or locks into place")
+    @LangKey("gtnl.gui.config.client.structure_landing_shake")
+    @DefaultBoolean(true)
+    public static boolean structureLandingShake = true;
+
     @Comment("Projector: changing a hatch's model or tier also changes the other spots of the same kind")
     @LangKey("gtnl.gui.config.client.projector_same_kind")
     @DefaultBoolean(true)

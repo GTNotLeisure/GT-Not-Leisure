@@ -56,6 +56,7 @@ import com.science.gtnl.common.projector.ProjectorSimulation;
 import com.science.gtnl.common.projector.ProjectorStructure;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 import com.science.gtnl.common.projector.ProjectorStructure.Material;
+import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 import com.science.gtnl.config.ClientConfig;
 import com.science.gtnl.config.ConfigRegistry;
 
@@ -252,8 +253,18 @@ public class ProjectorGui extends ModularPanel {
                         new AE2Button(this::projectLabel, this::project).expanded()
                             .height(BUTTON))
                     .child(
+                        new AE2Button(() -> StatCollector.translateToLocal(LANG + "build"), ProjectorBuildRequest::send)
+                            .available(ProjectorBuildRequest::canBuild)
+                            .width(RIGHT_WIDTH / 4)
+                            .height(BUTTON))
+                    .child(
+                        new AE2Button(
+                            () -> StatCollector.translateToLocal(LANG + "style." + working.buildStyle.name()),
+                            this::cycleBuildStyle).width(RIGHT_WIDTH / 6)
+                                .height(BUTTON))
+                    .child(
                         new AE2Button(() -> StatCollector.translateToLocal(LANG + "clear"), this::clearPlan)
-                            .width(RIGHT_WIDTH * 2 / 5)
+                            .width(RIGHT_WIDTH / 4)
                             .height(BUTTON)));
     }
 
@@ -400,6 +411,11 @@ public class ProjectorGui extends ModularPanel {
         getScreen().close();
     }
 
+    private void cycleBuildStyle() {
+        StructureAnimationStyle[] values = StructureAnimationStyle.values();
+        working.buildStyle = values[(working.buildStyle.ordinal() + 1) % values.length];
+    }
+
     private void cycleDisplay() {
         ProjectorPlan.Display[] values = ProjectorPlan.Display.values();
         working.display = values[(working.display.ordinal() + 1) % values.length];
@@ -468,6 +484,9 @@ public class ProjectorGui extends ModularPanel {
                     Math.min(owned, material.count()) + "/" + material.count(),
                     owned >= material.count() ? IconRowList.GOOD : IconRowList.BAD));
         }
+        for (Object line : Minecraft.getMinecraft().fontRenderer
+            .listFormattedStringToWidth(StatCollector.translateToLocal(LANG + "materials_ae_note"), wellWidth - 8))
+            rows.add(Row.colored(null, (String) line, "", IconRowList.HEADER));
         return rows;
     }
 

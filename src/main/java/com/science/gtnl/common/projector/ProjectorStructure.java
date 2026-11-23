@@ -11,6 +11,7 @@ import net.minecraft.world.World;
 
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
@@ -102,6 +103,7 @@ public class ProjectorStructure {
     public final int originX, originY, originZ;
     private final Long2IntOpenHashMap index = new Long2IntOpenHashMap();
     private int[][] simulationPositions;
+    private byte[] fronts;
 
     public ProjectorStructure(ProjectorSimulation simulation, int size) {
         settings = simulation.settings;
@@ -216,6 +218,28 @@ public class ProjectorStructure {
             }
         }
         return bounds;
+    }
+
+    // Reads each machine's front out of the simulation world once, so later readers on other threads need not touch
+    // that world.
+    public void freezeFronts() {
+        if (fronts != null) return;
+        byte[] found = new byte[size];
+        int[] position = new int[3];
+        for (int cell = 0; cell < size; cell++) {
+            found[cell] = -1;
+            if (machines[cell] <= 0 || world == null) continue;
+            simulationPosition(a[cell], b[cell], c[cell], position);
+            if (world.getTileEntity(position[0], position[1], position[2]) instanceof IGregTechTileEntity tile)
+                found[cell] = (byte) tile.getFrontFacing()
+                    .ordinal();
+        }
+        fronts = found;
+    }
+
+    // The side a machine faces in the simulation world, or -1.
+    public int frontOf(int cell) {
+        return fronts == null || cell < 0 || cell >= size ? -1 : fronts[cell];
     }
 
     public void simulationPosition(int cellA, int cellB, int cellC, int[] out) {

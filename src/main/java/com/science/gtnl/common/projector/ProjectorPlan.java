@@ -12,6 +12,7 @@ import net.minecraftforge.common.util.Constants;
 
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
+import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 
 public class ProjectorPlan {
 
@@ -51,6 +52,7 @@ public class ProjectorPlan {
     public boolean groundSnap = true, centerPivot;
     public int verticalOffset;
     public Display display = Display.DIFFERENCE;
+    public StructureAnimationStyle buildStyle = StructureAnimationStyle.REVEAL;
     private Settings settings;
 
     public boolean hasMachine() {
@@ -202,6 +204,7 @@ public class ProjectorPlan {
         tag.setBoolean("Center", centerPivot);
         tag.setInteger("Offset", verticalOffset);
         tag.setString("Display", display.name());
+        tag.setString("BuildStyle", buildStyle.name());
         return tag;
     }
 
@@ -251,6 +254,7 @@ public class ProjectorPlan {
         centerPivot = tag.getBoolean("Center");
         verticalOffset = clamp(tag.getInteger("Offset"), -MAX_OFFSET, MAX_OFFSET);
         display = parse(Display.class, tag.getString("Display"), Display.DIFFERENCE);
+        buildStyle = parse(StructureAnimationStyle.class, tag.getString("BuildStyle"), StructureAnimationStyle.REVEAL);
     }
 
     private static <E extends Enum<E>> E parse(Class<E> type, String name, E fallback) {

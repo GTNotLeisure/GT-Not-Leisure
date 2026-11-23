@@ -20,8 +20,10 @@ import com.gtnllib.client.fx.world.FxBlockMesh;
 import com.gtnllib.client.fx.world.FxCamera;
 import com.gtnllib.client.fx.world.FxVoxelOutline;
 import com.gtnllib.utils.Vec3d;
+import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
+import com.science.gtnl.common.projector.ProjectorSite;
 import com.science.gtnl.common.projector.ProjectorStructure;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -74,7 +76,9 @@ public class ProjectorRenderer {
                 | GL11.GL_COLOR_BUFFER_BIT);
         try {
             GL11.glTranslated(x - cameraX, y - cameraY, z - cameraZ);
-            if (structure != null && !structure.isEmpty() && plan.display != ProjectorPlan.Display.BOX) {
+            if (structure != null && !structure.isEmpty()
+                && plan.display != ProjectorPlan.Display.BOX
+                && !StructureAnimations.ownActive()) {
                 drawGhosts(
                     structure,
                     plan.display == ProjectorPlan.Display.DIFFERENCE && ProjectorClient.placed,
@@ -125,7 +129,7 @@ public class ProjectorRenderer {
             if (missing.length != structure.size) missing = new boolean[structure.size];
             for (int cell = 0; cell < structure.size; cell++) {
                 byte state = check.status[cell];
-                missing[cell] = state == ProjectorCheck.MISSING || state == ProjectorCheck.UNKNOWN;
+                missing[cell] = state == ProjectorSite.MISSING || state == ProjectorSite.UNKNOWN;
             }
             GHOSTS.show(missing);
         }
@@ -264,7 +268,7 @@ public class ProjectorRenderer {
         tessellator.setColorRGBA_I(RED, 220);
         int drawn = 0;
         for (int cell = 0; cell < check.status.length && drawn < MAX_WRONG_BOXES; cell++) {
-            if (check.status[cell] != ProjectorCheck.WRONG) continue;
+            if (check.status[cell] != ProjectorSite.WRONG) continue;
             drawn++;
             double minX = check.worldX[cell] - x + INSET, minY = check.worldY[cell] - y + INSET,
                 minZ = check.worldZ[cell] - z + INSET;

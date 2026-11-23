@@ -27,6 +27,23 @@ public class MachineConfig {
     @DefaultDouble(10)
     public static double beamFormerEnergyConsume = 10;
 
+    @Comment("Projector auto-build: milliseconds of each server tick spent placing blocks, shared by all builds in progress")
+    @LangKey("gtnl.gui.config.machine.projector_place_budget")
+    @DefaultInt(10)
+    @RangeInt(min = 1, max = 40)
+    public static int projectorPlaceBudgetMillis = 10;
+
+    @Comment("Projector auto-build: whether players may build structures with the projector on this server")
+    @LangKey("gtnl.gui.config.machine.projector_build_enabled")
+    @DefaultBoolean(true)
+    public static boolean projectorBuildEnabled = true;
+
+    @Comment("Projector auto-build: furthest a player may stand from the structure to build it (in blocks), 0 for no limit")
+    @LangKey("gtnl.gui.config.machine.projector_build_range")
+    @DefaultInt(64)
+    @RangeInt(min = 0, max = 1024)
+    public static int projectorBuildRange = 64;
+
     @Comment("Default maximum beam length (in blocks)")
     @LangKey("gtnl.gui.config.machine.beam_former_length")
     @DefaultInt(256)

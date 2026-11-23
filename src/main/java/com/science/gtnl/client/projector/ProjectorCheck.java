@@ -1,25 +1,22 @@
 package com.science.gtnl.client.projector;
 
-import net.minecraft.block.Block;
-import net.minecraft.init.Blocks;
-import net.minecraft.item.Item;
+import static com.science.gtnl.common.projector.ProjectorSite.CORRECT;
+import static com.science.gtnl.common.projector.ProjectorSite.MISSING;
+import static com.science.gtnl.common.projector.ProjectorSite.UNLOADED;
+import static com.science.gtnl.common.projector.ProjectorSite.WRONG;
+
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.Chunk;
-import net.minecraft.world.chunk.EmptyChunk;
 
 import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
-import com.science.gtnl.common.projector.ProjectorPlan;
+import com.science.gtnl.common.projector.ProjectorSite;
 import com.science.gtnl.common.projector.ProjectorStructure;
-import com.science.gtnl.common.projector.ProjectorStructure.Choice;
-import com.science.gtnl.common.projector.ProjectorStructure.HatchSlot;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
-import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -29,10 +26,10 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 @SideOnly(Side.CLIENT)
 public class ProjectorCheck {
 
-    public static final byte UNKNOWN = 0, CORRECT = 1, MISSING = 2, WRONG = 3, UNLOADED = 4;
     private static final int SCAN_PER_TICK = 16384, RECHECK_TICKS = 20, FULL_SCAN_TICKS = 600;
 
     public ProjectorStructure structure;
+    public ProjectorSite site;
     public ExtendedFacing facing;
     public int originX, originY, originZ;
     public byte[] status = new byte[0];
@@ -57,6 +54,7 @@ public class ProjectorCheck {
 
     public void clear() {
         structure = null;
+        site = null;
         world = null;
         status = new byte[0];
         byPosition.clear();
@@ -165,26 +163,14 @@ public class ProjectorCheck {
         originX = x;
         originY = y;
         originZ = z;
-        int total = target.size + target.emptyCells.length;
+        site = new ProjectorSite(target, targetFacing, x, y, z);
+        int total = site.total();
         status = new byte[total];
-        worldX = new int[total];
-        worldY = new int[total];
-        worldZ = new int[total];
-        int[] offset = new int[3];
+        worldX = site.worldX;
+        worldY = site.worldY;
+        worldZ = site.worldZ;
         for (int cell = 0; cell < total; cell++) {
-            if (cell < target.size) {
-                if (target.machines[cell] > 0) machineCells.add(cell);
-                targetFacing.getWorldOffset(new int[] { target.a[cell], target.b[cell], target.c[cell] }, offset);
-            } else {
-                long packed = target.emptyCells[cell - target.size];
-                targetFacing.getWorldOffset(
-                    new int[] { ProjectorPlan.unpackA(packed), ProjectorPlan.unpackB(packed),
-                        ProjectorPlan.unpackC(packed) },
-                    offset);
-            }
-            worldX[cell] = x + offset[0];
-            worldY[cell] = y + offset[1];
-            worldZ[cell] = z + offset[2];
+            if (cell < target.size && target.machines[cell] > 0) machineCells.add(cell);
             byPosition.put(CoordinatePacker.pack(worldX[cell], worldY[cell], worldZ[cell]), cell);
             byChunk
                 .computeIfAbsent(
@@ -198,7 +184,7 @@ public class ProjectorCheck {
     }
 
     private void evaluate(int cell) {
-        byte next = compute(cell);
+        byte next = site.compute(world, cell);
         byte previous = status[cell];
         if (next == previous) return;
         count(previous, -1);
@@ -217,41 +203,4 @@ public class ProjectorCheck {
         }
     }
 
-    private byte compute(int cell) {
-        int x = worldX[cell], y = worldY[cell], z = worldZ[cell];
-        if (y < 0 || y > 255) return UNLOADED;
-        Chunk chunk = world.getChunkFromChunkCoords(x >> 4, z >> 4);
-        if (chunk instanceof EmptyChunk || !chunk.isChunkLoaded) return UNLOADED;
-        Block block = chunk.getBlock(x & 15, y, z & 15);
-        if (cell >= structure.size) return block.isAir(world, x, y, z) ? CORRECT : WRONG;
-        boolean free = block.isAir(world, x, y, z) || block.isReplaceable(world, x, y, z);
-        int meta = chunk.getBlockMetadata(x & 15, y, z & 15);
-        if (structure.blocks[cell] == Blocks.air) {
-            Choice choice = structure.choiceAt(cell);
-            if (choice == null || free) return CORRECT;
-            return matches(cell, block, meta, x, y, z) ? CORRECT : WRONG;
-        }
-        if (matches(cell, block, meta, x, y, z)) return CORRECT;
-        return free ? MISSING : WRONG;
-    }
-
-    private boolean matches(int cell, Block block, int meta, int x, int y, int z) {
-        int expected = structure.machines[cell];
-        if (expected <= 0 && block == structure.blocks[cell]
-            && (meta == structure.metas[cell] || structure.metas[cell] == ProjectorStructure.ANY_META)) return true;
-        Choice choice = structure.choiceAt(cell);
-        if (expected <= 0 && choice != null
-            && choice.channel() == null
-            && choice.accepts(Item.getItemFromBlock(block), ProjectorStructure.damageOf(world, block, meta, x, y, z)))
-            return true;
-        if (!(world.getTileEntity(x, y, z) instanceof IGregTechTileEntity tile)) return false;
-        int actual = tile.getMetaTileID();
-        if (actual == expected) return true;
-        HatchSlot slot = structure.slotAt(cell);
-        if (slot == null) return false;
-        for (int candidate : slot.accepted()) {
-            if (candidate == actual) return true;
-        }
-        return false;
-    }
 }
