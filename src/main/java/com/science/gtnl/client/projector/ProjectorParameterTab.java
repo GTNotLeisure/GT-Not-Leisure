@@ -27,7 +27,7 @@ import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.GTNLListWidget;
 import com.gtnllib.gui.widget.HandleScrollData;
 import com.gtnllib.gui.widget.ListRow;
-import com.gtnllib.gui.widget.NumberEntry;
+import com.gtnllib.gui.widget.NumberEntryWidget;
 import com.science.gtnl.common.projector.ProjectorPlan;
 import com.science.gtnl.common.projector.ProjectorStructure;
 
@@ -163,8 +163,8 @@ public class ProjectorParameterTab {
             .control(control, CONTROL, SMALL);
     }
 
-    private static NumberEntry entry(long min, long max, long reset, LongSupplier current, LongConsumer set) {
-        return new NumberEntry(null).wheel(true)
+    private static NumberEntryWidget entry(long min, long max, long reset, LongSupplier current, LongConsumer set) {
+        return new NumberEntryWidget().wheel(true)
             .bounds(min, max)
             .textAlignment(Alignment.Center)
             .resetValue(reset)

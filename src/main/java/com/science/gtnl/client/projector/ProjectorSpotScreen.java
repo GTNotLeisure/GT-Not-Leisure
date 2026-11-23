@@ -20,8 +20,8 @@ import com.cleanroommc.modularui.utils.Alignment;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.gtnllib.gui.widget.ActionButton;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
+import com.gtnllib.gui.widget.AE2Button;
 import com.gtnllib.gui.widget.IconRowList;
 import com.gtnllib.gui.widget.IconRowList.Row;
 import com.gtnllib.gui.widget.ListRow;
@@ -95,7 +95,7 @@ public class ProjectorSpotScreen extends ModularScreen {
         panel.child(
             new ListRow(
                 () -> StatCollector.translateToLocal(LANG + (casing.getAsBoolean() ? "same_casing" : "same_kind")))
-                    .toggle(() -> casing.getAsBoolean() ? hatches.sameCasing() : hatches.sameKind(), () -> {
+                    .checkbox(() -> casing.getAsBoolean() ? hatches.sameCasing() : hatches.sameKind(), () -> {
                         if (casing.getAsBoolean()) hatches.toggleSameCasing();
                         else hatches.toggleSameKind();
                     })
@@ -107,14 +107,13 @@ public class ProjectorSpotScreen extends ModularScreen {
                 .pos(PAD + ListRow.TEXT_INSET, bottom)
                 .size(inner - CONFIRM_WIDTH - BUTTON_WIDTH - 2 * GAP - ListRow.TEXT_INSET, ROW)
                 .setEnabledIf(w -> hatches.channelCasing()));
-        panel.child(ActionButton.text(() -> StatCollector.translateToLocal(LANG + "full"), () -> {
+        panel.child(new AE2Button(() -> StatCollector.translateToLocal(LANG + "full"), () -> {
             confirm(panel);
             ProjectorClient.openAt(shown, cell);
-        })
-            .pos(PAD + inner - CONFIRM_WIDTH - GAP - BUTTON_WIDTH, bottom + 1)
+        }).pos(PAD + inner - CONFIRM_WIDTH - GAP - BUTTON_WIDTH, bottom + 1)
             .size(BUTTON_WIDTH, BUTTON));
         panel.child(
-            ActionButton.text(() -> StatCollector.translateToLocal(LANG + "confirm"), () -> confirm(panel))
+            new AE2Button(() -> StatCollector.translateToLocal(LANG + "confirm"), () -> confirm(panel))
                 .pos(PAD + inner - CONFIRM_WIDTH, bottom + 1)
                 .size(CONFIRM_WIDTH, BUTTON));
         open(panel, working, null, hatches, new int[] { cell }, HATCH_COLOR);
@@ -293,7 +292,7 @@ public class ProjectorSpotScreen extends ModularScreen {
     }
 
     private static TextWidget<?> muted(String text) {
-        Variant variant = AE2Theme.variant(ScreenThemes.projector());
+        AE2Variant variant = AE2Theme.variant(ScreenThemes.projector());
         return IKey.str(text)
             .asWidget()
             .color(variant == null ? PLAIN_MUTED : variant.colors.muted());

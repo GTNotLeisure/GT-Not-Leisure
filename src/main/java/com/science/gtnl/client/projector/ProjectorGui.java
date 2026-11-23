@@ -34,10 +34,13 @@ import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.gtnllib.gui.widget.ActionButton;
+import com.gtnllib.gui.theme.ae2.AE2Draw;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
+import com.gtnllib.gui.theme.ae2.AE2PanelPainter;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
+import com.gtnllib.gui.widget.AE2Button;
 import com.gtnllib.gui.widget.FadingNotice;
+import com.gtnllib.gui.widget.IconButton;
 import com.gtnllib.gui.widget.IconRowList;
 import com.gtnllib.gui.widget.IconRowList.Row;
 import com.gtnllib.gui.widget.ListRow;
@@ -69,18 +72,18 @@ public class ProjectorGui extends ModularPanel {
     private static final int WIDTH = MultiblockProjector.GUI_WIDTH, HEIGHT = MultiblockProjector.GUI_HEIGHT;
     private static final int BODY_LEFT = VerticalButtonBar.WIDTH - VerticalButtonBar.OVERLAP,
         BODY_RIGHT = AE2Theme.PAGE_TAB_SIZE - AE2Theme.PAGE_TAB_INSET, PAD = 8, TOP = 6, TABS_TOP = 22,
-        STATUS_INSET = 5, REFRESH_TICKS = 20, NOTICE_MILLIS = 3000, PLAIN_MUTED = 0xFF808080, PLAIN_WELL = 0xFF1C1C22;
+        STATUS_INSET = 5, REFRESH_TICKS = 20, NOTICE_MILLIS = 3000, PLAIN_MUTED = 0xFF808080;
     private static final int CONTENT_WIDTH = WIDTH - BODY_LEFT - BODY_RIGHT - 2 * PAD,
         CONTENT_HEIGHT = HEIGHT - TOP - PAD, BODY_HEIGHT = CONTENT_HEIGHT - LINE - 4;
     public static final int RIGHT_WIDTH = 176, PAGE_HEIGHT = BODY_HEIGHT - LINE - BUTTON - 8;
     private static final int PREVIEW_WIDTH = CONTENT_WIDTH - RIGHT_WIDTH - 6;
     private static final String[] TAB_NAMES = { "tab_machines", "tab_parameters", "tab_hatches", "tab_materials" };
-    private static final Icon[] TAB_ICONS = { Icon.BLOCK, Icon.GEAR, Icon.PROCESSOR, Icon.FILE };
+    private static final AE2Icon[] TAB_ICONS = { AE2Icon.BLOCK, AE2Icon.GEAR, AE2Icon.PROCESSOR, AE2Icon.FILE };
     private static int lastPage = -1, lastLayerMachine, lastLayer = ProjectorPreviewWidget.ALL_LAYERS;
 
     public final ProjectorPlan working;
     public final ProjectorHatchPage hatches;
-    public final Variant variant;
+    public final AE2Variant variant;
     public final int muted, wellWidth;
     public boolean configChanged;
     private final int location;
@@ -99,7 +102,7 @@ public class ProjectorGui extends ModularPanel {
     public ProjectorGui(PlayerInventoryGuiData data) {
         super(NAME);
         size(WIDTH, HEIGHT);
-        background(AE2Theme.panelBackground(BODY_LEFT, BODY_RIGHT)).disableThemeBackground(true)
+        background(AE2PanelPainter.panelBackground(this, BODY_LEFT, BODY_RIGHT)).disableThemeBackground(true)
             .disableHoverThemeBackground(true);
         variant = AE2Theme.variant(themeId);
         muted = variant == null ? PLAIN_MUTED : variant.colors.muted();
@@ -165,7 +168,7 @@ public class ProjectorGui extends ModularPanel {
     }
 
     public IDrawable well() {
-        return AE2Theme.well(wellWidth, PLAIN_WELL);
+        return AE2PanelPainter.well(this, wellWidth);
     }
 
     public ListRow controlRow(String key, Widget<?> control) {
@@ -210,22 +213,20 @@ public class ProjectorGui extends ModularPanel {
                 Flow.row()
                     .size(PREVIEW_WIDTH, BUTTON)
                     .childPadding(2)
-                    .child(ActionButton.icon(() -> Icon.REMOVE, () -> preview.stepLayer(-1)))
+                    .child(new IconButton(() -> AE2Icon.REMOVE, () -> preview.stepLayer(-1)))
                     .child(
                         IKey.dynamic(this::layerLabel)
                             .asWidget()
                             .alignment(Alignment.Center)
                             .width(32)
                             .height(BUTTON))
-                    .child(ActionButton.icon(() -> Icon.ADD, () -> preview.stepLayer(1)))
+                    .child(new IconButton(() -> AE2Icon.ADD, () -> preview.stepLayer(1)))
                     .child(
-                        ActionButton
-                            .text(
-                                () -> StatCollector
-                                    .translateToLocal(ProjectorClient.LANG + "display." + working.display.name()),
-                                this::cycleDisplay)
-                            .expanded()
-                            .height(BUTTON)));
+                        new AE2Button(
+                            () -> StatCollector
+                                .translateToLocal(ProjectorClient.LANG + "display." + working.display.name()),
+                            this::cycleDisplay).expanded()
+                                .height(BUTTON)));
     }
 
     private IWidget sideColumn() {
@@ -248,11 +249,10 @@ public class ProjectorGui extends ModularPanel {
                     .size(RIGHT_WIDTH, BUTTON)
                     .childPadding(2)
                     .child(
-                        ActionButton.text(this::projectLabel, this::project)
-                            .expanded()
+                        new AE2Button(this::projectLabel, this::project).expanded()
                             .height(BUTTON))
                     .child(
-                        ActionButton.text(() -> StatCollector.translateToLocal(LANG + "clear"), this::clearPlan)
+                        new AE2Button(() -> StatCollector.translateToLocal(LANG + "clear"), this::clearPlan)
                             .width(RIGHT_WIDTH * 2 / 5)
                             .height(BUTTON)));
     }
@@ -269,27 +269,27 @@ public class ProjectorGui extends ModularPanel {
     private IWidget toolbar() {
         return new VerticalButtonBar()
             .button(
-                () -> ClientConfig.projectorOutlinesThroughBlocks ? Icon.VISIBLE : Icon.INVISIBLE,
+                () -> ClientConfig.projectorOutlinesThroughBlocks ? AE2Icon.VISIBLE : AE2Icon.INVISIBLE,
                 () -> StatCollector.translateToLocal(LANG + "outline_through_blocks"),
                 this::toggleSeeThrough)
             .button(
-                () -> Icon.MAXIMIZE,
+                () -> AE2Icon.MAXIMIZE,
                 () -> StatCollector.translateToLocal(LANG + "reset_view"),
                 preview::resetCamera)
-            .button(() -> Icon.ARROW_UP, () -> StatCollector.translateToLocal(LANG + "raise_one"), () -> raise(1))
-            .button(() -> Icon.ARROW_DOWN, () -> StatCollector.translateToLocal(LANG + "lower_one"), () -> raise(-1))
+            .button(() -> AE2Icon.ARROW_UP, () -> StatCollector.translateToLocal(LANG + "raise_one"), () -> raise(1))
+            .button(() -> AE2Icon.ARROW_DOWN, () -> StatCollector.translateToLocal(LANG + "lower_one"), () -> raise(-1))
             .toggle(
-                () -> Icon.DOWNLOAD,
+                () -> AE2Icon.DOWNLOAD,
                 () -> StatCollector.translateToLocal(LANG + "ground_snap"),
                 () -> working.groundSnap,
                 this::toggleGroundSnap)
-            .button(() -> Icon.SHIFT_BACKWARD, this::turnTooltip, this::turnClick)
+            .button(() -> AE2Icon.SHIFT_BACKWARD, this::turnTooltip, this::turnClick)
             .button(
-                () -> Icon.REVERSE,
+                () -> AE2Icon.REVERSE,
                 () -> StatCollector.translateToLocal(POSE + "mirror"),
                 () -> turnMachine(valid -> ProjectorOrientation.mirror(working.facing, valid)))
             .button(
-                () -> Icon.FLIP_VERTICAL,
+                () -> AE2Icon.FLIP_VERTICAL,
                 () -> StatCollector.translateToLocal(POSE + "flip"),
                 () -> turnMachine(valid -> ProjectorOrientation.flipVertical(working.facing, valid)))
             .button(
@@ -301,21 +301,21 @@ public class ProjectorGui extends ModularPanel {
                         ProjectorOrientation.nextFront(working.facing.getDirection()),
                         valid)))
             .button(
-                () -> Icon.REFRESH,
+                () -> AE2Icon.REFRESH,
                 () -> StatCollector.translateToLocal(POSE + "rotate"),
                 () -> turnMachine(valid -> ProjectorOrientation.nextRotation(working.facing, valid)))
             .toggle(
-                () -> Icon.MINIMIZE,
+                () -> AE2Icon.MINIMIZE,
                 () -> StatCollector.translateToLocal(LANG + "center_pivot"),
                 () -> working.centerPivot,
                 () -> working.centerPivot = !working.centerPivot)
             .pos(0, 0);
     }
 
-    private Icon frontIcon() {
+    private AE2Icon frontIcon() {
         ForgeDirection front = working.facing.getDirection();
-        return front == ForgeDirection.UP ? Icon.MOVE_TO_UP
-            : front == ForgeDirection.DOWN ? Icon.MOVE_TO_DOWN : Icon.MOVE_TO;
+        return front == ForgeDirection.UP ? AE2Icon.MOVE_TO_UP
+            : front == ForgeDirection.DOWN ? AE2Icon.MOVE_TO_DOWN : AE2Icon.MOVE_TO;
     }
 
     private void toggleGroundSnap() {
@@ -519,7 +519,7 @@ public class ProjectorGui extends ModularPanel {
             ProjectorStructure structure = finishedStructure();
             if (structure == null || !hasProblem(structure) && !structure.checked) return;
             boolean good = !hasProblem(structure) && structure.formed;
-            AE2Theme.drawTintedIcon(good ? Icon.CHECKMARK : Icon.EXCLAMATION, x, y, good ? goodColor : badColor);
+            AE2Draw.drawTintedIcon(good ? AE2Icon.CHECKMARK : AE2Icon.EXCLAMATION, x, y, good ? goodColor : badColor);
         };
         return new Widget<>().size(AE2Theme.ICON_SIZE, AE2Theme.ICON_SIZE)
             .top(STATUS_INSET)

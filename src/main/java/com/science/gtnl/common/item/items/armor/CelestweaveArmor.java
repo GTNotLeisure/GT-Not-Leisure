@@ -26,6 +26,7 @@ import com.cleanroommc.modularui.screen.ModularPanel;
 import com.cleanroommc.modularui.screen.ModularScreen;
 import com.cleanroommc.modularui.screen.UISettings;
 import com.cleanroommc.modularui.value.sync.PanelSyncManager;
+import com.gtnllib.gui.theme.AE2Theme;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.celestweave.CelestweaveArmorModel;
 import com.science.gtnl.common.celestweave.CelestweaveData;
@@ -292,7 +293,9 @@ public class CelestweaveArmor extends ItemArmor implements IEquipmentElectricIte
     @Override
     @SideOnly(Side.CLIENT)
     public ModularScreen createScreen(PlayerInventoryGuiData data, ModularPanel panel) {
-        return new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(ScreenThemes.celestweave());
+        ModularScreen screen = new ModularScreen(ScienceNotLeisure.MODID, panel).useTheme(ScreenThemes.celestweave());
+        AE2Theme.polish(screen);
+        return screen;
     }
 
     @Override

@@ -29,7 +29,8 @@ import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnllib.client.fx.world.FxBlockMesh;
 import com.gtnllib.client.fx.world.FxVoxelOutline;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.theme.ae2.AE2Draw;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
 import com.science.gtnl.common.projector.ProjectorStructure;
@@ -208,7 +209,7 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
 
     @Override
     public void draw(ModularGuiContext context, WidgetThemeEntry<?> widgetTheme) {
-        Variant variant = AE2Theme.active(context);
+        AE2Variant variant = AE2Theme.active(context);
         edge = variant == null ? 0 : AE2Theme.INSET_EDGE;
         dimensions = 0;
         if (variant == null) GuiDraw.drawRect(0, 0, getArea().width, getArea().height, BACKGROUND);
@@ -221,10 +222,10 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
             boolean inside = x >= edge && y >= edge
                 && x + textWidth <= getArea().width - edge
                 && y + font.FONT_HEIGHT <= getArea().height - edge;
-            if (inside) AE2Theme.text(dimensionText[i], x, y, 0xFF000000 | dimensionColors[i], variant == null);
+            if (inside) AE2Draw.text(dimensionText[i], x, y, 0xFF000000 | dimensionColors[i], variant == null);
         }
         String text = hoverText.get();
-        if (!text.isEmpty()) AE2Theme.text(
+        if (!text.isEmpty()) AE2Draw.text(
             Minecraft.getMinecraft().fontRenderer.trimStringToWidth(text, getArea().width - 8),
             4,
             AE2Theme.INSET_TOP + 2,

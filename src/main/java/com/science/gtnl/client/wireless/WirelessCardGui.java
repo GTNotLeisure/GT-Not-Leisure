@@ -61,13 +61,18 @@ import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.ButtonText;
-import com.gtnllib.gui.theme.AE2Theme.Colors;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.gtnllib.gui.widget.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2ButtonPainter;
+import com.gtnllib.gui.theme.ae2.AE2CheckboxPainter;
+import com.gtnllib.gui.theme.ae2.AE2Colors;
+import com.gtnllib.gui.theme.ae2.AE2Legacy;
+import com.gtnllib.gui.theme.ae2.AE2Look;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
+import com.gtnllib.gui.theme.ae2.ButtonText;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.FadingNotice;
-import com.gtnllib.gui.widget.RowScrollbar;
+import com.gtnllib.gui.widget.Scrollbar;
+import com.gtnllib.utils.ColorMath;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceView;
 import com.science.gtnl.common.gui.ScreenThemes;
@@ -123,17 +128,19 @@ public class WirelessCardGui extends ModularPanel {
     public final FontRenderer fontRendererObj = mc.fontRenderer;
     public final WirelessCardContainer container;
     public final String themeId = ScreenThemes.wirelessCard();
-    public final @Nullable Variant variant = AE2Theme.variant(themeId);
+    public final @Nullable AE2Variant variant = AE2Theme.variant(themeId);
     public final boolean ae2 = variant != null;
     public final Palette palette = variant != null ? Palette.ae2(variant) : Palette.standard();
-    // Rows on AE2's light-blue selection keep the light palette's dark text, also on the dark skin.
-    private final boolean blueHighlight = variant != null && variant.highlight == AE2Theme.HIGHLIGHT;
-    public final Palette highlightPalette = blueHighlight ? Palette.ae2(Variant.LIGHT) : palette;
+    // Rows on a light selection fill keep the light palette's dark text, also on a dark skin.
+    private final boolean lightSelection = variant != null
+        && ColorMath.contrast(variant.highlight, 0) > ColorMath.contrast(variant.highlight, 0xFFFFFF);
+    public final Palette highlightPalette = lightSelection ? Palette.ae2(AE2Variant.LIGHT) : palette;
     public final int highlight = variant == null ? PLAIN_HIGHLIGHT : variant.highlight,
         highlightTop = variant == null ? PLAIN_HIGHLIGHT_TOP : variant.highlightTop,
         highlightShadow = variant == null ? PLAIN_HIGHLIGHT_SHADOW : variant.highlightShadow,
-        highlightTree = blueHighlight ? variant.highlightShadow : highlightPalette.tree;
-    private final int scrollWidth = AE2Theme.scrollbarWidth(variant), scrollSpace = scrollWidth + SCROLL_GAP;
+        highlightTree = lightSelection ? variant.highlightShadow : highlightPalette.tree;
+    private final int scrollWidth = AE2Look.of(variant)
+        .scrollbarWidth(), scrollSpace = scrollWidth + SCROLL_GAP;
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
     private final List<ButtonWidget<?>> chips = new ObjectArrayList<>();
@@ -143,7 +150,7 @@ public class WirelessCardGui extends ModularPanel {
     private final IPanelHandler devicePanel;
     private DeviceView devicesView, reopenDevices;
     private WirelessCardRenameDialog.Target renameTarget;
-    private final RowScrollbar scrollbar = new RowScrollbar(
+    private final Scrollbar scrollbar = new Scrollbar(
         () -> view().getInteger("scroll"),
         () -> view().getInteger("maxScroll"),
         this::scrollTo);
@@ -231,8 +238,8 @@ public class WirelessCardGui extends ModularPanel {
                 .child(
                     new FooterInfo().expanded()
                         .height(AE2Theme.BUTTON_HEIGHT))
-                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.SWITCH_HEIGHT))
-                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.SWITCH_HEIGHT))
+                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.CHECKBOX_HEIGHT))
+                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.CHECKBOX_HEIGHT))
                 .child(visualisation.size(layout.visualisationWidth(), AE2Theme.BUTTON_HEIGHT))
                 .child(button(REFRESH).size(AE2Theme.BUTTON_HEIGHT, AE2Theme.BUTTON_HEIGHT)));
         child(notice);
@@ -415,7 +422,8 @@ public class WirelessCardGui extends ModularPanel {
         boolean available = chipAvailable(index);
         AE2ButtonDrawable.State state = AE2ButtonDrawable.State
             .of(chip, available, clientView().state() == CHIP_STATES[index]);
-        ButtonText style = AE2Theme.buttonText(context, state, height);
+        ButtonText style = AE2Look.of(chip)
+            .buttonText(state, height);
         String count = Integer.toString(chipCount(index));
         int countWidth = fontRendererObj.getStringWidth(count), textY = y + style.y();
         String label = fontRendererObj
@@ -431,7 +439,7 @@ public class WirelessCardGui extends ModularPanel {
 
     private CycleDropdown<Integer> choice(String name, Supplier<String> label, IntFunction<String> option) {
         CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class).wheel(true);
-        IDrawable background = AE2Theme.button(choice, () -> true, () -> false);
+        IDrawable background = AE2ButtonPainter.button(choice, () -> true, () -> false);
         return choice.optionToWidget(
             (value, selected) -> selected ? IDrawable.EMPTY.asWidget()
                 .size(0, 0) : optionWidget(option.apply(value)))
@@ -453,7 +461,8 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void drawChoice(String label, Widget<?> choice, GuiContext context, int x, int y, int width, int height) {
-        ButtonText style = AE2Theme.buttonText(context, AE2ButtonDrawable.State.of(choice, true, false), height);
+        ButtonText style = AE2Look.of(choice)
+            .buttonText(AE2ButtonDrawable.State.of(choice, true, false), height);
         int textY = y + style.y();
         drawText(
             fontRendererObj.trimStringToWidth(label, Math.max(0, width - 16)),
@@ -461,9 +470,6 @@ public class WirelessCardGui extends ModularPanel {
             textY,
             style.color(),
             style.shadow());
-        int arrowX = x + width - 10, arrowY = textY + 2;
-        for (int row = 0; row < 3; row++)
-            GuiDraw.drawRect(arrowX + row, arrowY + row, 5 - row * 2, 1, 0xFF000000 | style.color());
     }
 
     private String dimensionLabel() {
@@ -543,7 +549,6 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public ModularScreen screen() {
-        AE2Theme.useMenuTheme(themeId, ScienceNotLeisure.MODID, NAME, DIMENSION_MENU, VISUALISATION_MENU);
         return new ModularScreen(ScienceNotLeisure.MODID, this) {
 
             @Override
@@ -643,11 +648,11 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private int autoWidth() {
-        return AE2Theme.switchWidth(tr("auto_connect"));
+        return AE2CheckboxPainter.checkboxWidth(tr("auto_connect"));
     }
 
     private int mergeWidth() {
-        return AE2Theme.switchWidth(tr("merge_types"));
+        return AE2CheckboxPainter.checkboxWidth(tr("merge_types"));
     }
 
     private String layoutKey() {
@@ -897,7 +902,12 @@ public class WirelessCardGui extends ModularPanel {
 
     void drawArrow(boolean expanded, int x, int y) {
         GL11.glColor4f(1, 1, 1, 1);
-        AE2Theme.drawLegacyState(variant, expanded ? ARROW_DOWN : ARROW_RIGHT, x, y, WirelessCardTreeRows.ARROW_SIZE);
+        AE2Legacy.drawLegacyState(
+            AE2Look.of(variant),
+            expanded ? ARROW_DOWN : ARROW_RIGHT,
+            x,
+            y,
+            WirelessCardTreeRows.ARROW_SIZE);
         Platform.setupDrawFont();
     }
 
@@ -1170,10 +1180,10 @@ public class WirelessCardGui extends ModularPanel {
             return state.equals("online") ? good : state.equals("missing") ? bad : suffix;
         }
 
-        public static Palette ae2(Variant variant) {
-            Colors colors = variant.colors;
+        public static Palette ae2(AE2Variant variant) {
+            AE2Colors colors = variant.colors;
             // The dark theme's line color is near black, so nested rows lighten there instead of darkening.
-            boolean dark = variant != Variant.LIGHT;
+            boolean dark = variant.dark;
             return new Palette(
                 colors.text(),
                 colors.text(),

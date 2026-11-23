@@ -163,18 +163,18 @@ public class LargeIncubator extends MultiMachineBase<LargeIncubator> implements 
 
     @Override
     public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
+        if (aBaseMetaTileEntity.isServerSide()) {
+            MTERadioHatch radioHatch = getPrimaryRadiationHatch();
+            int sievert = radioHatch == null ? 0 : radioHatch.getSievert();
+            if (this.mSievert != sievert) {
+                this.mSievert = sievert;
+                scheduleRecipeCheckImmediate();
+            }
+            if (aBaseMetaTileEntity.isActive() && this.mNeededSievert > this.mSievert) this.mOutputFluids = null;
+            if (this.mMaxProgresstime <= 0) this.mMaxProgresstime = 0;
+        }
         super.onPostTick(aBaseMetaTileEntity, aTick);
         this.reCalculateHeight();
-        MTERadioHatch radioHatch = getPrimaryRadiationHatch();
-        if (this.getBaseMetaTileEntity()
-            .isServerSide() && radioHatch != null) {
-            this.mSievert = radioHatch.getSievert();
-            if (this.getBaseMetaTileEntity()
-                .isActive() && this.mNeededSievert > this.mSievert) this.mOutputFluids = null;
-        }
-        if (aBaseMetaTileEntity.isServerSide() && this.mMaxProgresstime <= 0) {
-            this.mMaxProgresstime = 0;
-        }
     }
 
     @Override
@@ -417,6 +417,7 @@ public class LargeIncubator extends MultiMachineBase<LargeIncubator> implements 
         if (!(aMetaTileEntity instanceof MTERadioHatch radioHatch)) {
             return false;
         } else {
+            addIfSmartInput(radioHatch);
             radioHatch.updateTexture(CasingIndex);
             return this.mRadHatches.add(radioHatch);
         }

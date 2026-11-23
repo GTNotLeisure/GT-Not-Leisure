@@ -25,8 +25,8 @@ import com.cleanroommc.modularui.theme.WidgetThemeEntry;
 import com.cleanroommc.modularui.value.ObjectValue;
 import com.cleanroommc.modularui.widget.ParentWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
-import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.widget.ActionButton;
+import com.gtnllib.gui.theme.ae2.AE2Draw;
+import com.gtnllib.gui.widget.AE2Button;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.IconRowList;
 import com.gtnllib.gui.widget.IconRowList.Row;
@@ -102,7 +102,7 @@ public class ProjectorHatchTab {
                             () -> StatCollector
                                 .translateToLocal(LANG + (casing.getAsBoolean() ? "same_casing" : "same_kind")))
                                     .width(wellWidth)
-                                    .toggle(
+                                    .checkbox(
                                         () -> casing.getAsBoolean() ? hatches.sameCasing() : hatches.sameKind(),
                                         () -> {
                                             if (casing.getAsBoolean()) hatches.toggleSameCasing();
@@ -181,7 +181,7 @@ public class ProjectorHatchTab {
         List<Row> rows = new ArrayList<>();
         rows.add(Row.header(StatCollector.translateToLocal(LANG + "outline")));
         rows.add(
-            Row.toggle(
+            Row.checkbox(
                 StatCollector.translateToLocal(LANG + "hatch_outlines"),
                 ClientConfig.projectorHatchOutlines,
                 () -> {
@@ -189,7 +189,7 @@ public class ProjectorHatchTab {
                     gui.configChanged = true;
                 }));
         rows.add(
-            Row.toggle(
+            Row.checkbox(
                 StatCollector.translateToLocal(LANG + "outline_merge"),
                 ClientConfig.projectorMergeOutlines,
                 () -> {
@@ -206,13 +206,11 @@ public class ProjectorHatchTab {
         private SpotHeader() {
             size(gui.wellWidth, HEADER_HEIGHT);
             child(
-                ActionButton.text(() -> "<", () -> hatches.step(-1))
-                    .size(ValueStepper.ARROW_WIDTH, ProjectorWidgets.BUTTON)
+                new AE2Button(() -> "<", () -> hatches.step(-1)).size(ValueStepper.ARROW_WIDTH, ProjectorWidgets.BUTTON)
                     .left(2)
                     .top(3));
             child(
-                ActionButton.text(() -> ">", () -> hatches.step(1))
-                    .size(ValueStepper.ARROW_WIDTH, ProjectorWidgets.BUTTON)
+                new AE2Button(() -> ">", () -> hatches.step(1)).size(ValueStepper.ARROW_WIDTH, ProjectorWidgets.BUTTON)
                     .right(2)
                     .top(3));
         }
@@ -229,7 +227,7 @@ public class ProjectorHatchTab {
             String name = hatches.nameLine();
             if (name.isEmpty()) {
                 String hint = trim(hatches.placeLine(), right - left);
-                AE2Theme.text(hint, left + (right - left - font.getStringWidth(hint)) / 2, NAME_Y, gui.muted, false);
+                AE2Draw.text(hint, left + (right - left - font.getStringWidth(hint)) / 2, NAME_Y, gui.muted, false);
                 return;
             }
             ItemStack icon = hatches.icon();
@@ -241,8 +239,8 @@ public class ProjectorHatchTab {
             int start = Math.max(left, Math.min(left + (right - left - group) / 2, right - countWidth - group));
             if (icon != null) new ItemDrawable(icon).draw(context, start, 5, 16, 16, widgetTheme.getTheme());
             int text = gui.variant == null ? IconRowList.TEXT : gui.variant.colors.text();
-            AE2Theme.text(shown, start + iconWidth, NAME_Y, text, false);
-            if (!count.isEmpty()) AE2Theme.text(count, right - countWidth + 3, NAME_Y, gui.muted, false);
+            AE2Draw.text(shown, start + iconWidth, NAME_Y, text, false);
+            if (!count.isEmpty()) AE2Draw.text(count, right - countWidth + 3, NAME_Y, gui.muted, false);
         }
     }
 }
