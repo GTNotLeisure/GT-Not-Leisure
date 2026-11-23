@@ -148,22 +148,6 @@ public class BloodSoulSacrificialArray extends GTMMultiMachineBase<BloodSoulSacr
         return super.onRunningTick(stack);
     }
 
-    @NotNull
-    @Override
-    public CheckRecipeResult checkProcessing() {
-        isCreativeOrb = false;
-
-        ItemStack requiredItem = ModsItemlist.AvaritiaOrbArmok.get(1);
-
-        for (ItemStack item : getAllStoredInputs()) {
-            if (item != null && item.isItemEqual(requiredItem)) {
-                isCreativeOrb = true;
-                break;
-            }
-        }
-        return super.checkProcessing();
-    }
-
     @Override
     public void checkMachine(IGregTechTileEntity aBaseMetaTileEntity, ItemStack aStack, List<StructureError> errors) {
         if (!checkPiece(STRUCTURE_PIECE_MAIN, HORIZONTAL_OFF_SET, VERTICAL_OFF_SET, DEPTH_OFF_SET, errors)) return;
@@ -172,7 +156,21 @@ public class BloodSoulSacrificialArray extends GTMMultiMachineBase<BloodSoulSacr
     }
 
     @Override
+    public void clearHatches() {
+        super.clearHatches();
+        isCreativeOrb = false;
+    }
+
+    @Override
     public void checkEnergyHatch(List<StructureError> errors) {}
+
+    @Override
+    public void setupParameters() {
+        super.setupParameters();
+        if (GTUtility.areStacksEqual(getControllerSlot(), ModsItemlist.AvaritiaOrbArmok.get(1), true)) {
+            isCreativeOrb = true;
+        }
+    }
 
     @Override
     public void construct(ItemStack stackSize, boolean hintsOnly) {
