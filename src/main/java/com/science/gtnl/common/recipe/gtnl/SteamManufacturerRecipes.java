@@ -304,7 +304,7 @@ public class SteamManufacturerRecipes implements IRecipePool {
             .itemInputs(
                 GregtechItemList.GTFluidTank_ULV.get(1),
                 GTOreDictUnificator.get(OrePrefixes.plate, Materials.Bronze, 6),
-                GTNLMaterials.Stronze.get(OrePrefixes.pipeMedium, 2))
+                GTOreDictUnificator.get(OrePrefixes.pipeMedium, Materials.Bronze, 2))
             .circuit(3)
             .itemOutputs(GregtechItemList.Hatch_Input_Steam.get(1))
             .duration(2 * SECONDS)

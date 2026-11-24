@@ -56,6 +56,7 @@ public class BeeBreedingPlanner {
         if (targetUID == null || targetUID.isEmpty()) return Plan.empty("");
 
         Set<String> unlocked = unlockedSpecies == null ? Collections.emptySet() : new HashSet<>(unlockedSpecies);
+        if (!unlocked.isEmpty()) unlocked.remove(targetUID);
         Candidate candidate = resolve(targetUID, unlocked, new HashSet<>(), new HashMap<>());
         if (candidate == null) {
             return new Plan(
@@ -131,10 +132,16 @@ public class BeeBreedingPlanner {
 
         private final LinkedHashMap<String, BreedingStep> stepsByResult;
         private final LinkedHashSet<String> missingSpecies;
+        private final double expectedAttempts;
 
         private Candidate(LinkedHashMap<String, BreedingStep> stepsByResult, LinkedHashSet<String> missingSpecies) {
             this.stepsByResult = stepsByResult;
             this.missingSpecies = missingSpecies;
+            double attempts = 0.0D;
+            for (BreedingStep step : stepsByResult.values()) {
+                attempts += 100.0D / Math.max(MIN_CHANCE_FOR_COST, step.chance);
+            }
+            expectedAttempts = attempts;
         }
 
         private static Candidate empty() {
@@ -159,11 +166,7 @@ public class BeeBreedingPlanner {
         }
 
         private double expectedAttempts() {
-            double attempts = 0.0D;
-            for (BreedingStep step : stepsByResult.values()) {
-                attempts += 100.0D / Math.max(MIN_CHANCE_FOR_COST, step.chance);
-            }
-            return attempts;
+            return expectedAttempts;
         }
 
         private String signature() {
@@ -212,7 +215,7 @@ public class BeeBreedingPlanner {
             if (limit <= 0) return Collections.emptyList();
             List<BreedingStep> ready = new ArrayList<>();
             for (BreedingStep step : steps) {
-                if (unlockedSpecies.contains(step.result)) continue;
+                if (unlockedSpecies.contains(step.result) && !step.result.equals(targetUID)) continue;
                 if (unlockedSpecies.contains(step.parent1) && unlockedSpecies.contains(step.parent2)) {
                     ready.add(step);
                     if (ready.size() >= limit) break;
