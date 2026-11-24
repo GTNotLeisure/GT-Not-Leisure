@@ -1,10 +1,12 @@
 package com.science.gtnl.mixins.late.gregtech;
 
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.spongepowered.asm.mixin.Final;
@@ -16,6 +18,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.science.gtnl.common.machine.voidminer.IVoidMinerHost;
 import com.science.gtnl.common.machine.voidminer.VoidMinerHooks;
 import com.science.gtnl.common.machine.voidminer.VoidMinerState;
@@ -31,6 +35,7 @@ import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.ExoticEnergyInputHelper;
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.shutdown.ShutDownReasonRegistry;
 
 @Mixin(value = MTEVoidMinerBase.class, remap = false)
@@ -122,6 +127,17 @@ public abstract class MixinMTEVoidMinerBase extends MTEEnhancedMultiBlockBase<Mi
     @Unique
     private MTEVoidMinerBase<?> gtnl$self() {
         return (MTEVoidMinerBase<?>) (Object) this;
+    }
+
+    @WrapOperation(
+        method = "createTooltip",
+        at = @At(
+            value = "INVOKE",
+            target = "Lgregtech/api/util/MultiblockTooltipBuilder;addMarkdown(Lnet/minecraft/util/ResourceLocation;Ljava/util/Map;)Lgregtech/api/util/MultiblockTooltipBuilder;"))
+    public MultiblockTooltipBuilder gtnl$tooltipMarkdown(MultiblockTooltipBuilder tooltip, ResourceLocation markdown,
+        Map<String, Object> vars, Operation<MultiblockTooltipBuilder> original) {
+        if (!gtnl$enableMixin) return original.call(tooltip, markdown, vars);
+        return VoidMinerHooks.tooltip(tooltip, markdown, vars, TIER_MULTIPLIER, getMinTier());
     }
 
     @Inject(method = "saveNBTData", at = @At("HEAD"), require = 1, remap = false)

@@ -1,12 +1,15 @@
 package com.science.gtnl.common.machine.voidminer;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.StatCollector;
 
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
@@ -303,72 +306,14 @@ public class VoidMinerHooks {
         }
     }
 
-    public static MultiblockTooltipBuilder tooltip(byte tierMultiplier, int minTier) {
-        int[] structureBlock = switch (tierMultiplier) {
-            case 2 -> new int[] { 9, 13, 8 };
-            case 3 -> new int[] { 9, 16, 9 };
-            default -> new int[] { 7, 9, 7 };
-        };
-        MultiblockTooltipBuilder tt = new MultiblockTooltipBuilder();
-        tt.addMachineType(StatCollector.translateToLocal("gtnl.machine.void_miner.recipe_type"))
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo("")
-            .addInfo(
-                StatCollector.translateToLocalFormatted(
-                    "gtnl.machine.void_miner.info.0",
-                    NumberFormatUtil.formatNumber(GTValues.V[minTier])))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.1"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.2"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.3"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.4"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.5"))
-            .addInfo(StatCollector.translateToLocalFormatted("gtnl.machine.void_miner.info.6", tierMultiplier * 2))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.7"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.8"))
-            .addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.9"));
-
-        if (tierMultiplier == 3) tt.addPerfectOCInfo();
-
-        tt.addSupportAny()
-            .beginStructureBlock(structureBlock[0], structureBlock[1], structureBlock[2], false);
-
-        switch (tierMultiplier) {
-            case 2 -> tt.addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.2.casing.0"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.2.casing.1"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.2.casing.2"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.2.casing.3"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.2.casing.4"));
-            case 3 -> tt.addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.3.casing.0"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.3.casing.1"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.3.casing.2"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.3.casing.3"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.3.casing.4"));
-            default -> tt.addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.1.casing.0"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.1.casing.1"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.1.casing.2"))
-                .addStructureInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.tier.1.casing.3"));
-        }
-
-        tt.addEnergyHatch(
-            "0+",
-            StatCollector.translateToLocalFormatted("gtnl.machine.void_miner.casing.0", GTValues.VN[minTier]))
-            .addMaintenanceHatch("0+", StatCollector.translateToLocal("gtnl.machine.void_miner.casing.1"))
-            .addInputBus("0+", StatCollector.translateToLocal("gtnl.machine.void_miner.casing.2"))
-            .addInputHatch("0+", StatCollector.translateToLocal("gtnl.machine.void_miner.casing.3"))
-            .addOutputBus("0+", StatCollector.translateToLocal("gtnl.machine.void_miner.casing.1"))
-            .toolTipFinisher();
-        return tt;
+    public static MultiblockTooltipBuilder tooltip(MultiblockTooltipBuilder tooltip, ResourceLocation markdown,
+        Map<String, Object> vars, byte tierMultiplier, int minTier) {
+        Map<String, Object> adjusted = new HashMap<>(vars);
+        adjusted.put("power", NumberFormatUtil.formatNumber(GTValues.V[minTier]));
+        adjusted.put("gas_rate", 20);
+        tooltip.addMarkdown(markdown, adjusted);
+        tooltip.addInfo(StatCollector.translateToLocal("gtnl.machine.void_miner.info.1"));
+        if (tierMultiplier == 3) tooltip.addPerfectOCInfo();
+        return tooltip.addSupportAny();
     }
 }
