@@ -9,7 +9,7 @@
     "authorList": [
       "HFstudio"
     ],
-    "credits": "HFstudio",
+    "credits": "Copyright (C) 2024 HFstudio, LineBroke and contributors. GT-Not-Leisure is free software: you can redistribute and modify it under the GNU General Public License version 3, with additional terms under section 7(b). It comes with ABSOLUTELY NO WARRANTY. See LICENSE.txt and LICENSE-ADDITIONAL-TERMS.md in META-INF of the jar, or the repository. Works that contain this code must keep: Contains code from GT-Not-Leisure. Project authors include HFstudio, LineBroke and other contributors.",
     "logoFile": "assets/sciencenotleisure/textures/logo.png",
     "screenshots": [],
     "parent": "",
