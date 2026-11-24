@@ -69,6 +69,9 @@ val generateUpdateIdentity = tasks.register("generateUpdateIdentity") {
     }
 }
 tasks.named<ProcessResources>("processResources") { from(generateUpdateIdentity) }
+tasks.named<Jar>("jar") {
+    from(files("LICENSE.txt", "LICENSE-ADDITIONAL-TERMS.md", "ADDITIONAL_TERMS.zh_CN.md")) { into("META-INF") }
+}
 
 minecraft {
     extraRunJvmArguments.addAll("-Xmx8G", "-Xms8G", "-Dgtnhlib.dumpkeys=true")
