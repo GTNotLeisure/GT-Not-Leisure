@@ -63,9 +63,11 @@ import com.cleanroommc.modularui.widgets.ListWidget;
 import com.cleanroommc.modularui.widgets.PageButton;
 import com.cleanroommc.modularui.widgets.PagedWidget;
 import com.cleanroommc.modularui.widgets.ProgressWidget;
+import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
+import com.science.gtnl.common.gui.GTNLMui2Textures;
 import com.science.gtnl.common.machine.multiblock.LargeBeeBreeder;
 import com.science.gtnl.utils.machine.bee.BeeBreedingHelper;
 import com.science.gtnl.utils.machine.bee.BeeBreedingHelper.BreedingStep;
@@ -86,11 +88,14 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
     private static final int PAGE_WIDTH = 232;
     private static final int PAGE_HEIGHT = 114;
     private static final int PAGE_BODY_HEIGHT = PAGE_HEIGHT + 82;
+    private static final int INVENTORY_HEIGHT = 76;
+    private static final int INVENTORY_WIDTH = 9 * 18;
+    private static final int CONTROL_COLUMN_WIDTH = 20;
     private static final int SPECIES_COLUMNS = 10;
     private static final int SPECIES_ROWS = 3;
     private static final int SPECIES_PER_PAGE = SPECIES_COLUMNS * SPECIES_ROWS;
     private static final int ROUTE_HEIGHT = PAGE_BODY_HEIGHT - 18;
-    private static final int ROUTE_WIDTH = PAGE_WIDTH - 4;
+    private static final int ROUTE_WIDTH = PAGE_WIDTH - CONTROL_COLUMN_WIDTH - 4;
     private static final float MIN_ROUTE_ZOOM = 0.25F;
     private static final float MAX_ROUTE_ZOOM = 2F;
     private static final UITexture ARROW_EMPTY = GTGuiTextures.PROGRESSBAR_ARROW_STANDARD.getSubArea(0, 0, 1, 0.5F);
@@ -201,7 +206,7 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
         }, ByteBufUtils::readUTF8String, ByteBufUtils::writeUTF8String, String::equals, value -> value);
         GenericListSyncHandler<NBTTagCompound> routeSync = new GenericListSyncHandler<>(
             this::routeSnapshot,
-            value -> { steps = value; },
+            value -> steps = value,
             ByteBufUtils::readTag,
             ByteBufUtils::writeTag,
             NBTTagCompound::equals,
@@ -329,21 +334,15 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
 
     @Override
     protected int getBasePanelHeight() {
-        return PAGE_HEIGHT + 116;
+        return PAGE_BODY_HEIGHT + 12;
     }
 
     @Override
     public Flow createMainColumn(ModularPanel panel, PanelSyncManager sync) {
-        Flow tabs = Flow.row()
-            .size(PAGE_WIDTH, 18)
-            .marginBottom(4);
-        tabs.child(tab(0, "run", GTGuiTextures.OVERLAY_BUTTON_POWER_SWITCH_ON));
-        tabs.child(tab(1, "archive", new ItemDrawable(Items.book)));
-        tabs.child(tab(2, "reachable", new ItemDrawable(Items.wheat)));
-        tabs.child(tab(3, "route", new ItemDrawable(Items.map)));
+        panel.child(createPageButtons());
         Flow inventory = Flow.column()
             .pos(0, PAGE_HEIGHT + 6)
-            .size(PAGE_WIDTH, 76)
+            .size(PAGE_WIDTH, INVENTORY_HEIGHT)
             .child(createInventoryRow(panel, sync));
         PagedWidget<?> content = new PagedWidget<>().controller(pages)
             .pos(0, 0)
@@ -355,27 +354,47 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
             .onPageChange(index -> inventory.setEnabled(index != 3));
         return Flow.column()
             .padding(6)
-            .child(tabs)
             .child(
                 new ParentWidget<>().size(PAGE_WIDTH, PAGE_BODY_HEIGHT)
                     .child(content)
-                    .child(inventory));
+                    .child(inventory)
+                    .child(createButtonColumn(panel, sync).top(PAGE_HEIGHT + 6)));
     }
 
-    private PageButton tab(int index, String key, IDrawable icon) {
-        IKey label = IKey.lang("gtnl.bee_breeder.tab_" + key)
-            .scale(0.75f)
-            .color(0xFF202020)
-            .shadow(false);
-        return new PageButton(index, pages).size(55, 18)
-            .marginRight(index == 3 ? 0 : 4)
-            .background(false, GTGuiTextures.BUTTON_STANDARD)
-            .background(true, GTGuiTextures.BUTTON_STANDARD_PRESSED)
-            .overlay((context, x, y, width, height, theme) -> {
-                icon.draw(context, x + 3, y + 2, 14, 14, theme);
-                label.draw(context, x + 19, y + 3, 34, 12, theme);
-            })
-            .tooltipBuilder(t -> t.addLine(IKey.lang("gtnl.bee_breeder." + key)));
+    public Flow createPageButtons() {
+        return Flow.row()
+            .pos(getBasePanelWidth() - 3, 0)
+            .size(GTNLMui2Textures.RIGHT_COVER_TAB.getWidth(), GTNLMui2Textures.RIGHT_COVER_TAB.getHeight() * 4)
+            .excludeAreaInRecipeViewer()
+            .child(tab(0, "run", new ItemDrawable(BeeBreedingHelper.createPrincess("forestry.speciesCommon"))))
+            .child(tab(1, "archive", new ItemDrawable(Items.book)))
+            .child(tab(2, "reachable", new ItemDrawable(Items.wheat)))
+            .child(tab(3, "route", new ItemDrawable(Items.map)));
+    }
+
+    public PageButton tab(int index, String key, IDrawable icon) {
+        return new PageButton(index, pages).tab(GTNLMui2Textures.RIGHT_COVER_TAB, -1)
+            .pos(0, index * GTNLMui2Textures.RIGHT_COVER_TAB.getHeight())
+            .overlay(
+                icon.asIcon()
+                    .size(16, 16)
+                    .center())
+            .tooltipBuilder(t -> t.addLine(IKey.lang("gtnl.bee_breeder.tab_" + key)));
+    }
+
+    @Override
+    public IWidget createInventoryRow(ModularPanel panel, PanelSyncManager sync) {
+        return new ParentWidget<>().size(PAGE_WIDTH, INVENTORY_HEIGHT)
+            .childIf(
+                multiblock.doesBindPlayerInventory(),
+                () -> SlotGroupWidget.playerInventory(false)
+                    .pos((PAGE_WIDTH - INVENTORY_WIDTH) / 2, 0));
+    }
+
+    @Override
+    public Flow createButtonColumn(ModularPanel panel, PanelSyncManager sync) {
+        return super.createButtonColumn(panel, sync).height(INVENTORY_HEIGHT)
+            .child(createModeSwitchButton(sync));
     }
 
     private ParentWidget<?> operationPage(ModularPanel panel, PanelSyncManager sync) {
@@ -574,7 +593,7 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
         HorizontalScrollData horizontal = new HorizontalScrollData();
         ScrollWidget<?> viewport = new BreedingRouteViewport(vertical).showScrollShadows(false)
             .pos(0, 18)
-            .size(PAGE_WIDTH, ROUTE_HEIGHT)
+            .size(ROUTE_WIDTH + 4, ROUTE_HEIGHT)
             .background(IDrawable.EMPTY);
         viewport.getScrollArea()
             .setScrollDataX(horizontal);
@@ -619,17 +638,15 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
     private int completedRouteSteps() {
         int count = 0;
         for (NBTTagCompound step : steps) {
-            if (!step.getString("result")
-                .equals(target.getStringValue()) && archivedSpecies.contains(step.getString("result"))) count++;
+            if (archivedSpecies.contains(step.getString("result"))) count++;
         }
         return count;
     }
 
     private double routeProgress() {
-        double current = 0D;
-        for (NBTTagCompound step : steps) if (step.getString("result")
-            .equals(target.getStringValue())) current = stepProgress(step);
-        return steps.isEmpty() ? 0D : (completedRouteSteps() + current) / steps.size();
+        double progress = 0D;
+        for (NBTTagCompound step : steps) progress += stepProgress(step);
+        return steps.isEmpty() ? 0D : progress / steps.size();
     }
 
     private String routeProgressText() {
@@ -706,9 +723,8 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
                 NBTTagCompound current = step.get();
                 widget.texture(
                     ARROW_EMPTY,
-                    current != null && archivedSpecies.contains(current.getString("result"))
-                        && !current.getString("result")
-                            .equals(target.getStringValue()) ? ARROW_COMPLETE : ARROW_FULL,
+                    current != null && archivedSpecies.contains(current.getString("result")) ? ARROW_COMPLETE
+                        : ARROW_FULL,
                     20);
             });
     }
@@ -772,7 +788,7 @@ public class LargeBeeBreederGui extends GTNLMultiBlockBaseGui<LargeBeeBreeder> {
 
     private String routeState(NBTTagCompound step) {
         String result = step.getString("result");
-        if (archivedSpecies.contains(result) && !result.equals(target.getStringValue())) return "unlocked";
+        if (archivedSpecies.contains(result)) return "unlocked";
         if (voltageTier.getIntValue() < step.getInteger("requiredVoltageTier")) return "low_voltage";
         if (machineActive.getBoolValue() && activeSpecies.contains(result)) return "active";
         if (step.getBoolean("parentsAvailable")) return "ready";

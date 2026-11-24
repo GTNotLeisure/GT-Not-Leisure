@@ -33,6 +33,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 import net.minecraft.block.Block;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -501,6 +502,14 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     @Override
     public String getMachineModeKey() {
         return "gtnl.machine.large_bee_breeder.mode." + machineMode;
+    }
+
+    @Override
+    public void onModeChangeByScrewdriver(ForgeDirection side, EntityPlayer player, float x, float y, float z,
+        ItemStack tool) {
+        if (!getBaseMetaTileEntity().isServerSide()) return;
+        setMachineMode(nextMachineMode());
+        GTUtility.sendChatTrans(player, getMachineModeKey());
     }
 
     @Override
@@ -1073,7 +1082,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private int countCompletedSteps() {
         int count = 0;
         for (BreedingStep step : breedingChain) {
-            if (!step.result.equals(targetBeeSpecies) && speciesArchive.hasSpecies(step.result)) count++;
+            if (speciesArchive.hasSpecies(step.result)) count++;
         }
         return count;
     }
@@ -1082,7 +1091,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     @Nonnull
     public MTEMultiBlockBaseGui<LargeBeeBreeder> getGui() {
         return new LargeBeeBreederGui(this).withMachineModeIcons(
-            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_METAL,
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_DEFAULT,
             GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_FLUID,
             GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_METAL);
     }
