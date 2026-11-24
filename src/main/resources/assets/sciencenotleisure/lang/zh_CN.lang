@@ -4146,6 +4146,7 @@ item.gtnl.majo_hat.tooltip.0=护甲值 +3
 item.gtnl.majo_hat.tooltip.1=夜视
 item.gtnl.majo_hat.tooltip.2=免疫失明与反胃
 item.gtnl.majo_hat.tooltip.3=无法损坏
+item.gtnl.majo_hat.tooltip.4=揭示之护目镜
 
 item.gtnl.majo_robe.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}魔女的长袍§r
 item.gtnl.majo_robe.lore.0=衣摆掠过山间小路、集市石阶与无数陌生的地方。

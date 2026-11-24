@@ -4146,6 +4146,7 @@ item.gtnl.majo_hat.tooltip.0=Armor +3
 item.gtnl.majo_hat.tooltip.1=Night Vision
 item.gtnl.majo_hat.tooltip.2=Immune to Blindness and Nausea
 item.gtnl.majo_hat.tooltip.3=Unbreakable
+item.gtnl.majo_hat.tooltip.4=Goggles of Revealing
 
 item.gtnl.majo_robe.name=§{infernum_spark_rarity;colors=#FF68C8,#E99BFF,#B978F2,#FFD6F3}Witch's Robe§r
 item.gtnl.majo_robe.lore.0=The hem brushes past mountain paths, market steps, and countless unfamiliar places.
