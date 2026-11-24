@@ -7,9 +7,11 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.server.MinecraftServer;
@@ -36,6 +38,8 @@ public class TeamNetworkManager {
     private static final String LEGACY_TEAMS_TAG = "spaceTeams";
     private static final String MEMBER_UUID_TAG = "MEMBER_UUID";
     private static final String LEADER_UUID_TAG = "LEADER_UUID";
+    private static final String DEFAULT_TEAM_SUFFIX = "'s Team";
+    private static final int UUID_NAME_LENGTH = 36;
 
     // GT's wireless EU still keys accounts by SpaceProjectManager's leader; use this so GTNL charges the same account.
     public static UUID wirelessEnergyOwner(UUID playerId) {
@@ -43,7 +47,11 @@ public class TeamNetworkManager {
     }
 
     public static Team getOrCreateTeam(UUID playerId) {
-        return TeamManager.getOrCreateTeam(getPlayerName(playerId), playerId);
+        Objects.requireNonNull(playerId, "Player UUID");
+        Team team = TeamManager.getTeamByPlayer(playerId);
+        if (team == null) team = TeamManager.createTeam(getPlayerName(playerId), playerId);
+        repairDefaultTeamName(team);
+        return team;
     }
 
     public static UUID getTeamId(UUID playerId) {
@@ -60,7 +68,25 @@ public class TeamNetworkManager {
 
     public static String getTeamName(UUID teamId) {
         Team team = TeamManager.getTeamById(teamId);
-        return team == null ? "Unknown Team" : team.getTeamName();
+        if (team == null) return "Unknown Team";
+        repairDefaultTeamName(team);
+        return team.getTeamName();
+    }
+
+    public static void repairDefaultTeamName(Team team) {
+        String teamName = team.getTeamName();
+        boolean missingName = ("null" + DEFAULT_TEAM_SUFFIX).equals(teamName);
+        if (!missingName && (teamName.length() != UUID_NAME_LENGTH + DEFAULT_TEAM_SUFFIX.length()
+            || !teamName.endsWith(DEFAULT_TEAM_SUFFIX))) return;
+
+        for (UUID ownerId : team.getOwners()) {
+            if (!missingName && !(ownerId + DEFAULT_TEAM_SUFFIX).equals(teamName)) continue;
+            String newName = getPlayerName(ownerId) + DEFAULT_TEAM_SUFFIX;
+            if (!newName.equals(teamName) && !team.renameTeam(newName)) {
+                team.renameTeam(team.getTeamId() + DEFAULT_TEAM_SUFFIX);
+            }
+            return;
+        }
     }
 
     public static boolean isSameTeam(UUID firstPlayerId, UUID secondPlayerId) {
@@ -106,12 +132,22 @@ public class TeamNetworkManager {
     }
 
     public static String getPlayerName(UUID playerId) {
-        return ServerPlayerUtils.getPlayerName(playerId);
+        String playerName = ServerPlayerUtils.getPlayerName(playerId);
+        if (playerName != null && !playerName.isEmpty()) return playerName;
+
+        MinecraftServer server = MinecraftServer.getServer();
+        GameProfile profile = server == null ? null : server.func_152358_ax()
+            .func_152652_a(playerId);
+        if (profile != null && profile.getName() != null && !profile.getName().isEmpty()) return profile.getName();
+        return playerId.toString();
     }
 
     public static UUID getPlayerId(String playerName) {
-        GameProfile profile = MinecraftServer.getServer()
-            .func_152358_ax()
+        MinecraftServer server = MinecraftServer.getServer();
+        EntityPlayerMP player = server.getConfigurationManager()
+            .func_152612_a(playerName);
+        if (player != null) return player.getUniqueID();
+        GameProfile profile = server.func_152358_ax()
             .func_152655_a(playerName);
         return profile == null ? null : profile.getId();
     }

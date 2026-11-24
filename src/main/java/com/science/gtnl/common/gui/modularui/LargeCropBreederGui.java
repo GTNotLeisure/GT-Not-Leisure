@@ -34,6 +34,7 @@ import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
 import com.cleanroommc.modularui.api.layout.IViewport;
 import com.cleanroommc.modularui.api.layout.IViewportStack;
+import com.cleanroommc.modularui.api.widget.IWidget;
 import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.drawable.ColorType;
 import com.cleanroommc.modularui.drawable.GuiDraw;
@@ -66,6 +67,7 @@ import com.cleanroommc.modularui.widgets.ItemDisplayWidget;
 import com.cleanroommc.modularui.widgets.PageButton;
 import com.cleanroommc.modularui.widgets.PagedWidget;
 import com.cleanroommc.modularui.widgets.ProgressWidget;
+import com.cleanroommc.modularui.widgets.SlotGroupWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnewhorizon.cropsnh.api.ICropCard;
@@ -74,6 +76,7 @@ import com.gtnewhorizon.cropsnh.api.IMachineBreedingRequirement;
 import com.gtnewhorizon.cropsnh.farming.SeedStats;
 import com.gtnewhorizon.cropsnh.farming.registries.CropRegistry;
 import com.gtnewhorizon.cropsnh.farming.requirements.SubSoilRequirement;
+import com.science.gtnl.common.gui.GTNLMui2Textures;
 import com.science.gtnl.common.machine.multiblock.LargeCropBreeder;
 import com.science.gtnl.utils.machine.crop.CropBreedingChance;
 import com.science.gtnl.utils.machine.crop.CropBreedingPlanner;
@@ -97,7 +100,9 @@ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder> {
 
     private static final int WIDTH = 232, BODY_HEIGHT = 230, SPECIES_PER_PAGE = 30;
-    private static final int ROUTE_WIDTH = WIDTH - 4, ROUTE_HEIGHT = BODY_HEIGHT - 18;
+    private static final int INVENTORY_TOP = 154, INVENTORY_HEIGHT = 76, INVENTORY_WIDTH = 9 * 18;
+    private static final int CONTROL_COLUMN_WIDTH = 20;
+    private static final int ROUTE_WIDTH = WIDTH - CONTROL_COLUMN_WIDTH - 4, ROUTE_HEIGHT = BODY_HEIGHT - 18;
     private static final float MIN_ROUTE_ZOOM = 0.25F, MAX_ROUTE_ZOOM = 2F;
     private static final int JUNCTION_RISE = 24;
     private static final String[] WASH_STAT_KEYS = { "gtnl.crop_breeder.stat_growth", "gtnl.crop_breeder.stat_gain",
@@ -126,7 +131,6 @@ public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder>
     private String draftText;
     private StringSyncValue draft, target, active;
     private BooleanSyncValue valid;
-    private BooleanSyncValue washingMode;
     private BooleanSyncValue washingOperation;
     private IntSyncValue progress, duration, chance;
     private IntSyncValue parallel, lastWash;
@@ -152,14 +156,8 @@ public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder>
         target = new StringSyncValue(multiblock::getTargetCrop);
         active = new StringSyncValue(multiblock::getActiveCrop);
         valid = new BooleanSyncValue(multiblock::isTargetValid);
-        washingMode = new BooleanSyncValue(multiblock::isWashingMode);
-        sync.syncValue("cropWashingMode", washingMode);
         washingOperation = new BooleanSyncValue(multiblock::showsWashingOperation);
         sync.syncValue("cropWashingOperation", washingOperation);
-        sync.syncValue(
-            "cropSwitchMode",
-            new InteractionSyncHandler().setOnMousePressed(
-                mouse -> { if (!mouse.isClient() && mouse.mouseButton == 0) multiblock.toggleWashingMode(); }));
         chance = new IntSyncValue(multiblock::getSuccessChance);
         parallel = new IntSyncValue(multiblock::getCurrentParallel);
         lastWash = new IntSyncValue(multiblock::getLastWashResult);
@@ -351,80 +349,66 @@ public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder>
 
     @Override
     protected int getBasePanelHeight() {
-        return 264;
+        return BODY_HEIGHT + 12;
     }
 
     @Override
     public Flow createMainColumn(ModularPanel panel, PanelSyncManager sync) {
-        Flow tabs = Flow.row()
-            .size(WIDTH, 18)
-            .marginBottom(4);
-        tabs.child(
-            tab(0, "gtnl.crop_breeder.run", "gtnl.crop_breeder.run", GTGuiTextures.OVERLAY_BUTTON_POWER_SWITCH_ON));
-        tabs.child(tab(1, "gtnl.crop_breeder.archive", "gtnl.crop_breeder.archive", new ItemDrawable(Items.book)));
-        tabs.child(
-            tab(2, "gtnl.crop_breeder.tab_reachable", "gtnl.crop_breeder.reachable", new ItemDrawable(Items.wheat)));
-        tabs.child(tab(3, "gtnl.crop_breeder.route", "gtnl.crop_breeder.route", new ItemDrawable(Items.map)));
+        panel.child(createPageButtons());
         Flow inventory = Flow.column()
-            .pos(0, 154)
-            .size(WIDTH, 76)
+            .pos(0, INVENTORY_TOP)
+            .size(WIDTH, INVENTORY_HEIGHT)
             .child(createInventoryRow(panel, sync));
-        ButtonWidget<?> modeButton = modeButton();
         PagedWidget<?> content = new PagedWidget<>().controller(pages)
             .size(WIDTH, BODY_HEIGHT)
             .addPage(operationPage(panel, sync))
             .addPage(speciesPage(archiveView))
             .addPage(speciesPage(reachableView))
             .addPage(routePage())
-            .onPageChange(index -> {
-                inventory.setEnabled(index != 3);
-                modeButton.setEnabled(index == 0);
-            });
+            .onPageChange(index -> inventory.setEnabled(index != 3));
         return Flow.column()
             .padding(6)
-            .child(tabs)
             .child(
                 new ParentWidget<>().size(WIDTH, BODY_HEIGHT)
                     .child(content)
                     .child(inventory)
-                    .child(modeButton));
+                    .child(createButtonColumn(panel, sync).top(INVENTORY_TOP)));
     }
 
-    private ButtonWidget<?> modeButton() {
-        IDrawable breedingIcon = new ItemDrawable(Items.wheat_seeds);
-        IDrawable washingIcon = new ItemDrawable(Items.water_bucket);
-        return new ButtonWidget<>().name("crop_mode_switch")
-            .pos(WIDTH - 20, 154)
-            .size(18, 18)
-            .background(GTGuiTextures.BUTTON_STANDARD)
+    public Flow createPageButtons() {
+        return Flow.row()
+            .pos(getBasePanelWidth() - 3, 0)
+            .size(GTNLMui2Textures.RIGHT_COVER_TAB.getWidth(), GTNLMui2Textures.RIGHT_COVER_TAB.getHeight() * 4)
+            .excludeAreaInRecipeViewer()
+            .child(tab(0, "run", new ItemDrawable(Items.wheat_seeds)))
+            .child(tab(1, "archive", new ItemDrawable(Items.book)))
+            .child(tab(2, "reachable", new ItemDrawable(Items.wheat)))
+            .child(tab(3, "route", new ItemDrawable(Items.map)));
+    }
+
+    public PageButton tab(int index, String key, IDrawable icon) {
+        return new PageButton(index, pages).tab(GTNLMui2Textures.RIGHT_COVER_TAB, -1)
+            .pos(0, index * GTNLMui2Textures.RIGHT_COVER_TAB.getHeight())
             .overlay(
-                (context, x, y, width, height, theme) -> (washingMode.getBoolValue() ? washingIcon : breedingIcon)
-                    .draw(context, x + 2, y + 2, width - 4, height - 4, theme))
-            .tooltipAutoUpdate(true)
-            .tooltipBuilder(
-                t -> {
-                    t.addLine(
-                        tr(
-                            washingMode.getBoolValue() ? "gtnl.crop_breeder.mode_washing"
-                                : "gtnl.crop_breeder.mode_breeding"));
-                })
-            .syncHandler("cropSwitchMode");
+                icon.asIcon()
+                    .size(16, 16)
+                    .center())
+            .tooltipBuilder(t -> t.addLine(IKey.lang("gtnl.crop_breeder." + key)));
     }
 
-    private PageButton tab(int index, String key, String tooltipKey, IDrawable icon) {
-        IKey label = IKey.lang(key)
-            .scale(0.75F)
-            .color(0xFF202020)
-            .shadow(false);
-        return new PageButton(index, pages).size(55, 18)
-            .marginRight(index == 3 ? 0 : 4)
-            .background(false, GTGuiTextures.BUTTON_STANDARD)
-            .background(true, GTGuiTextures.BUTTON_STANDARD_PRESSED)
-            .overlay((context, x, y, width, height, theme) -> {
-                icon.draw(context, x + 3, y + 2, 14, 14, theme);
-                label.draw(context, x + 19, y + 3, 34, 12, theme);
-            })
-            .tooltipBuilder(t -> t.addLine(IKey.lang(tooltipKey)));
+    @Override
+    public IWidget createInventoryRow(ModularPanel panel, PanelSyncManager sync) {
+        return new ParentWidget<>().size(WIDTH, INVENTORY_HEIGHT)
+            .childIf(
+                multiblock.doesBindPlayerInventory(),
+                () -> SlotGroupWidget.playerInventory(false)
+                    .pos((WIDTH - INVENTORY_WIDTH) / 2, 0));
+    }
+
+    @Override
+    public Flow createButtonColumn(ModularPanel panel, PanelSyncManager sync) {
+        return super.createButtonColumn(panel, sync).height(INVENTORY_HEIGHT)
+            .child(createModeSwitchButton(sync));
     }
 
     private ParentWidget<?> operationPage(ModularPanel panel, PanelSyncManager sync) {
@@ -578,7 +562,7 @@ public class LargeCropBreederGui extends GTNLMultiBlockBaseGui<LargeCropBreeder>
         HorizontalScrollData horizontal = new HorizontalScrollData();
         ScrollWidget<?> viewport = new BreedingRouteViewport(vertical).showScrollShadows(false)
             .pos(0, 18)
-            .size(WIDTH, ROUTE_HEIGHT)
+            .size(ROUTE_WIDTH + 4, ROUTE_HEIGHT)
             .background(IDrawable.EMPTY);
         viewport.getScrollArea()
             .setScrollDataX(horizontal);

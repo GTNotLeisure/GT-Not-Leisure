@@ -2,6 +2,7 @@ package com.science.gtnl.mixins.late.tecTech;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.util.Constants;
 
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,10 +11,12 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import com.cleanroommc.modularui.utils.item.IItemHandlerModifiable;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.sugar.Local;
 import com.science.gtnl.api.mixinHelper.IResearchStationMarker;
 
 import gregtech.api.util.GTUtility;
+import gregtech.api.util.MultiblockTooltipBuilder;
 import gregtech.api.util.item.PhantomSingleSlotItemStackHandler;
 import tectech.recipe.TecTechRecipeMaps;
 import tectech.thing.metaTileEntity.multi.MTEResearchStation;
@@ -32,6 +35,16 @@ public abstract class MixinMTEResearchStation extends TTMultiblockBase implement
 
     public MixinMTEResearchStation(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
+    }
+
+    @ModifyExpressionValue(
+        method = "createTooltip",
+        at = @At(
+            value = "INVOKE",
+            target = "Lgregtech/api/util/MultiblockTooltipBuilder;addMarkdown(Lnet/minecraft/util/ResourceLocation;)Lgregtech/api/util/MultiblockTooltipBuilder;"),
+        require = 1)
+    public MultiblockTooltipBuilder gtnl$appendResearchMarkerTooltip(MultiblockTooltipBuilder tooltip) {
+        return tooltip.addInfo(StatCollector.translateToLocal("gtnl.machine.research_station.tooltip.0"));
     }
 
     @Override

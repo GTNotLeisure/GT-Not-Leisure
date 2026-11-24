@@ -33,6 +33,7 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 
 import net.minecraft.block.Block;
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemBlock;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -65,9 +66,11 @@ import com.science.gtnl.utils.machine.bee.BeeBreedingInputs.ParentPair;
 import com.science.gtnl.utils.machine.bee.BeeBreedingPlanner;
 import com.science.gtnl.utils.machine.bee.BeeBreedingPlanner.Plan;
 import com.science.gtnl.utils.machine.bee.BeeBreedingTiers;
+import com.science.gtnl.utils.machine.bee.BeeSeedBank;
 import com.science.gtnl.utils.machine.bee.BeeSpeciesArchive;
 import com.science.gtnl.utils.recipes.GTNLOverclockCalculator;
 
+import forestry.api.apiculture.EnumBeeType;
 import forestry.api.apiculture.IAlleleBeeSpecies;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.Textures;
@@ -76,6 +79,7 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEHatch;
+import gregtech.api.modularui2.GTGuiTextures;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
 import gregtech.api.recipe.check.SimpleCheckRecipeResult;
@@ -93,6 +97,11 @@ import lombok.Getter;
 public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     public static final double DRONE_CONSUMPTION_CHANCE = 0.1D;
+    public static final double FEMALE_RETENTION_CHANCE = 1.0D;
+    public static final int SEED_CYCLE_TICKS = 128;
+    public static final int MODE_AUTOMATIC = 0;
+    public static final int MODE_DRONE = 1;
+    public static final int MODE_PRINCESS = 2;
     private static final int BEE_DATA_VERSION = 3;
     private static final long BASE_EUT_PER_BREEDING = 512L;
     private static final int BASE_VOLTAGE_TIER = VoltageIndex.HV;
@@ -109,6 +118,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private static final byte OPERATION_BREEDING = 1;
     private static final byte OPERATION_OUTPUT = 2;
     private static final byte OPERATION_FLUSH = 3;
+    private static final byte OPERATION_SEED = 4;
 
     private static final String STRUCTURE_PIECE_MAIN = "main";
     private static final String STRUCTURE_FILE_PATH = RESOURCE_ROOT_ID + ":multiblock/large_bee_breeder";
@@ -133,6 +143,12 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     @Getter
     private BeeSpeciesArchive speciesArchive = new BeeSpeciesArchive();
+    @Getter
+    private BeeSeedBank seedBank = new BeeSeedBank();
+    private int lastSeedRevision = -1;
+    private ItemStack activeSeed;
+    private String activeSeedSpecies = "";
+    private boolean seedForBreeding;
 
     private Plan breedingPlan = Plan.empty("");
     private List<BreedingStep> breedingChain = new ArrayList<>();
@@ -143,7 +159,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private final List<ItemStack> pendingBeeOutputs = new ArrayList<>();
     private int legacyPrincessReturns;
     private Set<String> availableDroneSpecies = Set.of();
-    private Set<String> availableQueenSpecies = Set.of();
+    private Set<String> availableFemaleSpecies = Set.of();
     private final List<ItemStack> foundationInputs = new ArrayList<>();
     private final Set<Fluid> foundationFluids = new HashSet<>();
     private final Map<String, ItemStack> foundationMatches = new HashMap<>();
@@ -153,7 +169,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     private int activeRequiredVoltageTier = BASE_VOLTAGE_TIER;
 
     @Getter
-    private int availableQueenCount = 0;
+    private int availableFemaleCount = 0;
 
     @Getter
     private String missingDroneSpecies = "";
@@ -312,17 +328,22 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         queueLegacyPrincessOutputs();
         if (!pendingBeeOutputs.isEmpty()) return preparePendingBeeOutputs();
         refreshBreedingPlan();
-        if (targetBeeSpecies.isEmpty() || parents.getQueenCount() == 0) return CheckRecipeResultRegistry.NO_RECIPE;
+        if (targetBeeSpecies.isEmpty()) return CheckRecipeResultRegistry.NO_RECIPE;
         if (getBreedingVoltageTier() < BASE_VOLTAGE_TIER) return insufficientBreedingVoltage(BASE_VOLTAGE_TIER);
+        if (machineMode != MODE_AUTOMATIC || seedBank.hasSpecies(targetBeeSpecies)) {
+            ItemStack seed = seedBank.createSeed(targetBeeSpecies, getSeedOutputType());
+            return seed == null ? SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_missing_seed")
+                : prepareSeedCycle(seed, false);
+        }
         long eutPerAttempt = getEuPerBreedingAttempt();
         if (getMaxInputPower() < eutPerAttempt) return CheckRecipeResultRegistry.insufficientPower(eutPerAttempt);
-        boolean reproduction = speciesArchive.hasSpecies(targetBeeSpecies);
-        List<BreedingStep> ready = reproduction
-            ? List.of(new BreedingStep(targetBeeSpecies, targetBeeSpecies, targetBeeSpecies, 100D))
-            : breedingChain.stream()
-                .filter(step -> !speciesArchive.hasSpecies(step.result))
-                .toList();
-        if (ready.isEmpty()) return missingParents(breedingPlan.getFirstMissingSpecies());
+        List<BreedingStep> ready = breedingChain.stream()
+            .filter(this::isPendingBreedingStep)
+            .filter(step -> seedBank.hasSpecies(step.parent1) && seedBank.hasSpecies(step.parent2))
+            .toList();
+        if (ready.isEmpty()) return breedingPlan.getMissingSpecies()
+            .isEmpty() ? SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_unreachable_target")
+                : missingParents(breedingPlan.getFirstMissingSpecies());
         int limit = (int) Math.min(getMaxParallelBreedingSteps(), getMaxInputPower() / eutPerAttempt);
         List<BreedingAttempt> batch = new ArrayList<>();
         List<ItemStack> outputs = new ArrayList<>();
@@ -330,14 +351,16 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         int voltageTier = getBreedingVoltageTier();
         int requiredTier = Integer.MAX_VALUE;
         String missingParent = "";
+        ItemStack missingSeed = null;
         for (BreedingStep planned : ready) {
             if (batch.size() >= limit) break;
             requiredTier = Math.min(requiredTier, getSpeciesVoltageTier(planned.result));
             if (voltageTier < getSpeciesVoltageTier(planned.result)) continue;
-            BreedingStep step = selectParentStep(planned, parents, reproduction);
+            BreedingStep step = selectParentStep(planned, parents);
             ParentPair pair = parents.findPair(step.parent1, step.parent2);
             if (pair == null) {
-                missingParent = step.parent1 + " + " + step.parent2;
+                if (missingSeed == null) missingSeed = createMissingParent(step, parents);
+                missingParent = breedingPlan.getFirstMissingSpecies();
                 continue;
             }
             boolean foundationReady = true;
@@ -348,45 +371,59 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 blockedFoundations.add(step);
                 continue;
             }
-            ItemStack princess = BeeBreedingHelper.createPrincess(step.result);
-            ItemStack childDrone = BeeBreedingHelper.createDrone(step.result);
-            if (princess == null || childDrone == null) continue;
             double chance = Math.min(100D, step.chance + getMutationChanceBonus());
-            boolean succeeded = reproduction || BeeBreedingHelper.tryMutation(chance);
+            boolean succeeded = BeeBreedingHelper.tryMutation(chance);
+            ItemStack princess = succeeded ? BeeBreedingHelper.createPrincess(step.result) : null;
+            if (succeeded && princess == null) continue;
+            boolean consumeFemale = succeeded && !BeeBreedingHelper.tryMutation(FEMALE_RETENTION_CHANCE);
             boolean consumeDrone = succeeded && BeeBreedingHelper.tryMutation(DRONE_CONSUMPTION_CHANCE);
-            ItemStack queen = pair.queen()
+            ItemStack female = pair.female()
                 .copy();
-            queen.stackSize = 1;
+            female.stackSize = 1;
             ItemStack consumedDrone = consumeDrone ? pair.drone()
                 .copy() : null;
             if (consumedDrone != null) consumedDrone.stackSize = 1;
-            batch.add(new BreedingAttempt(step, chance, succeeded, queen, consumedDrone));
-            if (succeeded) {
+            boolean internalOffspring = !step.result.equals(targetBeeSpecies);
+            batch.add(
+                new BreedingAttempt(
+                    step,
+                    chance,
+                    succeeded,
+                    female,
+                    consumeFemale,
+                    consumedDrone,
+                    seedBank.ownsInput(pair.female()),
+                    seedBank.ownsInput(pair.drone()),
+                    succeeded ? princess : null,
+                    internalOffspring,
+                    pair.femaleSpecies()));
+            if (succeeded && !internalOffspring) {
                 outputs.add(princess);
-                outputs.add(childDrone);
-            } else outputs.add(queen.copy());
-            parents.reserve(pair, consumeDrone);
+            }
+            parents.reserve(pair, consumeFemale, consumeDrone);
         }
         if (batch.isEmpty()) {
+            if (missingSeed != null) return prepareSeedCycle(missingSeed, true);
             if (requiredTier != Integer.MAX_VALUE && voltageTier < requiredTier)
                 return insufficientBreedingVoltage(requiredTier);
             updateMissingFoundations(blockedFoundations);
             if (!missingFoundations.isEmpty())
                 return SimpleCheckRecipeResult.ofFailure("gtnl.bee_breeder_missing_foundation");
-            return missingParents(missingParent.isEmpty() ? targetBeeSpecies : missingParent);
+            return missingParent.isEmpty() ? CheckRecipeResultRegistry.NO_RECIPE : missingParents(missingParent);
         }
         ItemStack[] result = outputs.toArray(new ItemStack[0]);
-        if (!canOutputAll(result)) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
+        if (result.length > 0 && !canOutputAll(result)) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
         parents.commit();
+        seedBank.updateInputs();
         updateAvailableParents(parents);
-        availableQueenCount = parents.getQueenCount();
+        availableFemaleCount = parents.getFemaleCount();
         updateSlots();
-        mOutputItems = result;
+        mOutputItems = result.length == 0 ? null : result;
         activeBreedingBatch = batch;
         for (BreedingAttempt attempt : batch) {
             breedingChain.replaceAll(old -> old.result.equals(attempt.step.result) ? attempt.step : old);
         }
-        activeOperation = reproduction ? OPERATION_OUTPUT : OPERATION_BREEDING;
+        activeOperation = OPERATION_BREEDING;
         activeFoundationsChecked = true;
         updateMissingFoundations(
             batch.stream()
@@ -398,6 +435,90 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         markBaseTileDirty();
         markBreedingChanged();
         return CheckRecipeResultRegistry.SUCCESSFUL;
+    }
+
+    private ItemStack createMissingParent(BreedingStep step, BeeBreedingInputs parents) {
+        if (parents.hasFemale(step.parent1)) return seedBank.createSeed(step.parent2, EnumBeeType.DRONE);
+        if (parents.hasFemale(step.parent2)) return seedBank.createSeed(step.parent1, EnumBeeType.DRONE);
+        if (parents.hasDrone(step.parent2)) return seedBank.createSeed(step.parent1, EnumBeeType.PRINCESS);
+        if (parents.hasDrone(step.parent1)) return seedBank.createSeed(step.parent2, EnumBeeType.PRINCESS);
+        return seedBank.createSeed(step.parent1, EnumBeeType.PRINCESS);
+    }
+
+    private CheckRecipeResult prepareSeedCycle(ItemStack seed, boolean internal) {
+        String species = BeeBreedingHelper.getBeeUID(seed);
+        int tier = getSpeciesVoltageTier(species);
+        if (getBreedingVoltageTier() < tier) return insufficientBreedingVoltage(tier);
+        long eut = getSeedEnergyCostPerTick();
+        if (getMaxInputPower() < eut) return CheckRecipeResultRegistry.insufficientPower(eut);
+        if (!internal && !canOutputAll(new ItemStack[] { seed })) return CheckRecipeResultRegistry.ITEM_OUTPUT_FULL;
+        activeSeed = seed;
+        activeSeedSpecies = species;
+        seedForBreeding = internal;
+        activeOperation = OPERATION_SEED;
+        activeRequiredVoltageTier = tier;
+        mOutputItems = internal ? null : new ItemStack[] { seed.copy() };
+        mMaxProgresstime = SEED_CYCLE_TICKS;
+        mEfficiency = 10000;
+        mEfficiencyIncrease = 10000;
+        lEUt = -eut;
+        markBaseTileDirty();
+        markBreedingChanged();
+        return CheckRecipeResultRegistry.SUCCESSFUL;
+    }
+
+    public boolean isSeedPreparation() {
+        return activeOperation == OPERATION_SEED && seedForBreeding;
+    }
+
+    public boolean isSeedOutputCycle() {
+        return activeOperation == OPERATION_SEED ? !seedForBreeding
+            : machineMode != MODE_AUTOMATIC || seedBank.hasSpecies(targetBeeSpecies);
+    }
+
+    public EnumBeeType getSeedOutputType() {
+        return activeSeed != null ? BeeBreedingHelper.getBeeRoot()
+            .getType(activeSeed) : machineMode == MODE_DRONE ? EnumBeeType.DRONE : EnumBeeType.PRINCESS;
+    }
+
+    public String getSeedOutputSpecies() {
+        return activeSeed == null ? targetBeeSpecies : activeSeedSpecies;
+    }
+
+    public long getSeedEnergyCostPerTick() {
+        return BASE_EUT_PER_BREEDING << getGlassUpgrades();
+    }
+
+    @Override
+    public boolean supportsMachineModeSwitch() {
+        return true;
+    }
+
+    @Override
+    public int nextMachineMode() {
+        return (machineMode + 1) % 3;
+    }
+
+    @Override
+    public String getMachineModeKey() {
+        return "gtnl.machine.large_bee_breeder.mode." + machineMode;
+    }
+
+    @Override
+    public void onModeChangeByScrewdriver(ForgeDirection side, EntityPlayer player, float x, float y, float z,
+        ItemStack tool) {
+        if (!getBaseMetaTileEntity().isServerSide()) return;
+        setMachineMode(nextMachineMode());
+        GTUtility.sendChatTrans(player, getMachineModeKey());
+    }
+
+    @Override
+    public void setMachineMode(int mode) {
+        if (mode < MODE_AUTOMATIC || mode > MODE_PRINCESS)
+            throw new IllegalArgumentException("Invalid bee breeding mode");
+        super.setMachineMode(mode);
+        markBaseTileDirty();
+        markBreedingChanged();
     }
 
     private void queueLegacyPrincessOutputs() {
@@ -440,14 +561,18 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         return CheckRecipeResultRegistry.SUCCESSFUL;
     }
 
-    private BreedingStep selectParentStep(BreedingStep planned, BeeBreedingInputs parents, boolean reproduction) {
-        if (reproduction) return planned;
+    private boolean isPendingBreedingStep(BreedingStep step) {
+        return step.result.equals(targetBeeSpecies) || !speciesArchive.hasSpecies(step.result);
+    }
+
+    private BreedingStep selectParentStep(BreedingStep planned, BeeBreedingInputs parents) {
         BreedingStep selected = planned;
-        boolean selectedReady = parents.findPair(planned.parent1, planned.parent2) != null
+        boolean selectedReady = canProvideParents(planned.parent1, planned.parent2, parents)
             && planned.foundations.stream()
                 .allMatch(foundation -> findFoundation(foundation) != null);
         for (MutationData mutation : BeeBreedingHelper.getMutationsForUID(planned.result)) {
-            if (parents.findPair(mutation.parent1, mutation.parent2) == null || mutation.foundations.stream()
+            if (mutation.result.equals(mutation.parent1) || mutation.result.equals(mutation.parent2)) continue;
+            if (!canProvideParents(mutation.parent1, mutation.parent2, parents) || mutation.foundations.stream()
                 .anyMatch(foundation -> findFoundation(foundation) == null)) continue;
             if (!selectedReady || mutation.chance > selected.chance) {
                 selected = new BreedingStep(
@@ -460,6 +585,11 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
             }
         }
         return selected;
+    }
+
+    private boolean canProvideParents(String parent1, String parent2, BeeBreedingInputs parents) {
+        return parents.findPair(parent1, parent2) != null
+            || seedBank.hasSpecies(parent1) && seedBank.hasSpecies(parent2);
     }
 
     private CheckRecipeResult missingParents(String species) {
@@ -518,12 +648,8 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
 
     private void updateActiveVoltageTier() {
         activeRequiredVoltageTier = BASE_VOLTAGE_TIER;
-        if (activeOperation == OPERATION_OUTPUT) {
-            String outputSpecies = mOutputItems != null && mOutputItems.length > 0
-                ? BeeBreedingHelper.getBeeUID(mOutputItems[0])
-                : targetBeeSpecies;
-            activeRequiredVoltageTier = getSpeciesVoltageTier(outputSpecies);
-        }
+        if (activeOperation == OPERATION_SEED && activeSeed != null)
+            activeRequiredVoltageTier = getSpeciesVoltageTier(activeSeedSpecies);
         for (BreedingAttempt attempt : activeBreedingBatch) {
             activeRequiredVoltageTier = Math.max(activeRequiredVoltageTier, getSpeciesVoltageTier(attempt.step.result));
         }
@@ -564,9 +690,18 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         if (activeOperation == OPERATION_NONE) return;
 
         boolean archiveChanged = false;
+        if (activeOperation == OPERATION_SEED && seedForBreeding && activeSeed != null)
+            seedBank.addBreedingInput(activeSeed);
         for (BreedingAttempt attempt : activeBreedingBatch) {
-            if (attempt.succeeded) archiveChanged |= speciesArchive.unlockSpecies(attempt.step.result);
+            if (attempt.succeeded) {
+                archiveChanged |= speciesArchive.unlockSpecies(attempt.step.result);
+                archiveChanged |= seedBank.retain(attempt.offspring);
+                if (attempt.internalOffspring) seedBank.addBreedingInput(attempt.offspring);
+            }
         }
+        activeSeed = null;
+        activeSeedSpecies = "";
+        seedForBreeding = false;
 
         activeOperation = OPERATION_NONE;
         activeBreedingBatch.clear();
@@ -624,22 +759,25 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 markBreedingChanged();
             }
 
-            boolean targetUnlocked = speciesArchive.hasSpecies(targetBeeSpecies);
-            boolean hasParents = targetUnlocked
-                ? availableQueenSpecies.contains(targetBeeSpecies) && availableDroneSpecies.contains(targetBeeSpecies)
-                : breedingChain.stream()
-                    .anyMatch(step -> !speciesArchive.hasSpecies(step.result) && hasBreedingParents(step));
-            allTasksBlocked = availableQueenCount > 0 && !hasParents && activeOperation == OPERATION_NONE;
-            missingDroneSpecies = allTasksBlocked ? breedingPlan.getFirstMissingSpecies() : "";
-            if (allTasksBlocked && missingDroneSpecies.isEmpty()) missingDroneSpecies = targetBeeSpecies;
+            List<BreedingStep> pending = breedingChain.stream()
+                .filter(this::isPendingBreedingStep)
+                .toList();
+            boolean hasParents = pending.stream()
+                .anyMatch(this::hasBreedingParents);
+            allTasksBlocked = availableFemaleCount > 0 && !hasParents && activeOperation == OPERATION_NONE;
+            missingDroneSpecies = allTasksBlocked && !pending.isEmpty() ? breedingPlan.getFirstMissingSpecies() : "";
+            if (allTasksBlocked && missingDroneSpecies.isEmpty() && !pending.isEmpty()) {
+                BreedingStep step = pending.get(0);
+                missingDroneSpecies = step.parent1 + " + " + step.parent2;
+            }
         }
 
         if (activeOperation == OPERATION_BREEDING) {
             updateMissingFoundations(getActiveBreedingSteps());
-        } else if (availableQueenCount > 0 && !speciesArchive.hasSpecies(targetBeeSpecies)) {
+        } else if (availableFemaleCount > 0) {
             updateMissingFoundations(
                 breedingChain.stream()
-                    .filter(step -> !speciesArchive.hasSpecies(step.result) && hasBreedingParents(step))
+                    .filter(step -> isPendingBreedingStep(step) && hasBreedingParents(step))
                     .toList());
         } else {
             updateMissingFoundations(Collections.emptyList());
@@ -664,11 +802,18 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     public BeeBreedingInputs scanInputBuses(List<ItemStack> inputs) {
         BeeBreedingInputs bees = new BeeBreedingInputs(inputs);
         boolean changed = false;
-        for (String uid : bees.getSpecies()) changed |= speciesArchive.unlockSpecies(uid);
+        for (String uid : bees.getSpecies()) if (!seedBank.hasSpecies(uid)) {
+            changed |= seedBank.retain(bees.getSpecimen(uid));
+        }
+        if (lastSeedRevision != seedBank.getRevision()) {
+            for (String uid : seedBank.getSpecies()) changed |= speciesArchive.unlockSpecies(uid);
+            lastSeedRevision = seedBank.getRevision();
+        }
+        seedBank.addToInputs(bees);
         updateAvailableParents(bees);
-        int queenCount = bees.getQueenCount();
-        if (availableQueenCount != queenCount) {
-            availableQueenCount = queenCount;
+        int femaleCount = bees.getFemaleCount();
+        if (availableFemaleCount != femaleCount) {
+            availableFemaleCount = femaleCount;
             markBreedingChanged();
         }
         if (changed) {
@@ -680,27 +825,28 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     }
 
     private void updateAvailableParents(BeeBreedingInputs inputs) {
-        Set<String> drones = inputs.getDroneSpecies(), queens = inputs.getQueenSpecies();
-        if (!drones.equals(availableDroneSpecies) || !queens.equals(availableQueenSpecies)) {
+        Set<String> drones = inputs.getDroneSpecies(), females = inputs.getFemaleSpecies();
+        if (!drones.equals(availableDroneSpecies) || !females.equals(availableFemaleSpecies)) {
             availableDroneSpecies = drones;
-            availableQueenSpecies = queens;
+            availableFemaleSpecies = females;
             markBreedingChanged();
         }
     }
 
     public boolean hasBreedingParents(BreedingStep step) {
-        return availableQueenSpecies.contains(step.parent1) && availableDroneSpecies.contains(step.parent2)
-            || availableQueenSpecies.contains(step.parent2) && availableDroneSpecies.contains(step.parent1);
+        return seedBank.hasSpecies(step.parent1) && seedBank.hasSpecies(step.parent2)
+            || availableFemaleSpecies.contains(step.parent1) && availableDroneSpecies.contains(step.parent2)
+            || availableFemaleSpecies.contains(step.parent2) && availableDroneSpecies.contains(step.parent1);
     }
 
-    public String getQueenParentSpecies(BreedingStep step) {
+    public String getFemaleParentSpecies(BreedingStep step) {
         for (BreedingAttempt attempt : activeBreedingBatch) {
-            if (attempt.step.result.equals(step.result)) return BeeBreedingHelper.getBeeUID(attempt.queen);
+            if (attempt.step.result.equals(step.result)) return attempt.femaleSpecies;
         }
-        if (availableQueenSpecies.contains(step.parent1) && availableDroneSpecies.contains(step.parent2))
+        if (availableFemaleSpecies.contains(step.parent1) && availableDroneSpecies.contains(step.parent2))
             return step.parent1;
-        if (availableQueenSpecies.contains(step.parent2)
-            && (!availableQueenSpecies.contains(step.parent1) || availableDroneSpecies.contains(step.parent1)))
+        if (availableFemaleSpecies.contains(step.parent2)
+            && (!availableFemaleSpecies.contains(step.parent1) || availableDroneSpecies.contains(step.parent1)))
             return step.parent2;
         return step.parent1;
     }
@@ -727,9 +873,18 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
                 if (output != null) pendingBeeOutputs.add(output.copy());
             }
         } else for (BreedingAttempt attempt : activeBreedingBatch) {
-            pendingBeeOutputs.add(attempt.queen.copy());
-            if (attempt.consumedDrone != null) pendingBeeOutputs.add(attempt.consumedDrone.copy());
+            if (attempt.consumedFemale) {
+                if (attempt.femaleInternal) seedBank.addBreedingInput(attempt.female);
+                else pendingBeeOutputs.add(attempt.female.copy());
+            }
+            if (attempt.consumedDrone != null) {
+                if (attempt.droneInternal) seedBank.addBreedingInput(attempt.consumedDrone);
+                else pendingBeeOutputs.add(attempt.consumedDrone.copy());
+            }
         }
+        activeSeed = null;
+        activeSeedSpecies = "";
+        seedForBreeding = false;
         activeBreedingBatch.clear();
         activeOperation = OPERATION_NONE;
     }
@@ -889,7 +1044,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         info[superInfo.length + 2] = StatCollector
             .translateToLocalFormatted("gtnl.bee_breeder.chain_progress", countCompletedSteps(), breedingChain.size());
         info[superInfo.length + 3] = StatCollector
-            .translateToLocalFormatted("gtnl.bee_breeder.pending", availableQueenCount);
+            .translateToLocalFormatted("gtnl.bee_breeder.pending", availableFemaleCount);
         info[superInfo.length + 4] = StatCollector.translateToLocalFormatted(
             "gtnl.bee_breeder.energy",
             NumberFormatUtil.formatNumber(getEnergyCostPerTick(1)),
@@ -906,10 +1061,15 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         if (activeOperation != OPERATION_BREEDING) return Collections.emptyList();
         List<BreedingStep> steps = new ArrayList<>(activeBreedingBatch.size());
         for (BreedingAttempt attempt : activeBreedingBatch) {
-            String queen = BeeBreedingHelper.getBeeUID(attempt.queen);
-            String drone = queen.equals(attempt.step.parent1) ? attempt.step.parent2 : attempt.step.parent1;
+            String female = attempt.femaleSpecies;
+            String drone = female.equals(attempt.step.parent1) ? attempt.step.parent2 : attempt.step.parent1;
             steps.add(
-                new BreedingStep(queen, drone, attempt.step.result, attempt.effectiveChance, attempt.step.foundations));
+                new BreedingStep(
+                    female,
+                    drone,
+                    attempt.step.result,
+                    attempt.effectiveChance,
+                    attempt.step.foundations));
         }
         return steps;
     }
@@ -930,7 +1090,10 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
     @Override
     @Nonnull
     public MTEMultiBlockBaseGui<LargeBeeBreeder> getGui() {
-        return new LargeBeeBreederGui(this);
+        return new LargeBeeBreederGui(this).withMachineModeIcons(
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_DEFAULT,
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_FLUID,
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_METAL);
     }
 
     @Override
@@ -945,6 +1108,12 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         tag.setInteger("legacyPrincessInputs", legacyPrincessReturns);
         tag.setInteger("pendingPrincessOutputs", legacyPrincessReturns);
         tag.setTag("dronePool", speciesArchive.toNBT());
+        NBTTagCompound bankTag = seedBank.toNBT();
+        tag.setTag("beeSeedBank", bankTag);
+        tag.setInteger("beeSeedMode", machineMode);
+        if (!item && activeSeed != null) tag.setTag("beeActiveSeed", activeSeed.writeToNBT(new NBTTagCompound()));
+        else tag.removeTag("beeActiveSeed");
+        tag.setBoolean("beeSeedForBreeding", !item && seedForBreeding);
         tag.setByte("beeBreederActiveOperation", item ? OPERATION_NONE : activeOperation);
         NBTTagList attempts = new NBTTagList();
         if (!item) for (BreedingAttempt attempt : activeBreedingBatch) attempts.appendTag(attempt.toNBT());
@@ -953,8 +1122,15 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         if (item) {
             if (activeOperation == OPERATION_FLUSH && mOutputItems != null) outputs.addAll(Arrays.asList(mOutputItems));
             else for (BreedingAttempt attempt : activeBreedingBatch) {
-                outputs.add(attempt.queen);
-                if (attempt.consumedDrone != null) outputs.add(attempt.consumedDrone);
+                NBTTagList held = bankTag.getTagList("inputs", 10);
+                if (attempt.consumedFemale) {
+                    if (attempt.femaleInternal) held.appendTag(attempt.female.writeToNBT(new NBTTagCompound()));
+                    else outputs.add(attempt.female);
+                }
+                if (attempt.consumedDrone != null) {
+                    if (attempt.droneInternal) held.appendTag(attempt.consumedDrone.writeToNBT(new NBTTagCompound()));
+                    else outputs.add(attempt.consumedDrone);
+                }
             }
         }
         NBTTagList pending = new NBTTagList();
@@ -971,7 +1147,7 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         boolean currentVersion = tag.getInteger("beeBreederDataVersion") >= BEE_DATA_VERSION;
         legacyPrincessReturns = Math
             .max(0, tag.getInteger(currentVersion ? "legacyPrincessInputs" : "pendingPrincessOutputs"));
-        availableQueenCount = 0;
+        availableFemaleCount = 0;
         foundationInputs.clear();
         foundationFluids.clear();
         foundationMatches.clear();
@@ -979,6 +1155,19 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         missingFoundations = Collections.emptyList();
         activeFoundationsChecked = false;
         speciesArchive = BeeSpeciesArchive.fromNBT(tag.getCompoundTag("dronePool"));
+        seedBank = BeeSeedBank.fromNBT(tag.getCompoundTag("beeSeedBank"));
+        lastSeedRevision = -1;
+        if (!tag.hasKey("beeSeedBank", 10)) {
+            for (String uid : speciesArchive.getSpecies()) {
+                ItemStack seed = BeeBreedingHelper.createPrincess(uid);
+                if (seed != null) seedBank.retain(seed);
+            }
+        }
+        int mode = tag.getInteger("beeSeedMode");
+        machineMode = mode >= MODE_AUTOMATIC && mode <= MODE_PRINCESS ? mode : MODE_AUTOMATIC;
+        activeSeed = ItemStack.loadItemStackFromNBT(tag.getCompoundTag("beeActiveSeed"));
+        activeSeedSpecies = activeSeed == null ? "" : BeeBreedingHelper.getBeeUID(activeSeed);
+        seedForBreeding = tag.getBoolean("beeSeedForBreeding");
         pendingBeeOutputs.clear();
         NBTTagList pending = tag.getTagList("beeBreederPendingOutputs", 10);
         for (int i = 0; i < pending.tagCount(); i++) {
@@ -1005,9 +1194,11 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         } else if (activeOperation == OPERATION_BREEDING || activeOperation == OPERATION_OUTPUT) {
             boolean valid = !activeBreedingBatch.isEmpty() && mMaxProgresstime > 0;
             for (BreedingAttempt attempt : activeBreedingBatch) {
-                valid &= BeeBreedingHelper.isQueen(attempt.queen);
+                valid &= BeeBreedingHelper.isFemale(attempt.female);
                 valid &= BeeBreedingHelper.getSpeciesByUID(attempt.step.result) != null;
-                if (activeOperation == OPERATION_BREEDING) valid &= BeeBreedingHelper.findRegisteredStep(
+                valid &= !attempt.step.result.equals(attempt.step.parent1)
+                    && !attempt.step.result.equals(attempt.step.parent2);
+                valid &= BeeBreedingHelper.findRegisteredStep(
                     attempt.step.parent1,
                     attempt.step.parent2,
                     attempt.step.result,
@@ -1015,6 +1206,14 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
             }
             if (!valid) {
                 refundActiveParents();
+                clearLoadedOperation();
+            } else activeOperation = OPERATION_BREEDING;
+        } else if (activeOperation == OPERATION_SEED) {
+            if (activeSeed == null || mMaxProgresstime <= 0 || !seedBank.hasSpecies(activeSeedSpecies)) {
+                activeSeed = null;
+                activeSeedSpecies = "";
+                seedForBreeding = false;
+                activeOperation = OPERATION_NONE;
                 clearLoadedOperation();
             }
         } else if (activeOperation == OPERATION_FLUSH && mMaxProgresstime <= 0) {
@@ -1124,8 +1323,9 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
         breedingRevision++;
     }
 
-    private record BreedingAttempt(BreedingStep step, double effectiveChance, boolean succeeded, ItemStack queen,
-        ItemStack consumedDrone) {
+    private record BreedingAttempt(BreedingStep step, double effectiveChance, boolean succeeded, ItemStack female,
+        boolean consumedFemale, ItemStack consumedDrone, boolean femaleInternal, boolean droneInternal,
+        ItemStack offspring, boolean internalOffspring, String femaleSpecies) {
 
         private NBTTagCompound toNBT() {
             NBTTagCompound tag = new NBTTagCompound();
@@ -1135,26 +1335,41 @@ public class LargeBeeBreeder extends MultiMachineBase<LargeBeeBreeder> {
             tag.setDouble("baseChance", step.chance);
             tag.setDouble("effectiveChance", effectiveChance);
             tag.setBoolean("succeeded", succeeded);
-            tag.setTag("queen", queen.writeToNBT(new NBTTagCompound()));
+            tag.setBoolean("consumedFemale", consumedFemale);
+            tag.setBoolean("femaleInternal", femaleInternal);
+            tag.setBoolean("droneInternal", droneInternal);
+            tag.setBoolean("internalOffspring", internalOffspring);
+            tag.setString("femaleSpecies", femaleSpecies);
+            tag.setTag("female", female.writeToNBT(new NBTTagCompound()));
             if (consumedDrone != null) tag.setTag("consumedDrone", consumedDrone.writeToNBT(new NBTTagCompound()));
+            if (offspring != null) tag.setTag("offspring", offspring.writeToNBT(new NBTTagCompound()));
             return tag;
         }
 
         private static BreedingAttempt fromNBT(NBTTagCompound tag) {
-            ItemStack queen = ItemStack
-                .loadItemStackFromNBT(tag.getCompoundTag(tag.hasKey("queen", 10) ? "queen" : "female"));
-            if (queen == null) return null;
+            ItemStack female = ItemStack
+                .loadItemStackFromNBT(tag.getCompoundTag(tag.hasKey("female", 10) ? "female" : "queen"));
+            if (female == null) return null;
             String parent1 = tag.getString("parent1"), parent2 = tag.getString("parent2"),
                 result = tag.getString("result");
             BreedingStep step = BeeBreedingHelper
                 .findRegisteredStep(parent1, parent2, result, tag.getDouble("baseChance"));
             if (step == null) step = new BreedingStep(parent1, parent2, result, tag.getDouble("baseChance"));
+            boolean succeeded = tag.getBoolean("succeeded");
+            ItemStack offspring = ItemStack.loadItemStackFromNBT(tag.getCompoundTag("offspring"));
+            if (succeeded && offspring == null) offspring = BeeBreedingHelper.createPrincess(result);
             return new BreedingAttempt(
                 step,
                 tag.getDouble("effectiveChance"),
-                tag.getBoolean("succeeded"),
-                queen,
-                ItemStack.loadItemStackFromNBT(tag.getCompoundTag("consumedDrone")));
+                succeeded,
+                female,
+                !tag.hasKey("consumedFemale", 1) || tag.getBoolean("consumedFemale"),
+                ItemStack.loadItemStackFromNBT(tag.getCompoundTag("consumedDrone")),
+                tag.getBoolean("femaleInternal"),
+                tag.getBoolean("droneInternal"),
+                offspring,
+                tag.getBoolean("internalOffspring"),
+                tag.hasKey("femaleSpecies", 8) ? tag.getString("femaleSpecies") : BeeBreedingHelper.getBeeUID(female));
         }
     }
 }

@@ -180,25 +180,30 @@ public class SuperDualInputHatchMEGui extends MTEHatchBaseGui<SuperDualInputHatc
         ItemStack configTab = GTOreDictUnificator.get(OrePrefixes.gearGt, Materials.Iron, 1);
 
         return Flow.row()
-            .coverChildren()
+            .pos(machine.getGUIWidth() - 3, 0)
+            .size(GTNLMui2Textures.RIGHT_COVER_TAB.getWidth(), GTNLMui2Textures.RIGHT_COVER_TAB.getHeight() * 3)
+            .excludeAreaInRecipeViewer()
             .child(
-                new PageButton(0, controller).background(true, createTabBackground(0, true))
-                    .background(false, createTabBackground(0, false))
-                    .overlay(new ItemDrawable(itemTab).asIcon())
-                    .pos(machine.getGUIWidth() - 4, 0)
-                    .size(28, 32))
+                new PageButton(0, controller).tab(GTNLMui2Textures.RIGHT_COVER_TAB, -1)
+                    .overlay(
+                        new ItemDrawable(itemTab).asIcon()
+                            .size(16, 16)
+                            .center())
+                    .pos(0, 0))
             .child(
-                new PageButton(1, controller).background(true, createTabBackground(1, true))
-                    .background(false, createTabBackground(1, false))
-                    .overlay(new ItemDrawable(fluidTab).asIcon())
-                    .pos(machine.getGUIWidth() - 4, 28)
-                    .size(28, 32))
+                new PageButton(1, controller).tab(GTNLMui2Textures.RIGHT_COVER_TAB, -1)
+                    .overlay(
+                        new ItemDrawable(fluidTab).asIcon()
+                            .size(16, 16)
+                            .center())
+                    .pos(0, GTNLMui2Textures.RIGHT_COVER_TAB.getHeight()))
             .child(
-                new PageButton(2, controller).background(true, createTabBackground(2, true))
-                    .background(false, createTabBackground(2, false))
-                    .overlay(new ItemDrawable(configTab).asIcon())
-                    .pos(machine.getGUIWidth() - 4, 56)
-                    .size(28, 32));
+                new PageButton(2, controller).tab(GTNLMui2Textures.RIGHT_COVER_TAB, -1)
+                    .overlay(
+                        new ItemDrawable(configTab).asIcon()
+                            .size(16, 16)
+                            .center())
+                    .pos(0, GTNLMui2Textures.RIGHT_COVER_TAB.getHeight() * 2));
     }
 
     public ParentWidget<?> createItemPage(ModularPanel parent, PanelSyncManager syncManager) {
@@ -624,16 +629,7 @@ public class SuperDualInputHatchMEGui extends MTEHatchBaseGui<SuperDualInputHatc
     }
 
     public UITexture createTabBackground(int pageIndex, boolean selected) {
-        UITexture texture = selected ? GTGuiTextures.BUTTON_COVER_TAB_HIGHLIGHT_STANDARD
-            : GTGuiTextures.BUTTON_COVER_TAB_NORMAL_STANDARD;
-        return new UITexture(
-            texture.location,
-            texture.u1,
-            texture.v0,
-            texture.u0,
-            texture.v1,
-            texture.colorType,
-            texture.nonOpaque);
+        return GTNLMui2Textures.RIGHT_COVER_TAB.getStart(selected);
     }
 
     public class ConfigFluidTank implements IFluidTank {

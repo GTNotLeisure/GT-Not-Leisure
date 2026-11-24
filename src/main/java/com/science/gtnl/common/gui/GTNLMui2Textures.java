@@ -1,11 +1,25 @@
 package com.science.gtnl.common.gui;
 
+import com.cleanroommc.modularui.api.GuiAxis;
+import com.cleanroommc.modularui.drawable.TabTexture;
 import com.cleanroommc.modularui.drawable.UITexture;
 import com.science.gtnl.ScienceNotLeisure;
 
 import gregtech.api.enums.Mods;
 
 public class GTNLMui2Textures {
+
+    public static final TabTexture RIGHT_COVER_TAB = TabTexture.of(
+        UITexture.builder()
+            .location(ScienceNotLeisure.MODID, "gui/tab/right_cover_tabs")
+            .fullImage()
+            .canApplyTheme()
+            .build(),
+        GuiAxis.X,
+        true,
+        32,
+        28,
+        4);
 
     public static final UITexture PICTURE_CIRCULATION = UITexture
         .fullImage(ScienceNotLeisure.MODID, "gui/picture/circulation_");
@@ -32,4 +46,5 @@ public class GTNLMui2Textures {
 
     public static final UITexture OVERLAY_BUTTON_PLANET_TELEPORT = UITexture
         .fullImage(Mods.GTNHIntergalactic.ID, "gui/overlay_button/planet_teleport.png");
+
 }

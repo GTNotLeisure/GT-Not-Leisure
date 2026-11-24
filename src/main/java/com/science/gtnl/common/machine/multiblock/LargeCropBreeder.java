@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -57,6 +58,7 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.modularui2.GTGuiTextures;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
@@ -502,7 +504,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     @Override
     protected MTEMultiBlockBaseGui<LargeCropBreeder> getGui() {
-        return new LargeCropBreederGui(this);
+        return new LargeCropBreederGui(this).withMachineModeIcons(
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_DEFAULT,
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_FLUID);
     }
 
     public void setTargetCrop(String value) {
@@ -667,8 +671,42 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     }
 
     public void toggleWashingMode() {
-        washingMode = !washingMode;
+        setMachineMode(nextMachineMode());
+    }
+
+    @Override
+    public boolean supportsMachineModeSwitch() {
+        return true;
+    }
+
+    @Override
+    public int getMachineMode() {
+        return washingMode ? 1 : 0;
+    }
+
+    @Override
+    public int nextMachineMode() {
+        return washingMode ? 0 : 1;
+    }
+
+    @Override
+    public String getMachineModeKey() {
+        return washingMode ? "gtnl.crop_breeder.mode_washing" : "gtnl.crop_breeder.mode_breeding";
+    }
+
+    @Override
+    public void setMachineMode(int mode) {
+        washingMode = mode == 1;
+        super.setMachineMode(mode);
         markDirty();
+    }
+
+    @Override
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer player, float x, float y, float z,
+        ItemStack tool) {
+        if (!getBaseMetaTileEntity().isServerSide()) return;
+        toggleWashingMode();
+        GTUtility.sendChatTrans(player, getMachineModeKey());
     }
 
     private void markArchiveChanged(boolean speciesChanged) {

@@ -97,7 +97,7 @@ public class MagneticEnergyReactionFurnace extends WirelessEnergyMultiMachineBas
                     .hint(1)
                     .buildAndChain(
                         StructureUtility
-                            .onElementPass(x -> ++x.mCountCasing, Casings.TemperedArcFurnaceCasing.asElement())))
+                            .onElementPass(x -> ++x.mCountCasing, Casings.GraphiteModeratorCasing.asElement())))
             .addElement('M', StructureUtility.ofBlock(GregTechAPI.sBlockCasingsDyson, 9))
             .addElement('N', StructureUtility.ofBlock(lscLapotronicEnergyUnit, 0))
             .build();
@@ -159,7 +159,7 @@ public class MagneticEnergyReactionFurnace extends WirelessEnergyMultiMachineBas
 
     @Override
     public int getCasingTextureID() {
-        return Casings.TemperedArcFurnaceCasing.getTextureId();
+        return Casings.GraphiteModeratorCasing.getTextureId();
     }
 
     @Override

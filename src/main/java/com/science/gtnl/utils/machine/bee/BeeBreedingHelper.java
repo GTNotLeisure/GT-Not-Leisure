@@ -3,6 +3,7 @@ package com.science.gtnl.utils.machine.bee;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -41,7 +42,7 @@ public class BeeBreedingHelper {
     private record Catalog(IBeeRoot root, int templateCount, int mutationCount, int alleleCount,
         Map<String, IAlleleBeeSpecies> species, List<IAlleleBeeSpecies> registered,
         Map<String, List<MutationData>> mutationsByResult, List<MutationData> mutations,
-        Map<String, IAllele[]> templates) {}
+        Map<String, IAllele[]> templates, Set<String> basicSpecies) {}
 
     private BeeBreedingHelper() {}
 
@@ -133,6 +134,11 @@ public class BeeBreedingHelper {
         return cache == null ? List.of() : cache.mutations();
     }
 
+    public static Set<String> getBasicSpecies() {
+        Catalog cache = ensureCaches();
+        return cache == null ? Set.of() : cache.basicSpecies();
+    }
+
     public static void invalidateCaches() {
         catalog = null;
     }
@@ -167,6 +173,13 @@ public class BeeBreedingHelper {
 
     public static ItemStack createPrincess(String species) {
         return createBee(species, EnumBeeType.PRINCESS);
+    }
+
+    public static ItemStack copyBeeAsType(ItemStack source, EnumBeeType type) {
+        if (!isBee(source)) return null;
+        IBeeRoot root = getBeeRoot();
+        IBee bee = root.getMember(source);
+        return bee == null ? null : root.getMemberStack(bee, type.ordinal());
     }
 
     public static ItemStack createBee(String speciesName, EnumBeeType type) {
@@ -251,6 +264,8 @@ public class BeeBreedingHelper {
             all.add(data);
         }
         byResult.replaceAll((uid, values) -> List.copyOf(values));
+        Set<String> basicSpecies = new HashSet<>(species.keySet());
+        basicSpecies.removeAll(byResult.keySet());
         List<IAlleleBeeSpecies> registered = new ArrayList<>(species.values());
         registered.sort(
             (left, right) -> left.getUID()
@@ -264,7 +279,8 @@ public class BeeBreedingHelper {
             List.copyOf(registered),
             Map.copyOf(byResult),
             List.copyOf(all),
-            Map.copyOf(genomes));
+            Map.copyOf(genomes),
+            Set.copyOf(basicSpecies));
         catalog = next;
         return next;
     }
