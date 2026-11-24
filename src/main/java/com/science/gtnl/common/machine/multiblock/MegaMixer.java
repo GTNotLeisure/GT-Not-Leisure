@@ -77,6 +77,7 @@ public class MegaMixer extends GTMMultiMachineBase<MegaMixer> implements ISurviv
                         HatchElement.OutputHatch,
                         HatchElement.InputBus,
                         HatchElement.OutputBus,
+                        HatchElement.Maintenance,
                         HatchElement.Energy.or(HatchElement.ExoticEnergy),
                         ParallelCon)
                     .buildAndChain(
