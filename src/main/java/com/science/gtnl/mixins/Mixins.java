@@ -213,6 +213,7 @@ public enum Mixins implements IMixins {
             "gregtech.MixinMTEHatchOutputME",
             "gregtech.MixinMTEHatchAirIntake",
             "gregtech.MixinMTEHatchOutputBeamline",
+            "gregtech.MixinMTEHatchWirelessComputationOutput",
             "gregtech.MixinMTEPurificationUnitBaseGui",
             "gregtech.MixinMTEDigitalTankBase",
             "gregtech.MixinMTEHatchDataAccess",
