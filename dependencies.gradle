@@ -20,34 +20,35 @@ dependencies {
     implementation("com.github.GTNewHorizons:NotEnoughItems:2.8.175-GTNH:dev")
     implementation("thaumcraft:Thaumcraft:1.7.10-4.2.3.5:dev")
     api("com.github.GTNewHorizons:GTNHLib:0.11.58:dev")
-    compileOnly("com.github.GTNewHorizons:Angelica:2.2.46:dev") { transitive = false }
-    compileOnly("com.github.GTNewHorizons:BlockRenderer6343:1.4.25:dev") { transitive = false }
     // runtimeOnlyNonPublishable("com.github.GTNewHorizons:Angelica:2.2.46:dev")
     api("com.github.GTNewHorizons:Postea:1.2.9:dev")
     implementation("io.github.legacymoddingmc:unimixins:0.3.1:dev")
 
-    compileOnlyApi("com.github.GTNewHorizons:NewHorizonsCoreMod:2.9.105:dev")
-    compileOnlyApi("com.github.GTNewHorizons:Avaritiaddons:1.9.7-GTNH:dev")
-    compileOnlyApi("com.github.GTNewHorizons:BloodArsenal:1.5.12:dev")
-    compileOnlyApi("com.github.GTNewHorizons:BloodMagic:1.9.18:dev")
-    compileOnlyApi("com.github.GTNewHorizons:ThaumicBases:1.9.22:dev")
-    compileOnlyApi("com.github.GTNewHorizons:ThaumicEnergistics:1.8.0-GTNH:dev")
-    compileOnlyApi("com.github.GTNewHorizons:AspectRecipeIndex:1.1.6:dev")
-    compileOnlyApi("com.github.GTNewHorizons:ThaumicHorizons:1.8.28:dev")
-    compileOnlyApi("com.github.GTNewHorizons:VisualProspecting:1.5.42:dev")
-    compileOnlyApi("com.github.GTNewHorizons:Nutrition:1.0.3:dev")
+    compileOnlyApi("com.github.GTNewHorizons:Angelica:2.2.46:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:BlockRenderer6343:1.4.25:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:NewHorizonsCoreMod:2.9.105:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:Avaritiaddons:1.9.7-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:BloodArsenal:1.5.12:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:BloodMagic:1.9.18:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:ThaumicBases:1.9.22:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:ThaumicEnergistics:1.8.0-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:AspectRecipeIndex:1.1.6:dev") { transitive = false }
+    compileOnlyApi("jcm2606.thaumicmachina:ThaumicMachina:0.2.6-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:ThaumicHorizons:1.8.28:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:VisualProspecting:1.5.42:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:Nutrition:1.0.3:dev") { transitive = false }
     compileOnlyApi(rfg.deobf("curse.maven:mobs-info-879914:9376153")) // 0.6.2
-    compileOnlyApi("com.github.GTNewHorizons:nei-custom-diagram:1.8.36:dev")
-    compileOnlyApi("com.github.GTNewHorizons:InventoryBogoSorter:1.3.55-GTNH:dev")
-    compileOnlyApi("com.github.GTNewHorizons:GregoryTweaksForCrafting:1.0.3:dev")
-    compileOnlyApi("com.github.GTNewHorizons:EnhancedLootBags:1.3.5:dev")
-    compileOnlyApi("com.github.GTNewHorizons:Chisel:2.17.37-GTNH:dev")
+    compileOnlyApi("com.github.GTNewHorizons:nei-custom-diagram:1.8.36:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:InventoryBogoSorter:1.3.55-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:GregoryTweaksForCrafting:1.0.3:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:EnhancedLootBags:1.3.5:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:Chisel:2.17.37-GTNH:dev") { transitive = false }
     compileOnlyApi("ganymedes01.etfuturum:Et-Futurum-Requiem:2.6.66-GTNH") { transitive = false }
     compileOnlyApi("com.github.GTNewHorizons:ForgeMultipart:1.7.18:dev") { transitive = false }
     compileOnlyApi("com.github.GTNewHorizons:Variable-Horizons:0.1.07:dev") { transitive = false }
-    compileOnly("com.github.GTNewHorizons:HoloInventory:2.5.18-GTNH:dev") { transitive = false }
-    compileOnly("com.github.GTNewHorizons:TinkersConstruct:1.14.124-GTNH:dev") { transitive = false }
-    compileOnly("com.github.GTNewHorizons:MatterManipulator:0.1.77-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:HoloInventory:2.5.18-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:TinkersConstruct:1.14.124-GTNH:dev") { transitive = false }
+    compileOnlyApi("com.github.GTNewHorizons:MatterManipulator:0.1.77-GTNH:dev") { transitive = false }
 
     devOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughEnergistics:1.8.0:dev")
 
@@ -82,21 +83,22 @@ dependencies {
 
 configurations.configureEach {
     resolutionStrategy {
-        force "com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-1104-GTNH"
+        force "com.github.GTNewHorizons:Angelica:2.2.46"
         force "com.github.GTNewHorizons:AE2FluidCraft-Rework:1.6.0-gtnh"
+        force "com.github.GTNewHorizons:Applied-Energistics-2-Unofficial:rv3-beta-1104-GTNH"
         force "com.github.GTNewHorizons:Baubles-Expanded:2.2.27-GTNH"
         force "com.github.GTNewHorizons:CodeChickenCore:1.4.24"
-        force "com.github.GTNewHorizons:ModularUI2:2.3.94-1.7.10"
-        force "com.github.GTNewHorizons:GTNHLib:0.11.58"
         force "com.github.GTNewHorizons:GT5-Unofficial:5.09.54.275"
+        force "com.github.GTNewHorizons:GTNHLib:0.11.58"
+        force "com.github.GTNewHorizons:ModularUI2:2.3.94-1.7.10"
         force "com.github.GTNewHorizons:NotEnoughItems:2.8.175-GTNH"
         force "com.github.GTNewHorizons:ThaumicEnergistics:1.8.0-GTNH"
     }
 
-    exclude group: "com.github.GTNewHorizons", module: "Guide-API"
-    exclude group: "com.github.GTNewHorizons", module: "CodeChickenLib"
-    exclude group: "com.github.GTNewHorizons", module: "Hodgepodge"
     exclude group: "com.github.GTNewHorizons", module: "Baubles"
+    exclude group: "com.github.GTNewHorizons", module: "CodeChickenLib"
+    exclude group: "com.github.GTNewHorizons", module: "Guide-API"
+    exclude group: "com.github.GTNewHorizons", module: "Hodgepodge"
     exclude group: "com.github.GTNewHorizons", module: "Mobs-Info"
 }
 
