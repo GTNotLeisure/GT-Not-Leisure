@@ -12,14 +12,14 @@ import com.cleanroommc.modularui.utils.JsonHelper;
 import com.google.gson.JsonObject;
 import com.gtnllib.client.hud.HudColor;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.theme.LayoutTheme;
 import com.gtnllib.gui.theme.LivePalette;
 import com.gtnllib.gui.theme.MetalSkin;
 import com.gtnllib.gui.theme.PaletteThemes;
 import com.gtnllib.gui.theme.ThemePalette;
 import com.gtnllib.gui.theme.ThemeStyle;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.gtnllib.gui.wheel.WheelStyle;
-import com.gtnllib.gui.widget.LayoutTheme;
 import com.science.gtnl.config.ClientConfig;
 
 import cpw.mods.fml.relauncher.Side;
@@ -112,7 +112,7 @@ public class EquipmentTheme {
     }
 
     public static int titleColor(@Nullable String themeId) {
-        Variant variant = AE2Theme.variant(themeId);
+        AE2Variant variant = AE2Theme.variant(themeId);
         return variant != null ? variant.colors.text() : colors(themeId).accent;
     }
 
@@ -121,7 +121,7 @@ public class EquipmentTheme {
     }
 
     public static int wheelHighlight(@Nullable String themeId) {
-        Variant variant = AE2Theme.variant(themeId);
+        AE2Variant variant = AE2Theme.variant(themeId);
         return variant != null ? variant.highlight : colors(themeId).accent;
     }
 

@@ -9,7 +9,7 @@ import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.layout.IViewportStack;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
 
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
@@ -33,7 +33,7 @@ public class WirelessCardActionButton extends ButtonWidget<WirelessCardActionBut
             .overlay(AE2Theme.label(this, text, available, selected));
     }
 
-    public WirelessCardActionButton icon(Supplier<Icon> icon) {
+    public WirelessCardActionButton icon(Supplier<AE2Icon> icon) {
         return plain().overlay(AE2Theme.iconButton(this, icon, available));
     }
 
@@ -52,7 +52,7 @@ public class WirelessCardActionButton extends ButtonWidget<WirelessCardActionBut
 
     @Override
     public @NotNull Result onMousePressed(int button) {
-        // Icon buttons sit on top of a row's open area, so a refused click must not fall through to it.
+        // AE2Icon buttons sit on top of a row's open area, so a refused click must not fall through to it.
         return button == 0 && !available.getAsBoolean() ? Result.STOP : super.onMousePressed(button);
     }
 }

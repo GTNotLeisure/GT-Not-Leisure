@@ -64,10 +64,10 @@ import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.ButtonText;
-import com.gtnllib.gui.theme.AE2Theme.Colors;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.gtnllib.gui.widget.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2Colors;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
+import com.gtnllib.gui.theme.ae2.ButtonText;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.HandleScrollData;
@@ -126,12 +126,12 @@ public class WirelessCardGui extends ModularPanel {
     public final FontRenderer fontRendererObj = mc.fontRenderer;
     public final WirelessCardContainer container;
     public final String themeId = ScreenThemes.wirelessCard();
-    public final @Nullable Variant variant = AE2Theme.variant(themeId);
+    public final @Nullable AE2Variant variant = AE2Theme.variant(themeId);
     public final boolean ae2 = variant != null;
     public final Palette palette = variant != null ? Palette.ae2(variant) : Palette.standard();
     // Rows on AE2's light-blue selection keep the light palette's dark text, also on the dark skin.
     private final boolean blueHighlight = variant != null && variant.highlight == AE2Theme.HIGHLIGHT;
-    public final Palette highlightPalette = blueHighlight ? Palette.ae2(Variant.LIGHT) : palette;
+    public final Palette highlightPalette = blueHighlight ? Palette.ae2(AE2Variant.LIGHT) : palette;
     public final int highlight = variant == null ? PLAIN_HIGHLIGHT : variant.highlight,
         highlightTop = variant == null ? PLAIN_HIGHLIGHT_TOP : variant.highlightTop,
         highlightShadow = variant == null ? PLAIN_HIGHLIGHT_SHADOW : variant.highlightShadow,
@@ -1238,10 +1238,10 @@ public class WirelessCardGui extends ModularPanel {
             return state.equals("online") ? good : state.equals("missing") ? bad : suffix;
         }
 
-        public static Palette ae2(Variant variant) {
-            Colors colors = variant.colors;
+        public static Palette ae2(AE2Variant variant) {
+            AE2Colors colors = variant.colors;
             // The dark theme's line color is near black, so nested rows lighten there instead of darkening.
-            boolean dark = variant != Variant.LIGHT;
+            boolean dark = variant != AE2Variant.LIGHT;
             return new Palette(
                 colors.text(),
                 colors.text(),

@@ -31,7 +31,7 @@ import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.ListWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
 import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.GTNLListWidget;
 import com.gtnllib.gui.widget.HandleScrollData;
@@ -351,7 +351,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
             });
     }
 
-    private static WirelessCardActionButton iconButton(Icon icon, BooleanSupplier available, Runnable action,
+    private static WirelessCardActionButton iconButton(AE2Icon icon, BooleanSupplier available, Runnable action,
         Consumer<RichTooltip> tooltip) {
         return new WirelessCardActionButton(available).icon(() -> icon)
             .onClick(action)
@@ -370,11 +370,12 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
     }
 
     private void addLocationButtons(ParentWidget<?> row, int index) {
-        row.child(iconButton(Icon.MOVE_TO, () -> true, () -> owner.sendTarget(TELEPORT, lineData(index)), tooltip -> {
-            tooltip.addLine(tr("teleport_tip"));
-            tooltip.addLine(EnumChatFormatting.GRAY + lineData(index).getString("positionLabel"));
-        }).pos(buttonsX + BUTTON_STEP, 4));
-        row.child(iconButton(Icon.VISIBLE, () -> true, () -> owner.highlightTarget(lineData(index)), tooltip -> {
+        row.child(
+            iconButton(AE2Icon.MOVE_TO, () -> true, () -> owner.sendTarget(TELEPORT, lineData(index)), tooltip -> {
+                tooltip.addLine(tr("teleport_tip"));
+                tooltip.addLine(EnumChatFormatting.GRAY + lineData(index).getString("positionLabel"));
+            }).pos(buttonsX + BUTTON_STEP, 4));
+        row.child(iconButton(AE2Icon.VISIBLE, () -> true, () -> owner.highlightTarget(lineData(index)), tooltip -> {
             tooltip.addLine(tr("highlight_tip"));
             tooltip.addLine(EnumChatFormatting.GRAY + WirelessCardClientView.positionWithSide(lineData(index)));
             tooltip.addLine(WirelessCardButton.highlightRange(lineData(index), owner));
@@ -397,14 +398,14 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                     .tooltipAutoUpdate(true));
             child(
                 iconButton(
-                    Icon.EDIT,
+                    AE2Icon.EDIT,
                     () -> data().getBoolean("renameable"),
                     () -> owner.openRename(Target.device(data())),
                     tooltip -> tooltip.addLine(tr("devices.rename_device"))).pos(buttonsX, 4));
             addLocationButtons(this, index);
             child(
                 iconButton(
-                    Icon.GEAR,
+                    AE2Icon.GEAR,
                     this::remoteOpen,
                     () -> owner.openDevice(view(), data().getLong("targetId")),
                     tooltip -> {
@@ -516,7 +517,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                     .tooltipAutoUpdate(true));
             if (Target.row(lineData(index)) != null) child(
                 iconButton(
-                    Icon.EDIT,
+                    AE2Icon.EDIT,
                     () -> Target.row(lineData(index)) != null,
                     () -> owner.openRename(Target.row(lineData(index))),
                     tooltip -> tooltip.addLine(tr(renameTooltip(lineData(index))))).pos(buttonsX, 4));

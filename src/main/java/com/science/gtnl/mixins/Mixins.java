@@ -275,6 +275,12 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.ThaumicEnergistics)),
 
+    THAUMIC_MACHINA_ASPECT_RECIPE_INDEX(new MixinBuilder("Thaumic Machina wand augmentation recipe display")
+        .addClientMixins("aspectRecipeIndex.MixinInfusionRecipeHandler")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.ThaumicMachina)
+        .addRequiredMod(ModList.AspectRecipeIndex)),
+
     THAUMCRAFT_CELESTWEAVE(new MixinBuilder("Celestweave wand capacity compatibility")
         .addCommonMixins("thaumcraft.MixinItemWandCastingCelestweave")
         .setPhase(Phase.LATE)),

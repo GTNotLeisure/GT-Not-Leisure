@@ -44,7 +44,7 @@ import com.cleanroommc.modularui.widget.WidgetTree;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
 import com.science.gtnl.client.floatingwindow.FloatingWindowPanel;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.meminiterminal.MiniTerminalPinSettings;
@@ -1017,20 +1017,20 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private static final int BLANK = 255, PIN = 5 * 16 + 14, HALF = 8, CELL = 16, SLOT = 18, SHEET = 256;
         private static final float PIN_OPACITY = 0.4F;
-        private static final Skin[] THEMED = new Skin[Variant.values().length];
+        private static final Skin[] THEMED = new Skin[AE2Variant.values().length];
 
-        public final Variant variant;
+        public final AE2Variant variant;
         public final ResourceLocation states, terminal;
         private final LongOpenHashSet occupied = new LongOpenHashSet();
 
-        private Skin(Variant variant) {
+        private Skin(AE2Variant variant) {
             this.variant = variant;
             states = AE2Theme.legacyStates(variant);
             terminal = AE2Theme.legacyTerminal(variant);
         }
 
         public static @Nullable Skin current() {
-            Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
+            AE2Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
             if (variant == null) return null;
             Skin skin = THEMED[variant.ordinal()];
             if (skin == null) skin = THEMED[variant.ordinal()] = new Skin(variant);

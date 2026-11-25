@@ -30,7 +30,7 @@ import com.cleanroommc.modularui.value.BoolValue;
 import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widgets.ToggleButton;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
 import com.science.gtnl.common.wireless.remote.RemoteDeviceState;
 
 import cpw.mods.fml.relauncher.Side;
@@ -65,7 +65,7 @@ public class WirelessCardButton {
             };
             IDrawable look = id == TOGGLE_AUTO
                 ? AE2Theme.toggleSwitch(toggle, () -> on, () -> tr("auto_connect"), () -> available)
-                : AE2Theme.iconButton(toggle, () -> on ? Icon.PAUSE : Icon.PLAY, () -> available);
+                : AE2Theme.iconButton(toggle, () -> on ? AE2Icon.PAUSE : AE2Icon.PLAY, () -> available);
             widget = toggle.value(new BoolValue.Dynamic(() -> on, ignored -> panel.action(id)))
                 .background(false, IDrawable.EMPTY)
                 .background(true, IDrawable.EMPTY)
@@ -78,12 +78,12 @@ public class WirelessCardButton {
             widget = button;
             switch (actionType) {
                 case OPEN_DETAILS -> button.plain();
-                case TELEPORT -> button.icon(() -> Icon.MOVE_TO);
-                case HIGHLIGHT -> button.icon(() -> Icon.VISIBLE);
-                case OPEN_DEVICE -> button.icon(() -> Icon.GEAR);
-                case OPEN_RENAME -> button.icon(() -> Icon.EDIT);
+                case TELEPORT -> button.icon(() -> AE2Icon.MOVE_TO);
+                case HIGHLIGHT -> button.icon(() -> AE2Icon.VISIBLE);
+                case OPEN_DEVICE -> button.icon(() -> AE2Icon.GEAR);
+                case OPEN_RENAME -> button.icon(() -> AE2Icon.EDIT);
                 case REFRESH -> button.plain()
-                    .overlay(AE2Theme.tabButton(button, () -> Icon.REFRESH, () -> available));
+                    .overlay(AE2Theme.tabButton(button, () -> AE2Icon.REFRESH, () -> available));
                 case TOGGLE_GROUPING -> button.plain()
                     .overlay(AE2Theme.toggleSwitch(button, () -> on, () -> tr("merge_types"), () -> available));
                 default -> {}
