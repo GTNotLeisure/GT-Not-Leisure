@@ -442,7 +442,7 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
         } catch (GridAccessException e) {
             processingRecipe = false;
             controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-            return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+            return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
         }
 
         for (int i = 0; i < SIDE_SLOT_COUNT; i++) {
@@ -458,7 +458,8 @@ public class SuperInputBusME extends MTEHatchInputBusME implements IConfiguratio
             IAEItemStack result = Platform.poweredExtraction(energy, sg, request, getRequestSource());
             if (result == null || result.getStackSize() != toExtract) {
                 controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                checkRecipeResult = SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                checkRecipeResult = SimpleCheckRecipeResult
+                    .ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
             }
         }
 

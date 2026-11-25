@@ -26,6 +26,7 @@ import net.minecraftforge.common.util.ForgeDirection;
 import net.minecraftforge.fluids.FluidStack;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
@@ -33,9 +34,9 @@ import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructa
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
-import com.gtnewhorizon.structurelib.util.Vec3Impl;
 import com.gtnewhorizon.structurelib.util.XSTR;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.api.mixinHelper.IContinuousComputationOutput;
 import com.science.gtnl.common.machine.multiMachineBase.TTMultiMachineBase;
 import com.science.gtnl.common.packet.SyncHPCAVariablesPacket;
 import com.science.gtnl.common.render.tile.HighPerformanceComputationArrayRenderer;
@@ -88,6 +89,8 @@ import tectech.util.CommonValues;
 public class HighPerformanceComputationArray extends TTMultiMachineBase
     implements ISurvivalConstructable, IMTERenderer {
 
+    private static final int MAX_STRUCTURE_LENGTH = 15;
+    private static IStructureDefinition<HighPerformanceComputationArray> structureDefinition;
     private static final String RACK_HATCH_NAME_KEY = "gt.blockmachines.hatch.rack.tier.08.name";
     public static final INameFunction<HighPerformanceComputationArray> LENS_NAME = (base, p) -> StatCollector
         .translateToLocal("gtnl.gui.high_performance_computation_array.structure_length");
@@ -124,6 +127,11 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
     public ObjectArrayList<MTEHatchRack> mRackHatchs = new ObjectArrayList<>();
     public ObjectArrayList<MTEHatchWirelessComputationOutput> mWirelessComputationOutputHatchs = new ObjectArrayList<>();
     public Parameters.Group.ParameterOut maxCurrentTemp, availableData, machineLens, coolantUse;
+
+    private UUID modifierSeed;
+    private int modifierLength = -1;
+    private RackModifiers[][] rackModifiers;
+    private ForgeDirection renderDirection;
 
     public HighPerformanceComputationArray(int aID, String aName, String aNameRegional) {
         super(aID, aName, aNameRegional);
@@ -187,160 +195,165 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
             mUpdated = false;
         }
         if (aTick % 20 == CommonValues.MULTI_CHECK_AT) {
-            int allCoolantUs = 0;
-            eAvailableData = 0;
-            double maxTemp = 0;
-            for (int x = 0; x < totalLens; x++) {
-                for (int y = 0; y < 3; y++) {
-                    MTEHatchRack rack = rackTable.get(x, y);
-                    if (rack != null) {
-                        if (rack.getHeat() > maxTemp) {
-                            maxTemp = rack.getHeat();
-                        }
-                    }
-                }
-            }
-
-            maxCurrentTemp.set(maxTemp);
-            if (mMaxProgresstime > 0) {
-                startRecipeProcessing();
-                ArrayList<FluidStack> storedFluids = getStoredFluids();
-                long totalSuperCoolant = 0;
-
-                if (storedFluids != null) {
-                    for (FluidStack fs : storedFluids) {
-                        if (fs != null && GTUtility.areFluidsEqual(fs, superCoolant, true)) {
-                            totalSuperCoolant += fs.amount;
-                        }
-                    }
-                }
-
-                outer: for (int lensIndex = 0; lensIndex < totalLens; lensIndex++) {
-                    for (int rackIndex = 0; rackIndex < 3; rackIndex++) {
-                        MTEHatchRack rack = rackTable.get(lensIndex, rackIndex);
-                        if (rack == null) continue;
-                        rack.setHeat(Math.max(1, rack.getHeat()));
-                        if (totalSuperCoolant <= 0) break outer;
-
-                        int computationPerTick = rack.tickComponents(1, 1) * 8;
-                        if (computationPerTick <= 0) continue;
-
-                        int colorIndexX = (randomColor[0] != null && randomColor[0].length > lensIndex)
-                            ? randomColor[0][lensIndex]
-                            : 0;
-                        int colorIndexY = (randomColor[1] != null && randomColor[1].length > rackIndex)
-                            ? randomColor[1][rackIndex]
-                            : 0;
-
-                        HPCAModifier modifierX = HPCAModifier.VALUES[colorIndexX % HPCAModifier.VALUES.length];
-                        HPCAModifier modifierY = HPCAModifier.VALUES[colorIndexY % HPCAModifier.VALUES.length];
-
-                        double computationMultiplier = modifierX.computationCoefficientX
-                            * modifierY.computationCoefficientY;
-                        double coolantMultiplier = modifierX.coolantCoefficientX * modifierY.coolantCoefficientY;
-                        double heatMultiplier = modifierX.heatCoefficientX * modifierY.heatCoefficientY;
-
-                        double coolantRequired = computationPerTick * coolantMultiplier / 100.0;
-                        if (coolantRequired <= 0) continue;
-
-                        double heatReductionPerUnit = computationPerTick / 20.0 * heatMultiplier;
-                        double usedCoolantFactor = Math
-                            .min(rack.getHeat() / heatReductionPerUnit, totalSuperCoolant / coolantRequired);
-                        int coolantConsumed = (int) (usedCoolantFactor * coolantRequired);
-
-                        if (usedCoolantFactor > 0 && depleteInput(Materials.SuperCoolant.getFluid(coolantConsumed))) {
-                            rack.setHeat(rack.getHeat() - (int) (usedCoolantFactor * heatReductionPerUnit));
-                            rack.setHeat(Math.max(1, rack.getHeat()));
-                            totalSuperCoolant -= coolantConsumed;
-                            allCoolantUs += coolantConsumed;
-                        }
-
-                        rack.setHeat(rack.getHeat() + (int) (100 * heatMultiplier));
-                        eAvailableData += (long) (computationPerTick * computationMultiplier) / 4;
-                    }
-                }
-
-                coolantUse.set(allCoolantUs);
-                availableData.set(eAvailableData);
-                endRecipeProcessing();
-            }
+            if (mMachine && mMaxProgresstime > 0 && eCertainStatus == 0) updateComputation();
+            maxCurrentTemp.set(getMaximumRackHeat());
         }
 
-        if (!eOutputData.isEmpty() && mMaxProgresstime > 0 && (mProgresstime + 1) % 10 == 0) {
-            Vec3Impl pos = new Vec3Impl(
-                getBaseMetaTileEntity().getXCoord(),
-                getBaseMetaTileEntity().getYCoord(),
-                getBaseMetaTileEntity().getZCoord());
-            int eHatchData = 0;
+        if (!mMachine || mMaxProgresstime <= 0 || eCertainStatus != 0) clearComputation();
+        if (mMachine && mMaxProgresstime > 0 && (mProgresstime + 1) % 10 == 0) publishComputation();
+    }
 
-            for (MTEHatchDataInput hatch : eInputData) {
-                if (hatch.q == null || hatch.q.contains(pos)) {
-                    continue;
+    public void updateComputation() {
+        getModifierIndices();
+        long produced = 0;
+        long coolantConsumed = 0;
+        startRecipeProcessing();
+        try {
+            long coolantRemaining = 0;
+            for (FluidStack fluid : getStoredFluids()) {
+                if (fluid.amount > 0 && GTUtility.areFluidsEqual(fluid, superCoolant, true)) {
+                    coolantRemaining += fluid.amount;
                 }
-                eHatchData += hatch.q.getContent();
             }
 
-            QuantumDataPacket pack = new QuantumDataPacket((eAvailableData + eHatchData) / eOutputData.size())
-                .unifyTraceWith(pos);
-            if (pack == null) {
-                return;
-            }
+            outer: for (int lens = 0; lens < rackModifiers.length; lens++) {
+                for (int row = 0; row < 3; row++) {
+                    if (coolantRemaining <= 0) break outer;
+                    MTEHatchRack rack = rackTable.get(lens, row);
+                    if (rack == null || !rack.isValid()) continue;
+                    rack.setHeat(Math.max(1, rack.getHeat()));
+                    int computation = rack.tickComponents(1, 1);
+                    if (computation <= 0) continue;
 
-            for (MTEHatchDataOutput o : eOutputData) {
-                o.providePacket(pack);
+                    RackModifiers modifiers = rackModifiers[lens][row];
+                    int heatToRemove = Math.max(0, rack.getHeat() - 1);
+                    int coolant = (int) Math
+                        .min(coolantRemaining, Math.ceil(heatToRemove / modifiers.coolingPerLiter()));
+                    if (coolant > 0) {
+                        FluidStack required = superCoolant.copy();
+                        required.amount = coolant;
+                        if (!depleteInput(required)) break outer;
+                        int removedHeat = (int) Math.min(heatToRemove, coolant * modifiers.coolingPerLiter());
+                        rack.setHeat(rack.getHeat() - removedHeat);
+                        coolantRemaining -= coolant;
+                        coolantConsumed += coolant;
+                    }
+
+                    rack.setHeat((int) Math.min(Integer.MAX_VALUE, (long) rack.getHeat() + modifiers.heatIncrease()));
+                    produced = GTUtility.addSafe(produced, (long) (computation * modifiers.computationMultiplier()));
+                }
             }
+        } finally {
+            endRecipeProcessing();
+        }
+        // A failed ME extraction can stop the machine while the coolant transaction commits.
+        if (mMaxProgresstime <= 0) return;
+        eAvailableData = produced;
+        availableData.set(produced);
+        coolantUse.set(coolantConsumed);
+    }
+
+    public double getMaximumRackHeat() {
+        double heat = 0;
+        for (MTEHatchRack rack : GTUtility.validMTEList(mRackHatchs)) heat = Math.max(heat, rack.getHeat());
+        return heat;
+    }
+
+    public void clearComputation() {
+        eAvailableData = 0;
+        availableData.set(0);
+        coolantUse.set(0);
+        for (MTEHatchDataOutput output : eOutputData) output.providePacket(null);
+    }
+
+    public @Nullable QuantumDataPacket createOutputPacket() {
+        QuantumDataPacket packet = new QuantumDataPacket(eAvailableData).unifyTraceWith(getPos());
+        for (MTEHatchDataInput hatch : GTUtility.validMTEList(eInputData)) {
+            if (hatch.q == null || hatch.q.getContent() <= 0 || hatch.q.contains(getPos())) continue;
+            packet = packet.unifyPacketWith(hatch.q);
+            if (packet == null) return null;
+        }
+        return packet;
+    }
+
+    public void publishComputation() {
+        List<MTEHatchDataOutput> outputs = GTUtility.filterValidMTEs(eOutputData);
+        if (outputs.isEmpty()) return;
+        QuantumDataPacket packet = eCertainStatus == 0 ? createOutputPacket() : null;
+        if (packet == null) {
+            for (MTEHatchDataOutput output : outputs) output.providePacket(null);
+            return;
+        }
+        long perOutput = packet.getContent() / outputs.size();
+        long remainder = packet.getContent() % outputs.size();
+        for (MTEHatchDataOutput output : outputs) {
+            long amount = perOutput + (remainder > 0 ? 1 : 0);
+            if (remainder > 0) remainder--;
+            output.providePacket(new QuantumDataPacket(amount).unifyTraceWith(packet));
         }
     }
 
     @Override
     public void checkMachine(IGregTechTileEntity iGregTechTileEntity, ItemStack itemStack,
         List<StructureError> structureErrors) {
-        totalLens = 0;
-        setRackActiveState(false);
-        mRackHatchs.clear();
-        rackTable.clear();
+        List<MTEHatchWirelessComputationOutput> previousOutputs = new ArrayList<>(mWirelessComputationOutputHatchs);
+        try {
+            totalLens = 0;
+            setRackActiveState(false);
+            mRackHatchs.clear();
+            mWirelessComputationOutputHatchs.clear();
+            rackTable.clear();
 
-        if (!checkPiece("front", 1, 2, 0, structureErrors)) return;
-        if (!checkPiece("cap", 1, 2, -1, structureErrors)) return;
+            if (!checkPiece("front", 1, 2, 0, structureErrors)) return;
+            if (!checkPiece("cap", 1, 2, -1, structureErrors)) return;
 
-        byte offset = -2;
-        while (offset > -18) {
-            if (!checkPiece("slice", 1, 2, offset, structureErrors)) break;
-            offset--;
-            totalLens++;
-        }
+            byte offset = -2;
+            while (offset > -18) {
+                if (!checkPiece("slice", 1, 2, offset, structureErrors)) break;
+                offset--;
+                totalLens++;
+            }
 
-        if (!checkPiece("cap", 1, 2, ++offset, structureErrors)) return;
-        if (!checkPiece("back", 1, 2, --offset, structureErrors)) return;
+            if (!checkPiece("cap", 1, 2, ++offset, structureErrors)) return;
+            if (!checkPiece("back", 1, 2, --offset, structureErrors)) return;
 
-        structureErrors.clear();
-        totalLens--;
-        eCertainMode = (byte) Math.min(totalLens / 3, 5);
-        for (MTEHatchRack rack : getValidRackHatches()) {
-            rack.getBaseMetaTileEntity()
-                .setActive(iGregTechTileEntity.isActive());
-        }
-        machineLens.set(totalLens);
-        randomColor = generateTwoModifierIndexGroups(randomUUID, totalLens);
-        checkOneUncertaintyHatch(structureErrors);
-        checkHatchMax(structureErrors, InputHatch, 1);
-        if (totalLens < 3) {
-            structureErrors.add(StructureErrorRegistry.TOO_SHORT_LENGTH);
+            structureErrors.clear();
+            totalLens--;
+            eCertainMode = (byte) Math.min(totalLens / 3, 5);
+            for (MTEHatchRack rack : getValidRackHatches()) {
+                rack.getBaseMetaTileEntity()
+                    .setActive(iGregTechTileEntity.isActive());
+            }
+            machineLens.set(totalLens);
+            getModifierIndices();
+            checkOneUncertaintyHatch(structureErrors);
+            checkHatchMax(structureErrors, InputHatch, 1);
+            if (totalLens < 3) {
+                structureErrors.add(StructureErrorRegistry.TOO_SHORT_LENGTH);
+            }
+        } finally {
+            for (MTEHatchWirelessComputationOutput output : previousOutputs) {
+                if (!mWirelessComputationOutputHatchs.contains(output)) {
+                    ((IContinuousComputationOutput) output).setContinuousComputationOutput(false);
+                    output.providePacket(null);
+                }
+            }
         }
     }
 
     @Override
     public void saveNBTData(NBTTagCompound aNBT) {
+        super.saveNBTData(aNBT);
         aNBT.setInteger("totalLen", totalLens);
         aNBT.setString("randomUUID", String.valueOf(randomUUID));
-        aNBT.setDouble("computation", availableData.get());
+        aNBT.setLong("computation", eAvailableData);
         aNBT.setBoolean("wirelessModeEnabled", wirelessMode);
-        super.saveNBTData(aNBT);
     }
 
     @Override
     public void loadNBTData(NBTTagCompound aNBT) {
-        totalLens = aNBT.getInteger("totalLen");
+        super.loadNBTData(aNBT);
+        totalLens = Math.clamp(aNBT.getInteger("totalLen"), 0, MAX_STRUCTURE_LENGTH);
         try {
             randomUUID = UUID.fromString(aNBT.getString("randomUUID"));
         } catch (IllegalArgumentException e) {
@@ -349,10 +362,8 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
                 aNBT.getString("randomUUID"),
                 e);
         }
-        if (availableData != null) {
-            availableData.set(aNBT.getDouble("computation"));
-            this.eAvailableData = (long) availableData.get();
-        }
+        if (!aNBT.hasKey("eDataA")) eAvailableData = aNBT.getLong("computation");
+        availableData.set(eAvailableData);
         if (aNBT.hasKey("wirelessModeEnabled")) {
             wirelessMode = aNBT.getBoolean("wirelessModeEnabled");
             if (wirelessMode) {
@@ -361,10 +372,11 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         } else {
             wirelessMode = false;
         }
-        super.loadNBTData(aNBT);
+        getModifierIndices();
     }
 
     public int[][] generateTwoModifierIndexGroups(UUID uuid, int totalLen) {
+        totalLen = Math.clamp(totalLen, 0, MAX_STRUCTURE_LENGTH);
         int enumLen = HPCAModifier.VALUES.length;
         int[][] result = new int[2][Math.max(3, totalLen)];
 
@@ -381,48 +393,61 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         return result;
     }
 
+    public int[][] getModifierIndices() {
+        int length = Math.clamp(totalLens, 0, MAX_STRUCTURE_LENGTH);
+        if (length == modifierLength && randomUUID.equals(modifierSeed)) return randomColor;
+        modifierSeed = randomUUID;
+        modifierLength = length;
+        randomColor = generateTwoModifierIndexGroups(randomUUID, length);
+        rackModifiers = new RackModifiers[length][3];
+        for (int lens = 0; lens < length; lens++) {
+            HPCAModifier x = HPCAModifier.VALUES[randomColor[0][lens]];
+            for (int row = 0; row < 3; row++) {
+                HPCAModifier y = HPCAModifier.VALUES[randomColor[1][row]];
+                double heat = x.heatCoefficientX * y.heatCoefficientY;
+                rackModifiers[lens][row] = new RackModifiers(
+                    2D * x.computationCoefficientX * y.computationCoefficientY,
+                    5D * heat / (x.coolantCoefficientX * y.coolantCoefficientY),
+                    (int) (100D * heat));
+            }
+        }
+        return randomColor;
+    }
+
+    public boolean hasRackComponents(MTEHatchRack rack) {
+        for (ItemStack stack : rack.getRealInventory()) {
+            if (stack != null && stack.stackSize == 1 && rack.isValidItem(stack)) return true;
+        }
+        return false;
+    }
+
     @Override
     @NotNull
     public CheckRecipeResult checkProcessing_EM() {
-        parametrization.setToDefaults(false, true);
-        double maxTemp = 0;
         lEUt = -GTValues.V[7];
         int thingsActive = 0;
-        int rackComputation;
-        ArrayList<MTEHatchRack> rackHatches = getValidRackHatches();
-
-        for (MTEHatchRack rack : rackHatches) {
-
-            if (rack.getHeat() > maxTemp) {
-                maxTemp = rack.getHeat();
-            }
-            rackComputation = rack.tickComponents(1, 1);
-            if (rackComputation > 0) {
-                thingsActive += 4;
-            }
+        for (MTEHatchRack rack : GTUtility.validMTEList(mRackHatchs)) {
+            if (hasRackComponents(rack)) thingsActive += 4;
             rack.getBaseMetaTileEntity()
                 .setActive(true);
         }
 
-        for (MTEHatchDataInput di : eInputData) {
-            if (di.q != null) // ok for power losses
-            {
-                thingsActive++;
-            }
+        for (MTEHatchDataInput hatch : GTUtility.validMTEList(eInputData)) {
+            if (hatch.q != null && hatch.q.getContent() > 0 && !hatch.q.contains(getPos())) thingsActive++;
         }
 
         mMaxProgresstime = 40;
         mEfficiency = 10000;
         mEfficiencyIncrease = 10000;
-        maxCurrentTemp.set(maxTemp);
+        maxCurrentTemp.set(getMaximumRackHeat());
         if (thingsActive > 0 && eCertainStatus == 0) {
             thingsActive += eOutputData.size();
             eAmpereFlow = 1 + (thingsActive >> 2);
-            return SimpleCheckRecipeResult.ofSuccess("computing");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.computing");
         } else {
             eAmpereFlow = 1;
-            availableData.set(0);
-            return SimpleCheckRecipeResult.ofSuccess("no_computing");
+            clearComputation();
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.no_computing");
         }
     }
 
@@ -455,7 +480,24 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
     @Override
     public void onRemoval() {
         super.onRemoval();
+        clearComputation();
+        releaseWirelessOutputs();
         setRackActiveState(false);
+    }
+
+    @Override
+    public void onUnload() {
+        super.onUnload();
+        clearComputation();
+        releaseWirelessOutputs();
+        setRackActiveState(false);
+    }
+
+    public void releaseWirelessOutputs() {
+        for (MTEHatchWirelessComputationOutput output : mWirelessComputationOutputHatchs) {
+            ((IContinuousComputationOutput) output).setContinuousComputationOutput(false);
+            output.providePacket(null);
+        }
     }
 
     @Override
@@ -474,13 +516,14 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
     @Override
     public void stopMachine(@NotNull ShutDownReason reason) {
         super.stopMachine(reason);
-        this.eAvailableData = 0;
+        clearComputation();
         setRackActiveState(false);
     }
 
     @Override
     public void afterRecipeCheckFailed() {
         super.afterRecipeCheckFailed();
+        clearComputation();
         setRackActiveState(false);
     }
 
@@ -524,7 +567,8 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
 
     @Override
     public IStructureDefinition<HighPerformanceComputationArray> getStructure_EM() {
-        return StructureDefinition.<HighPerformanceComputationArray>builder()
+        if (structureDefinition != null) return structureDefinition;
+        structureDefinition = StructureDefinition.<HighPerformanceComputationArray>builder()
             .addShape("front", transpose(new String[][] { { " AA" }, { " AA" }, { " ~A" }, { " AA" }, { " AA" } }))
             .addShape("cap", transpose(new String[][] { { "-CB" }, { " DD" }, { " DD" }, { " DD" }, { "-CB" } }))
             .addShape("slice", transpose(new String[][] { { "-CB" }, { " ED" }, { " FD" }, { " GD" }, { "-CB" } }))
@@ -571,6 +615,7 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
                     .hint(1)
                     .buildAndChain(Casings.AdvancedComputerCasing.asElement()))
             .build();
+        return structureDefinition;
     }
 
     @Override
@@ -599,7 +644,7 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
     }
 
     public void setRackActiveState(boolean active) {
-        for (MTEHatchRack rack : getValidRackHatches()) {
+        for (MTEHatchRack rack : GTUtility.validMTEList(mRackHatchs)) {
             rack.getBaseMetaTileEntity()
                 .setActive(active);
         }
@@ -615,6 +660,8 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
     private float rotAngle = 0, rotAxisX = 1, rotAxisY = 0, rotAxisZ = 0, offsetX = 0, offsetY = 0, offsetZ = 0;
 
     public void setRenderRotation(ForgeDirection direction) {
+        if (direction == renderDirection) return;
+        renderDirection = direction;
         switch (direction) {
             case SOUTH, NORTH, WEST -> rotAngle = 90;
             case EAST -> rotAngle = 180;
@@ -626,7 +673,7 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         offsetX = direction.offsetX;
         offsetY = direction.offsetY;
         offsetZ = direction.offsetZ;
-        updateToClient();
+        if (getBaseMetaTileEntity().isServerSide()) updateToClient();
     }
 
     public void updateToClient() {
@@ -661,6 +708,8 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         }
         return false;
     }
+
+    public record RackModifiers(double computationMultiplier, double coolingPerLiter, int heatIncrease) {}
 
     public enum RackHatchElement implements IHatchElement<HighPerformanceComputationArray> {
 
@@ -729,6 +778,7 @@ public class HighPerformanceComputationArray extends TTMultiMachineBase
         }
         if (aMetaTileEntity instanceof MTEHatchWirelessComputationOutput hatch) {
             hatch.updateTexture(aBaseCasingIndex);
+            ((IContinuousComputationOutput) hatch).setContinuousComputationOutput(true);
             return mWirelessComputationOutputHatchs.add(hatch) && eOutputData.add(hatch);
         }
         return false;

@@ -212,7 +212,7 @@ public class RocketAssembler extends GTMMultiMachineBase<RocketAssembler>
                             return super.validateRecipe(recipe);
                         }
                     }
-                    return SimpleCheckRecipeResult.ofFailure("missing_schematic");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.missing_schematic");
                 }
                 return super.validateRecipe(recipe);
             }

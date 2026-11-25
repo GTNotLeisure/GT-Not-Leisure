@@ -31,6 +31,7 @@ import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
+import com.science.gtnl.api.IStructureScanProvider;
 import com.science.gtnl.common.block.blocks.BlockEternalGregTechWorkshopRender;
 import com.science.gtnl.common.block.blocks.tile.TileEntityEternalGregTechWorkshop;
 import com.science.gtnl.common.gui.modularui.multiblock.EternalGregTechWorkshopGui;
@@ -74,11 +75,12 @@ import lombok.Setter;
 import tectech.thing.casing.TTCasingsContainer;
 
 @IMetaTileEntity.SkipGenerateDescription
-public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWorkshop> implements INEIPreviewModifier {
+public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWorkshop>
+    implements INEIPreviewModifier, IStructureScanProvider {
 
     private static final int DEFAULT_PREVIEW_HEIGHT = 4;
     private static final int MAX_PREVIEW_HEIGHT = 64;
-    private static final String OBSERVER_WORLD_CLASS_NAME = "blockrenderer6343.client.world.ObserverWorld";
+    private static final int MAX_PREVIEW_TIER = MAX_PREVIEW_HEIGHT - DEFAULT_PREVIEW_HEIGHT + 1;
 
     // 75 x 19 x 75
     private static final String STRUCTURE_PIECE_MAIN_TOP = "main_top";
@@ -139,6 +141,7 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
     private static final String[][] shapeExtraAir = StructureUtils.replaceLetters(shapeExtra, "a");
     private static final IStructureDefinition<EternalGregTechWorkshop> STRUCTURE_DEFINITION = StructureDefinition
         .<EternalGregTechWorkshop>builder()
+        .addChannel(GTStructureChannels.STRUCTURE_HEIGHT.get(), 1, MAX_PREVIEW_TIER)
         .addShape(STRUCTURE_PIECE_MAIN_TOP, StructureUtility.transpose(shapeTop))
         .addShape(STRUCTURE_PIECE_MAIN_UP, StructureUtility.transpose(shapeUp))
         .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
@@ -335,6 +338,11 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
     @Override
     public IStructureDefinition<EternalGregTechWorkshop> getStructureDefinition() {
         return STRUCTURE_DEFINITION;
+    }
+
+    @Override
+    public int getStructureScanTier() {
+        return MAX_PREVIEW_TIER;
     }
 
     @Override
@@ -621,23 +629,8 @@ public class EternalGregTechWorkshop extends MultiMachineBase<EternalGregTechWor
         if (trigger == null) {
             return DEFAULT_PREVIEW_HEIGHT;
         }
-        if (GTStructureChannels.STRUCTURE_HEIGHT.hasValue(trigger)) {
-            return GTStructureChannels.STRUCTURE_HEIGHT
-                .getValueClamped(trigger, DEFAULT_PREVIEW_HEIGHT, MAX_PREVIEW_HEIGHT);
-        }
-        if (isBlockRendererObserverWorld()) {
-            return DEFAULT_PREVIEW_HEIGHT;
-        }
         return GTStructureChannels.STRUCTURE_HEIGHT
             .getValueClamped(trigger, DEFAULT_PREVIEW_HEIGHT, MAX_PREVIEW_HEIGHT);
-    }
-
-    private boolean isBlockRendererObserverWorld() {
-        IGregTechTileEntity baseMetaTileEntity = getBaseMetaTileEntity();
-        World world = baseMetaTileEntity == null ? null : baseMetaTileEntity.getWorld();
-        return world != null && OBSERVER_WORLD_CLASS_NAME.equals(
-            world.getClass()
-                .getName());
     }
 
     @Override

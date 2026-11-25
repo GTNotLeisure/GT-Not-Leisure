@@ -4,6 +4,7 @@ import static com.science.gtnl.ScienceNotLeisure.RESOURCE_ROOT_ID;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import net.minecraft.client.renderer.texture.IIconRegister;
 import net.minecraft.creativetab.CreativeTabs;
@@ -42,6 +43,8 @@ import gregtech.common.tileentities.machines.IDualInputHatchWithPattern;
 import lombok.val;
 
 public class PortableItem extends Item {
+
+    private static final Pattern NAME_BOUNDARY = Pattern.compile("([a-z])([A-Z])");
 
     public PortableItem() {
         super();
@@ -519,7 +522,8 @@ public class PortableItem extends Item {
         }
 
         private String getTextureName() {
-            return "portable_" + baseName.replaceAll("([a-z])([A-Z])", "$1_$2")
+            return "portable_" + NAME_BOUNDARY.matcher(baseName)
+                .replaceAll("$1_$2")
                 .toLowerCase();
         }
 

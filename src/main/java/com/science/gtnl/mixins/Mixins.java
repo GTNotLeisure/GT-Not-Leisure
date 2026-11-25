@@ -2,6 +2,7 @@ package com.science.gtnl.mixins;
 
 import com.gtnewhorizon.gtnhmixins.builders.IMixins;
 import com.gtnewhorizon.gtnhmixins.builders.MixinBuilder;
+import com.gtnewhorizon.gtnhmixins.builders.TargetModBuilder;
 import com.gtnllib.mod.ModList;
 import com.science.gtnl.asm.GTNLEarlyCoreMod;
 import com.science.gtnl.config.ItemConfig;
@@ -41,10 +42,10 @@ public enum Mixins implements IMixins {
         "minecraft.AccessorMinecraft", "minecraft.AccessorTileEntity", "minecraft.MixinCommandTeleport",
         "minecraft.MixinEntity", "minecraft.MixinEntityItem", "minecraft.MixinEntityLivingBase",
         "minecraft.MixinEntityLiving", "minecraft.MixinEntityPlayer", "minecraft.MixinExplosion",
-        "minecraft.MixinInventoryCrafting", "minecraft.MixinItemStack", "minecraft.MixinMinecraftServer",
-        "minecraft.MixinNBTTagList", "minecraft.MixinPotionEffect", "minecraft.MixinServerConfigurationManager",
-        "minecraft.MixinWorld", "minecraft.MixinWorldGhostlyShape", "minecraft.MixinWorldServer",
-        "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName",
+        "minecraft.MixinInventoryCrafting", "minecraft.MixinItemStack", "minecraft.MixinEntityLandingBlock",
+        "minecraft.MixinMinecraftServer", "minecraft.MixinNBTTagList", "minecraft.MixinPotionEffect",
+        "minecraft.MixinServerConfigurationManager", "minecraft.MixinWorld", "minecraft.MixinWorldGhostlyShape",
+        "minecraft.MixinWorldServer", "minecraft.MixinContainerYogTerminal", "minecraft.MixinItemStackYogTerminalName",
         "minecraft.MixinNetworkManagerRemoteDevice"),
 
     APRIL_FOOL(new MixinBuilder("April Fool Late Mixins")
@@ -106,6 +107,12 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.AppliedEnergistics)
         .addRequiredMod(ModList.MatterManipulator)),
+
+    ME_STANDALONE_CRAFTING_CPU(new MixinBuilder("Standalone ME crafting CPU isolation")
+        .addCommonMixins("appliedEnergistics.MixinCraftingCPUCalculator")
+        .addClientMixins("appliedEnergistics.MixinRenderBlockCraftingCPU")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.AppliedEnergistics)),
 
     ME_MINI_TERMINAL(new MixinBuilder("ME mini portable terminal native terminal adapter")
         .addCommonMixins("appliedEnergistics.meminiterminal.MixinMiniTerminalMonitorableDestination")
@@ -206,6 +213,7 @@ public enum Mixins implements IMixins {
             "gregtech.MixinMTEHatchOutputME",
             "gregtech.MixinMTEHatchAirIntake",
             "gregtech.MixinMTEHatchOutputBeamline",
+            "gregtech.MixinMTEHatchWirelessComputationOutput",
             "gregtech.MixinMTEPurificationUnitBaseGui",
             "gregtech.MixinMTEDigitalTankBase",
             "gregtech.MixinMTEHatchDataAccess",
@@ -314,7 +322,7 @@ public enum Mixins implements IMixins {
         .addRequiredMod(ModList.NotEnoughEnergistics)),
 
     NOT_ENOUGH_ITEMS(new MixinBuilder("Not Enough Items stability mixins")
-        .addClientMixins("notEnoughItems.AccessorItemList", "notEnoughItems.MixinItemListUpdateFilter")
+        .addClientMixins("notEnoughItems.AccessorItemListLoader", "notEnoughItems.MixinItemListUpdateFilter")
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.NotEnoughItems)),
 
@@ -400,6 +408,11 @@ public enum Mixins implements IMixins {
             "structureLib.MixinLazyStructureElement",
             "gregtech.MixinMTEEnhancedMultiBlockBaseStructureTooltip")
         .setPhase(Phase.LATE)),
+
+    BLOCK_RENDERER_STRUCTURE_SCAN(new MixinBuilder("Multiblock structure scan optimizations")
+        .addClientMixins("blockRenderer6343.MixinGTConstructableScan")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(new TargetModBuilder().setModId("blockrenderer6343"))),
 
     ET_FUTURUM_ELYTRA(
         new MixinBuilder("InfinityElytra EtFuturum Mixin").addCommonMixins("etFuturum.MixinStartElytraFlyingHandler")

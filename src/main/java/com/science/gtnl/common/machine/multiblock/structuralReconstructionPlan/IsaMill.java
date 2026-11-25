@@ -287,7 +287,7 @@ public class IsaMill extends GTMMultiMachineBase<IsaMill> implements ISurvivalCo
                 millingBall = findMillingBall(recipeReq);
 
                 if (millingBall == null) {
-                    return SimpleCheckRecipeResult.ofFailure("no_milling_ball");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.no_milling_ball");
                 }
 
                 return CheckRecipeResultRegistry.SUCCESSFUL;

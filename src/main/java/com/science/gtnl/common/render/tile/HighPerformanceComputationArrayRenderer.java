@@ -50,8 +50,7 @@ public class HighPerformanceComputationArrayRenderer {
         GL11.glTranslatef(-0.5f, -0.5f, -0.5f);
         Minecraft.getMinecraft().renderEngine.bindTexture(TextureMap.locationBlocksTexture);
 
-        int machineLens = machine.totalLens;
-        int[][] colorTable = machine.generateTwoModifierIndexGroups(machine.randomUUID, machineLens);
+        int[][] colorTable = machine.getModifierIndices();
         if (colorTable.length < 2) {
             GL11.glPopMatrix();
             return;
@@ -68,14 +67,16 @@ public class HighPerformanceComputationArrayRenderer {
         float baseOffset = 1.0f / 4096f;
 
         Tessellator tessellator = Tessellator.instance;
-        HPCAModifier[] modifiers = HPCAModifier.values();
+        HPCAModifier[] modifiers = HPCAModifier.VALUES;
+        IIcon backgroundIcon = OVERLAY_FRONT_INDICATOR.getIcon();
 
         for (int h = 0; h < Math.min(heightColors.length, 3); h++) {
             int index = heightColors[h];
             if (index < 0 || index >= modifiers.length) continue;
 
-            IIcon[] icons = new IIcon[] { OVERLAY_FRONT_INDICATOR.getIcon(), modifiers[index].overlay.getIcon() };
-            for (IIcon icon : icons) {
+            IIcon overlayIcon = modifiers[index].overlay.getIcon();
+            for (int layer = 0; layer < 2; layer++) {
+                IIcon icon = layer == 0 ? backgroundIcon : overlayIcon;
                 if (icon == null) continue;
 
                 GL11.glPushMatrix();
@@ -104,8 +105,9 @@ public class HighPerformanceComputationArrayRenderer {
             int index = widthColors[w];
             if (index < 0 || index >= modifiers.length) continue;
 
-            IIcon[] icons = new IIcon[] { OVERLAY_FRONT_INDICATOR.getIcon(), modifiers[index].overlay.getIcon() };
-            for (IIcon icon : icons) {
+            IIcon overlayIcon = modifiers[index].overlay.getIcon();
+            for (int layer = 0; layer < 2; layer++) {
+                IIcon icon = layer == 0 ? backgroundIcon : overlayIcon;
                 if (icon == null) continue;
 
                 GL11.glPushMatrix();

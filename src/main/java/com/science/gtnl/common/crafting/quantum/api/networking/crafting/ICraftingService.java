@@ -1,6 +1,7 @@
 package com.science.gtnl.common.crafting.quantum.api.networking.crafting;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.function.Predicate;
 
 import org.jetbrains.annotations.Nullable;
@@ -11,30 +12,32 @@ import com.science.gtnl.common.crafting.quantum.crafting.graph.CraftingGraph;
 
 public interface ICraftingService {
 
-    Collection<IPatternDetails> getCraftingFor(AEKey whatToCraft);
+    /** Supplies the execution platform's task order; an unspecified order preserves the replay's stable order. */
+    public default Comparator<IPatternDetails> getCpuTaskComparator() {
+        return (first, second) -> 0;
+    }
 
-    @Nullable
-    AEKey getFuzzyCraftable(AEKey whatToCraft, Predicate<AEKey> filter);
+    public Collection<IPatternDetails> getCraftingFor(AEKey whatToCraft);
 
-    boolean canEmitFor(AEKey what);
+    public @Nullable AEKey getFuzzyCraftable(AEKey whatToCraft, Predicate<AEKey> filter);
 
-    default long getRecursiveIngredientReserveAmount() {
+    public boolean canEmitFor(AEKey what);
+
+    public default long getRecursiveIngredientReserveAmount() {
         return 1;
     }
 
-    default long getGraphCacheRevision() {
+    public default long getGraphCacheRevision() {
         return Long.MIN_VALUE;
     }
 
-    @Nullable
-    default CraftingGraph takeCachedGraph(AEKey output) {
+    public @Nullable default CraftingGraph takeCachedGraph(AEKey output) {
         return null;
     }
 
-    @Nullable
-    default CraftingGraph peekCachedGraph(AEKey output) {
+    public @Nullable default CraftingGraph peekCachedGraph(AEKey output) {
         return null;
     }
 
-    default void putCachedGraph(AEKey output, CraftingGraph graph) {}
+    public default void putCachedGraph(AEKey output, CraftingGraph graph) {}
 }

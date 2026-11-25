@@ -767,7 +767,7 @@ public class SuperDualInputHatchME extends MTEHatchInputBus
                 if (i_mark[i] == null) {
                     ScienceNotLeisure.LOG.fatal("marked item missing!");
                     controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                 }
                 IAEItemStack toextract = AEItemStack.create(i_mark[i])
                     .setStackSize(delta);
@@ -783,12 +783,12 @@ public class SuperDualInputHatchME extends MTEHatchInputBus
                             te.getYCoord(),
                             te.getZCoord());
                         controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                        return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                        return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                     }
                 } catch (GridAccessException e) {
                     e.printStackTrace();
                     controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                 }
 
             }
@@ -809,7 +809,7 @@ public class SuperDualInputHatchME extends MTEHatchInputBus
                 if (f_mark[i] == null) {
                     ScienceNotLeisure.LOG.fatal("marked fluid missing!");
                     controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                 }
                 IAEFluidStack toextract = AEFluidStack.create(f_mark[i])
                     .setStackSize(delta);
@@ -820,12 +820,12 @@ public class SuperDualInputHatchME extends MTEHatchInputBus
                     if (get == null || get.getStackSize() != get.getStackSize()) {
                         ScienceNotLeisure.LOG.fatal("cannot extract!");
                         controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                        return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                        return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                     }
                 } catch (GridAccessException e) {
                     e.printStackTrace();
                     controller.stopMachine(ShutDownReasonRegistry.CRITICAL_NONE);
-                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("stocking_bus_fail_extraction");
+                    return SimpleCheckRecipeResult.ofFailurePersistOnShutdown("gtnl.stocking_bus_fail_extraction");
                 }
 
             }

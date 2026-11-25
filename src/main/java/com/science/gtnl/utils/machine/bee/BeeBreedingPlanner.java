@@ -1,19 +1,24 @@
 package com.science.gtnl.utils.machine.bee;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.science.gtnl.utils.machine.bee.BeeBreedingHelper.BreedingStep;
+import com.science.gtnl.utils.machine.bee.BeeBreedingHelper.MutationData;
+
 import lombok.Getter;
 
-public final class BeeBreedingPlanner {
+public class BeeBreedingPlanner {
 
     private static final double MIN_CHANCE_FOR_COST = 0.01D;
 
@@ -22,16 +27,25 @@ public final class BeeBreedingPlanner {
     public static List<String> findReachableSpecies(Set<String> unlockedSpecies) {
         if (unlockedSpecies == null || unlockedSpecies.isEmpty()) return Collections.emptyList();
         Set<String> reachable = new HashSet<>(unlockedSpecies);
-        List<BeeBreedingHelper.MutationData> mutations = BeeBreedingHelper.getAllMutations();
-        boolean changed;
-        do {
-            changed = false;
-            for (BeeBreedingHelper.MutationData mutation : mutations) {
-                if (reachable.contains(mutation.parent1) && reachable.contains(mutation.parent2)) {
-                    changed |= reachable.add(mutation.result);
-                }
+        Map<String, List<MutationData>> dependents = new HashMap<>();
+        Map<MutationData, Integer> remaining = new IdentityHashMap<>();
+        for (MutationData mutation : BeeBreedingHelper.getAllMutations()) {
+            boolean sameParent = mutation.parent1.equals(mutation.parent2);
+            remaining.put(mutation, sameParent ? 1 : 2);
+            dependents.computeIfAbsent(mutation.parent1, ignored -> new ArrayList<>())
+                .add(mutation);
+            if (!sameParent) dependents.computeIfAbsent(mutation.parent2, ignored -> new ArrayList<>())
+                .add(mutation);
+        }
+        ArrayDeque<String> ready = new ArrayDeque<>(unlockedSpecies);
+        while (!ready.isEmpty()) {
+            String parent = ready.removeFirst();
+            for (MutationData mutation : dependents.getOrDefault(parent, List.of())) {
+                int needed = remaining.get(mutation) - 1;
+                remaining.put(mutation, needed);
+                if (needed == 0 && reachable.add(mutation.result)) ready.addLast(mutation.result);
             }
-        } while (changed);
+        }
         reachable.removeAll(unlockedSpecies);
         List<String> result = new ArrayList<>(reachable);
         Collections.sort(result);
@@ -42,6 +56,7 @@ public final class BeeBreedingPlanner {
         if (targetUID == null || targetUID.isEmpty()) return Plan.empty("");
 
         Set<String> unlocked = unlockedSpecies == null ? Collections.emptySet() : new HashSet<>(unlockedSpecies);
+        if (!unlocked.isEmpty()) unlocked.remove(targetUID);
         Candidate candidate = resolve(targetUID, unlocked, new HashSet<>(), new HashMap<>());
         if (candidate == null) {
             return new Plan(
@@ -62,10 +77,10 @@ public final class BeeBreedingPlanner {
         if (unlocked.contains(species)) return Candidate.empty();
 
         Candidate cached = memo.get(species);
-        if (cached != null) return cached;
+        if (cached != null && Collections.disjoint(cached.stepsByResult.keySet(), visiting)) return cached;
         if (!visiting.add(species)) return null;
 
-        List<BeeBreedingHelper.MutationData> mutations = BeeBreedingHelper.getMutationsForUID(species);
+        List<MutationData> mutations = BeeBreedingHelper.getMutationsForUID(species);
         mutations.removeIf(
             mutation -> mutation.parent1 == null || mutation.parent1.isEmpty()
                 || mutation.parent2 == null
@@ -73,12 +88,12 @@ public final class BeeBreedingPlanner {
                 || mutation.parent1.equals(species)
                 || mutation.parent2.equals(species));
         mutations.sort(
-            Comparator.comparing((BeeBreedingHelper.MutationData mutation) -> mutation.parent1)
+            Comparator.comparing((MutationData mutation) -> mutation.parent1)
                 .thenComparing(mutation -> mutation.parent2)
                 .thenComparingDouble(mutation -> -mutation.chance));
 
         Candidate best = null;
-        for (BeeBreedingHelper.MutationData mutation : mutations) {
+        for (MutationData mutation : mutations) {
             Candidate parent1 = resolve(mutation.parent1, unlocked, visiting, memo);
             Candidate parent2 = resolve(mutation.parent2, unlocked, visiting, memo);
             if (parent1 == null || parent2 == null) continue;
@@ -86,12 +101,7 @@ public final class BeeBreedingPlanner {
             Candidate candidate = Candidate.combine(
                 parent1,
                 parent2,
-                new BeeBreedingHelper.BreedingStep(
-                    mutation.parent1,
-                    mutation.parent2,
-                    species,
-                    mutation.chance,
-                    mutation.foundations));
+                new BreedingStep(mutation.parent1, mutation.parent2, species, mutation.chance, mutation.foundations));
             if (best == null || compare(candidate, best) < 0) {
                 best = candidate;
             }
@@ -101,7 +111,7 @@ public final class BeeBreedingPlanner {
         if (best == null) {
             best = Candidate.missing(species);
         }
-        memo.put(species, best);
+        if (best.missingSpecies.isEmpty() || mutations.isEmpty()) memo.put(species, best);
         return best;
     }
 
@@ -118,15 +128,20 @@ public final class BeeBreedingPlanner {
             .compareTo(right.signature());
     }
 
-    private static final class Candidate {
+    private static class Candidate {
 
-        private final LinkedHashMap<String, BeeBreedingHelper.BreedingStep> stepsByResult;
+        private final LinkedHashMap<String, BreedingStep> stepsByResult;
         private final LinkedHashSet<String> missingSpecies;
+        private final double expectedAttempts;
 
-        private Candidate(LinkedHashMap<String, BeeBreedingHelper.BreedingStep> stepsByResult,
-            LinkedHashSet<String> missingSpecies) {
+        private Candidate(LinkedHashMap<String, BreedingStep> stepsByResult, LinkedHashSet<String> missingSpecies) {
             this.stepsByResult = stepsByResult;
             this.missingSpecies = missingSpecies;
+            double attempts = 0.0D;
+            for (BreedingStep step : stepsByResult.values()) {
+                attempts += 100.0D / Math.max(MIN_CHANCE_FOR_COST, step.chance);
+            }
+            expectedAttempts = attempts;
         }
 
         private static Candidate empty() {
@@ -139,9 +154,8 @@ public final class BeeBreedingPlanner {
             return new Candidate(new LinkedHashMap<>(), missing);
         }
 
-        private static Candidate combine(Candidate parent1, Candidate parent2,
-            BeeBreedingHelper.BreedingStep resultStep) {
-            LinkedHashMap<String, BeeBreedingHelper.BreedingStep> steps = new LinkedHashMap<>();
+        private static Candidate combine(Candidate parent1, Candidate parent2, BreedingStep resultStep) {
+            LinkedHashMap<String, BreedingStep> steps = new LinkedHashMap<>();
             steps.putAll(parent1.stepsByResult);
             steps.putAll(parent2.stepsByResult);
             steps.put(resultStep.result, resultStep);
@@ -152,16 +166,12 @@ public final class BeeBreedingPlanner {
         }
 
         private double expectedAttempts() {
-            double attempts = 0.0D;
-            for (BeeBreedingHelper.BreedingStep step : stepsByResult.values()) {
-                attempts += 100.0D / Math.max(MIN_CHANCE_FOR_COST, step.chance);
-            }
-            return attempts;
+            return expectedAttempts;
         }
 
         private String signature() {
             StringBuilder signature = new StringBuilder();
-            for (BeeBreedingHelper.BreedingStep step : stepsByResult.values()) {
+            for (BreedingStep step : stepsByResult.values()) {
                 signature.append(step.parent1)
                     .append('+')
                     .append(step.parent2)
@@ -173,19 +183,18 @@ public final class BeeBreedingPlanner {
         }
     }
 
-    public static final class Plan {
+    public static class Plan {
 
         @Getter
         private final String targetUID;
         @Getter
-        private final List<BeeBreedingHelper.BreedingStep> steps;
+        private final List<BreedingStep> steps;
         @Getter
         private final Set<String> missingSpecies;
         @Getter
         private final double expectedAttempts;
 
-        private Plan(String targetUID, List<BeeBreedingHelper.BreedingStep> steps, Set<String> missingSpecies,
-            double expectedAttempts) {
+        private Plan(String targetUID, List<BreedingStep> steps, Set<String> missingSpecies, double expectedAttempts) {
             this.targetUID = targetUID;
             this.steps = Collections.unmodifiableList(new ArrayList<>(steps));
             this.missingSpecies = Collections.unmodifiableSet(new LinkedHashSet<>(missingSpecies));
@@ -202,11 +211,11 @@ public final class BeeBreedingPlanner {
                     .next();
         }
 
-        public List<BeeBreedingHelper.BreedingStep> getReadySteps(Set<String> unlockedSpecies, int limit) {
+        public List<BreedingStep> getReadySteps(Set<String> unlockedSpecies, int limit) {
             if (limit <= 0) return Collections.emptyList();
-            List<BeeBreedingHelper.BreedingStep> ready = new ArrayList<>();
-            for (BeeBreedingHelper.BreedingStep step : steps) {
-                if (unlockedSpecies.contains(step.result)) continue;
+            List<BreedingStep> ready = new ArrayList<>();
+            for (BreedingStep step : steps) {
+                if (unlockedSpecies.contains(step.result) && !step.result.equals(targetUID)) continue;
                 if (unlockedSpecies.contains(step.parent1) && unlockedSpecies.contains(step.parent2)) {
                     ready.add(step);
                     if (ready.size() >= limit) break;

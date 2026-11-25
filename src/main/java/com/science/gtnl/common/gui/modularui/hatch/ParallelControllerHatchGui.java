@@ -56,12 +56,12 @@ public class ParallelControllerHatchGui extends MTEHatchBaseGui<ParallelControll
     }
 
     @Override
-    protected boolean supportsFluidScreen() {
+    protected boolean supportsScreen() {
         return false;
     }
 
     @Override
-    protected boolean supportsFluidIOColumn() {
+    protected boolean supportsScreenIOColumn() {
         return false;
     }
 

@@ -3,6 +3,7 @@ package com.science.gtnl.loader;
 import com.science.gtnl.client.quantum.RecursivePatternReport;
 import com.science.gtnl.common.crafting.quantum.ae2.QuantumCraftingCache;
 import com.science.gtnl.common.crafting.quantum.ae2.QuantumCraftingMode;
+import com.science.gtnl.common.crafting.quantum.crafting.CraftingEventSimulation;
 import com.science.gtnl.common.crafting.quantum.hooks.ticking.TickHandler;
 
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
@@ -28,6 +29,7 @@ public class QuantumLoader implements IContentLoader {
             .closeSession();
         QuantumCraftingMode.clear();
         QuantumCraftingCache.clearAll();
+        CraftingEventSimulation.clear();
     }
 
     @Override

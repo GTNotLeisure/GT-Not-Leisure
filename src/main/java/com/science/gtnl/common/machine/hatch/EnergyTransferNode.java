@@ -17,6 +17,8 @@ import com.science.gtnl.utils.enums.BlockIcons;
 
 import gregtech.api.enums.Dyes;
 import gregtech.api.enums.Textures;
+import gregtech.api.graphs.GenerateNodeMap;
+import gregtech.api.graphs.GenerateNodeMapPower;
 import gregtech.api.graphs.Node;
 import gregtech.api.graphs.NodeList;
 import gregtech.api.graphs.PowerNode;
@@ -226,8 +228,9 @@ public class EnergyTransferNode extends MTETieredMachineBlock implements IConnec
             if (aMetaTileEntity instanceof MTECable cable) {
                 if (!cable.isConnectedAtSide(facingSide)) break;
                 if (findProvider) continue;
-                var node = ((BaseMetaPipeEntity) cable.getBaseMetaTileEntity()).getNode();
-                if (!(node instanceof PowerNode tNode)) break;
+                BaseMetaPipeEntity pipe = (BaseMetaPipeEntity) cable.getBaseMetaTileEntity();
+                PowerNode tNode = resolvePowerNode(pipe);
+                if (tNode == null) break;
                 if (tNode.mConsumers == null) break;
 
                 tNode.mHadVoltage = true;
@@ -245,11 +248,8 @@ public class EnergyTransferNode extends MTETieredMachineBlock implements IConnec
 
                     long currentStoredEU = getBaseMetaTileEntity().getStoredEU();
 
-                    int maxAvailableAmps = Math.toIntExact(currentStoredEU / maxAvailableVoltage);
-
-                    if (maxAvailableAmps <= 0) maxAvailableAmps = 1;
-
-                    int ampsToAttempt = Math.toIntExact(Math.min(mAmperes, maxAvailableAmps));
+                    long ampsToAttempt = Math.min(mAmperes, currentStoredEU / maxAvailableVoltage);
+                    if (ampsToAttempt <= 0) continue;
 
                     var singleConsumerList = new NodeList(new Node[] { consumer });
 
@@ -260,12 +260,31 @@ public class EnergyTransferNode extends MTETieredMachineBlock implements IConnec
                         long euToDeduct = maxAvailableVoltage * usedAmperes;
                         setEUVar(getBaseMetaTileEntity().getStoredEU() - euToDeduct);
                     }
+
+                    if (singleConsumerList.isStale() || tNode.mInvalid) {
+                        if (!tNode.mInvalid) {
+                            GenerateNodeMap.clearNodeMap(tNode, -1);
+                            new GenerateNodeMapPower(pipe);
+                        }
+                        break;
+                    }
                 }
             }
 
             break;
         }
         return null;
+    }
+
+    private static PowerNode resolvePowerNode(BaseMetaPipeEntity pipe) {
+        Node nodeMap = pipe.getNodeMap();
+        if (nodeMap != null && nodeMap.isNodeMapRefreshDue()) {
+            GenerateNodeMap.clearNodeMap(nodeMap, -1);
+        }
+        if (pipe.getNode() == null) {
+            new GenerateNodeMapPower(pipe);
+        }
+        return pipe.getNode() instanceof PowerNode node ? node : null;
     }
 
     @Override

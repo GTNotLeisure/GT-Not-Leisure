@@ -1,5 +1,6 @@
 package com.science.gtnl.common.crafting.quantum.crafting.graph;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -104,6 +105,7 @@ public class GraphBuilder {
         if (rootNode == null) throw new IllegalStateException("Graph root was not created");
         graph.setRootNode(rootNode);
         rootNode.setDemandAmount(requestedAmount);
+        graph.setMaterialClosure(MaterialClosureBuilder.build(calc, graph));
 
         if (this.trackPerformance) {
             long total = System.nanoTime() - start;
@@ -164,9 +166,9 @@ public class GraphBuilder {
             // when each has a different finite fuel supply; choosing either one alone invents a shortage.
             localUnit = patterns.stream()
                 .anyMatch(
-                    pattern -> java.util.Arrays.stream(pattern.getInputs())
+                    pattern -> Arrays.stream(pattern.getInputs())
                         .anyMatch(
-                            input -> java.util.Arrays.stream(input.possibleInputs())
+                            input -> Arrays.stream(input.possibleInputs())
                                 .anyMatch(
                                     stack -> stack.what()
                                         .equals(what))));
@@ -193,9 +195,6 @@ public class GraphBuilder {
         if (!localUnit && !isNativePattern(primaryPattern)) {
             localUnit = true;
             localReason = "unsupported-pattern-semantics";
-        }
-        if (localUnit) {
-            graph.requireLegacyFallback();
         }
         var node = new CraftingGraphNode(
             what,

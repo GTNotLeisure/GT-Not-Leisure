@@ -402,7 +402,14 @@ public class PlayerDollRenderManagerClient {
         if (username == null || username.length() < 3 || username.length() > 16) {
             return false;
         }
-        return username.matches("^[a-zA-Z0-9_\\-]+$");
+        for (int i = 0; i < username.length(); i++) {
+            char character = username.charAt(i);
+            if (!(character >= 'a' && character <= 'z') && !(character >= 'A' && character <= 'Z')
+                && !(character >= '0' && character <= '9')
+                && character != '_'
+                && character != '-') return false;
+        }
+        return true;
     }
 
     public static boolean isValidImage(File file) {

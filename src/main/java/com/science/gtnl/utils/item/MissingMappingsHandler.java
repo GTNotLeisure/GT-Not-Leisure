@@ -3,6 +3,7 @@ package com.science.gtnl.utils.item;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -16,6 +17,9 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class MissingMappingsHandler {
+
+    private static final Pattern ACRONYM_END = Pattern.compile("([A-Z]+)([A-Z][a-z])");
+    private static final Pattern LOWER_TO_UPPER = Pattern.compile("([a-z0-9])([A-Z])");
 
     // spotless:off
     private static final Remapper REMAPPER = new Remapper()
@@ -141,7 +145,7 @@ public class MissingMappingsHandler {
         }
     }
 
-    private static String normalizeLegacyId(String legacyId) {
+    public static String normalizeLegacyId(String legacyId) {
         String prefix = "sciencenotleisure:";
         if (!legacyId.startsWith(prefix)) return legacyId;
 
@@ -151,8 +155,10 @@ public class MissingMappingsHandler {
         } else if (id.startsWith("item.")) {
             id = id.substring("item.".length());
         }
-        return id.replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2")
-            .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+        return LOWER_TO_UPPER.matcher(
+            ACRONYM_END.matcher(id)
+                .replaceAll("$1_$2"))
+            .replaceAll("$1_$2")
             .replace('.', '_')
             .toLowerCase(Locale.ROOT);
     }

@@ -1,5 +1,6 @@
 package com.science.gtnl.mixins.late.appliedEnergistics.quantum;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import net.minecraft.inventory.InventoryCrafting;
@@ -12,6 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.llamalad7.mixinextras.sugar.Local;
+import com.science.gtnl.api.mixinHelper.LargeInventoryCrafting;
 import com.science.gtnl.common.crafting.quantum.ae2.QuantumCraftingJob;
 import com.science.gtnl.utils.ECraftingCPUCluster;
 
@@ -50,10 +52,30 @@ public abstract class MixinCraftingCPUClusterQuantumJob {
     private boolean gtnl$countVariantBudget(ICraftingMedium medium, ICraftingPatternDetails details,
         InventoryCrafting table, Operation<Boolean> original,
         @Local(name = "expandedInputs") List<IAEStack<?>> expandedInputs) {
+        long crafts = table instanceof LargeInventoryCrafting large ? large.getAssemblerSize() : 1;
+        if ((Object) this instanceof ECraftingCPUCluster cluster
+            && cluster.limitDispatchPattern(details, crafts) < crafts) return false;
         final boolean pushed = original.call(medium, details, table);
         if (pushed && (Object) this instanceof ECraftingCPUCluster cluster) {
             cluster.consumeVariantBudget(details, table, expandedInputs);
+            long acceptedCrafts = table instanceof LargeInventoryCrafting large ? large.getAssemblerSize() : 1;
+            cluster.dispatchPatternAccepted(details, acceptedCrafts);
         }
         return pushed;
+    }
+
+    @WrapOperation(
+        method = "executeCrafting",
+        at = @At(
+            value = "INVOKE",
+            target = "Lappeng/me/cluster/implementations/CraftingCPUCluster;getExtractItems(Lappeng/api/storage/data/IAEStack;Lappeng/api/networking/crafting/ICraftingPatternDetails;)Ljava/util/ArrayList;"),
+        require = 1)
+    private ArrayList<IAEStack<?>> gtnl$extractSelectedWorkbenchSlot(CraftingCPUCluster cpu, IAEStack<?> ingredient,
+        ICraftingPatternDetails details, Operation<ArrayList<IAEStack<?>>> original, @Local(name = "x") int slot) {
+        if (cpu instanceof ECraftingCPUCluster cluster && details.isCraftable()) {
+            // AE2 caches expanded inputs across crafts, but a returned tool can select a new exact variant.
+            return cluster.getAssemblerExtractItems(details, slot);
+        }
+        return original.call(cpu, ingredient, details);
     }
 }

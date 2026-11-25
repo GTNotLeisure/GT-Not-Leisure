@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Blocks;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -57,6 +58,7 @@ import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.metatileentity.implementations.MTEExtendedPowerMultiBlockBase;
+import gregtech.api.modularui2.GTGuiTextures;
 import gregtech.api.recipe.RecipeMap;
 import gregtech.api.recipe.check.CheckRecipeResult;
 import gregtech.api.recipe.check.CheckRecipeResultRegistry;
@@ -194,7 +196,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         if (!archive.containsKey(targetCrop)) {
             List<ICropMutation> route = getPlan().steps;
             if (route.isEmpty()) {
-                return SimpleCheckRecipeResult.ofFailure("gtnl_crop_no_route");
+                return SimpleCheckRecipeResult.ofFailure("gtnl.crop_no_route");
             }
             mutation = route.get(0);
             crop = mutation.getOutput();
@@ -221,11 +223,11 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
         ItemStack[] catalysts = mutation == null ? new ItemStack[0] : getStoredInputs().toArray(new ItemStack[0]);
         int[] consume = mutation == null ? new int[0] : breedingConsumption(mutation, parents, catalysts);
         if (!validConsumption(consume, catalysts)) {
-            return SimpleCheckRecipeResult.ofFailure("gtnl_crop_requirements");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.crop_requirements");
         }
         FluidStack fertilizer = new FluidStack(CropsNHFluids.enrichedFertilizer, FERTILIZER_PER_PARALLEL * limit);
         limit = Math.min(limit, depleteInputQuantity(fertilizer, true) / FERTILIZER_PER_PARALLEL);
-        if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
+        if (limit < 1) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_fertilizer");
         int parallels = 1;
         if (mutation == null || !consumesPerParallel(mutation, consume)) parallels = limit;
         else if (limit > 1) {
@@ -252,7 +254,7 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
             eut *= 4;
             duration = Math.max(1, duration / 2);
         }
-        if (!depleteInput(fertilizer)) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_fertilizer");
+        if (!depleteInput(fertilizer)) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_fertilizer");
         for (int i = 0; i < consume.length; i++) if (consume[i] > 0) catalysts[i].stackSize -= consume[i];
         updateSlots();
         activeCrop = crop.getId();
@@ -310,9 +312,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     private CheckRecipeResult startWashing() {
         SeedStats stats = archive.get(targetCrop);
-        if (stats == null) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_unarchived");
+        if (stats == null) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_wash_unarchived");
         int stat = chooseWashStat(stats);
-        if (stat == 0) return SimpleCheckRecipeResult.ofFailure("gtnl_crop_wash_max");
+        if (stat == 0) return SimpleCheckRecipeResult.ofFailure("gtnl.crop_wash_max");
         if (getMaxInputVoltage() < BASE_EUT || getMaxInputEu() < BASE_EUT)
             return CheckRecipeResultRegistry.insufficientPower(BASE_EUT);
         activeWashStat = stat;
@@ -502,7 +504,9 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
 
     @Override
     protected MTEMultiBlockBaseGui<LargeCropBreeder> getGui() {
-        return new LargeCropBreederGui(this);
+        return new LargeCropBreederGui(this).withMachineModeIcons(
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_DEFAULT,
+            GTGuiTextures.OVERLAY_BUTTON_MACHINEMODE_LPF_FLUID);
     }
 
     public void setTargetCrop(String value) {
@@ -667,8 +671,42 @@ public class LargeCropBreeder extends MTEExtendedPowerMultiBlockBase<LargeCropBr
     }
 
     public void toggleWashingMode() {
-        washingMode = !washingMode;
+        setMachineMode(nextMachineMode());
+    }
+
+    @Override
+    public boolean supportsMachineModeSwitch() {
+        return true;
+    }
+
+    @Override
+    public int getMachineMode() {
+        return washingMode ? 1 : 0;
+    }
+
+    @Override
+    public int nextMachineMode() {
+        return washingMode ? 0 : 1;
+    }
+
+    @Override
+    public String getMachineModeKey() {
+        return washingMode ? "gtnl.crop_breeder.mode_washing" : "gtnl.crop_breeder.mode_breeding";
+    }
+
+    @Override
+    public void setMachineMode(int mode) {
+        washingMode = mode == 1;
+        super.setMachineMode(mode);
         markDirty();
+    }
+
+    @Override
+    public void onScrewdriverRightClick(ForgeDirection side, EntityPlayer player, float x, float y, float z,
+        ItemStack tool) {
+        if (!getBaseMetaTileEntity().isServerSide()) return;
+        toggleWashingMode();
+        GTUtility.sendChatTrans(player, getMachineModeKey());
     }
 
     private void markArchiveChanged(boolean speciesChanged) {

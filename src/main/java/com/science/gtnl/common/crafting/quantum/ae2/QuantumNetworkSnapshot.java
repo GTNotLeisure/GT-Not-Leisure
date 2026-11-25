@@ -1,6 +1,7 @@
 package com.science.gtnl.common.crafting.quantum.ae2;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,7 @@ import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.CraftingGraph;
 
+import appeng.api.config.Actionable;
 import appeng.api.config.FuzzyMode;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.networking.storage.IStorageGrid;
@@ -35,6 +37,14 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectLinkedOpenHashSet;
 
 public class QuantumNetworkSnapshot implements ICraftingService, IStorageService {
+
+    private static final Comparator<IPatternDetails> CPU_TASK_COMPARATOR = Comparator
+        .comparingInt(
+            (IPatternDetails pattern) -> ((QuantumPattern) pattern).getDetails()
+                .getPriority())
+        .thenComparingInt(
+            pattern -> ((QuantumPattern) pattern).getDetails()
+                .hashCode());
 
     private final IStorageGrid storageGrid;
     private final CraftingGridCache craftingGrid;
@@ -58,6 +68,11 @@ public class QuantumNetworkSnapshot implements ICraftingService, IStorageService
 
     public StackKeyFactory getKeyFactory() {
         return this.keyFactory;
+    }
+
+    @Override
+    public Comparator<IPatternDetails> getCpuTaskComparator() {
+        return CPU_TASK_COMPARATOR;
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -127,7 +142,7 @@ public class QuantumNetworkSnapshot implements ICraftingService, IStorageService
                 key.getStack()
                     .getStackType()).findPrecise((IAEStack) key.getStack());
             if (stored != null && stored.getStackSize() > 0) {
-                view.injectItems(stored.copy(), appeng.api.config.Actionable.MODULATE);
+                view.injectItems(stored.copy(), Actionable.MODULATE);
             }
         }
         return view;
@@ -198,8 +213,8 @@ public class QuantumNetworkSnapshot implements ICraftingService, IStorageService
         return this.revision.canEmit(what);
     }
 
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    synchronized List<StackKey> getFuzzyItemVariants(StackKey item) {
+    public @SuppressWarnings({ "unchecked", "rawtypes" }) synchronized List<StackKey> getFuzzyItemVariants(
+        StackKey item) {
         List<StackKey> result = this.fuzzyItemVariants.get(item);
         if (result != null) {
             return result;

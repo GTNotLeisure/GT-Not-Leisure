@@ -41,7 +41,6 @@ public class WirelessCardViewCodec {
             if (!name.isEmpty()) dimensions.setString(id, DimensionHelper.getDimLocalizedName(name));
         }
         localizePosition(data, "source", dimensions);
-        localizePosition(data, "groupPosition", dimensions);
         NBTTagList rows = data.getTagList("rows", 10);
         for (int i = 0; i < rows.tagCount(); i++) localizePosition(rows.getCompoundTagAt(i), "position", dimensions);
     }

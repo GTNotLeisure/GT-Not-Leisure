@@ -66,12 +66,12 @@ public class SuperCraftingInputHatchMEGui extends MTEHatchBaseGui<SuperCraftingI
     }
 
     @Override
-    protected boolean supportsFluidScreen() {
+    protected boolean supportsScreen() {
         return false;
     }
 
     @Override
-    protected boolean supportsFluidIOColumn() {
+    protected boolean supportsScreenIOColumn() {
         return false;
     }
 

@@ -21,6 +21,11 @@ import com.science.gtnl.utils.enums.PortalGunPortalEffect;
 @Comment("Client section")
 public class ClientConfig {
 
+    @Comment("Check GitHub for stable GTNL releases and show a download link once per game launch")
+    @LangKey("gtnl.gui.config.client.enable_update_check")
+    @DefaultBoolean(true)
+    public static boolean enableUpdateCheck = true;
+
     @Comment("Camera and weapon shake caused by charging and firing the electromagnetic railgun")
     @LangKey("gtnl.gui.config.client.enable_railgun_shake")
     @DefaultBoolean(true)

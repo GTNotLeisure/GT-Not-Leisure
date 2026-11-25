@@ -2,16 +2,23 @@ package com.science.gtnl.common.recipe.gtnl;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import net.minecraft.item.ItemStack;
 import net.minecraftforge.oredict.OreDictionary;
 
+import com.gtnewhorizon.gtnhlib.util.data.ItemId;
 import com.science.gtnl.api.IRecipePool;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
 import com.science.gtnl.utils.recipes.RecipeInputConflictResolver;
 
+import ggfab.GGItemList;
+import ggfab.items.SingleUseTool;
 import gregtech.api.enums.TierEU;
 import gregtech.api.interfaces.IRecipeMap;
 import gregtech.api.objects.OreDictItemStack;
@@ -27,17 +34,20 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
     public static final RecipeMetadataKey<String> ARCANE_RESEARCH = SimpleRecipeMetadataKey
         .create(String.class, "gtnl_arcane_research");
 
-    private static final List<String> BLACKLISTED_OREDICT_NAMES = Arrays.asList(
-        "craftingToolScrewdriver",
-        "craftingToolHardHammer",
-        "craftingToolSaw",
-        "craftingToolSoftHammer",
-        "craftingSoftHammer",
-        "craftingToolWrench",
-        "craftingToolFile",
-        "craftingToolCrowbar",
-        "craftingToolWireCutter",
-        "craftingToolBlade");
+    private static final Map<String, GGItemList> SINGLE_USE_TOOLS = createSingleUseToolMap();
+
+    private static Map<String, GGItemList> createSingleUseToolMap() {
+        Map<String, GGItemList> tools = new HashMap<>();
+        for (SingleUseTool tool : SingleUseTool.values()) tools.put(tool.toolDictName.name(), tool.tool);
+        tools.put("craftingToolSoftHammer", SingleUseTool.SoftMallet.tool);
+        tools.put("craftingSoftHammer", SingleUseTool.SoftMallet.tool);
+        return Map.copyOf(tools);
+    }
+
+    public static ItemStack getSingleUseTool(String oreName) {
+        GGItemList tool = SINGLE_USE_TOOLS.get(oreName);
+        return tool == null ? null : tool.get(1);
+    }
 
     @Override
     public void loadRecipes() {
@@ -154,33 +164,28 @@ public class ShapedArcaneCraftingRecipes implements IRecipePool {
 
         String oreName = findOreDictionaryName(input);
         if (oreName != null) {
-            int amount = BLACKLISTED_OREDICT_NAMES.contains(oreName) ? 0 : 1;
-            return Collections.singletonList(new OreDictItemStack(oreName, amount));
+            ItemStack tool = getSingleUseTool(oreName);
+            return Collections.singletonList(tool == null ? new OreDictItemStack(oreName, 1) : tool);
         }
 
         List<Object> alternatives = new ObjectArrayList<>();
+        Set<ItemId> seen = new HashSet<>();
         for (Object candidate : candidates) {
             if (!(candidate instanceof ItemStack stack) || stack.getItem() == null) continue;
-            alternatives.add(normalizeInput(stack));
+            ItemStack normalized = normalizeInput(stack);
+            if (seen.add(ItemId.create(normalized))) alternatives.add(normalized);
         }
         return alternatives.isEmpty() ? null : alternatives;
     }
 
     private ItemStack normalizeInput(ItemStack stack) {
-        ItemStack copy = stack.copy();
-        copy.stackSize = isOreDictBlacklisted(stack) ? 0 : 1;
-        return TCRecipeTools.checkInputSpecial(copy)[0];
-    }
-
-    private boolean isOreDictBlacklisted(ItemStack itemStack) {
-        int[] oreIDs = OreDictionary.getOreIDs(itemStack);
-        for (int oreID : oreIDs) {
-            String oreName = OreDictionary.getOreName(oreID);
-            if (BLACKLISTED_OREDICT_NAMES.contains(oreName)) {
-                return true;
-            }
+        for (int oreId : OreDictionary.getOreIDs(stack)) {
+            ItemStack tool = getSingleUseTool(OreDictionary.getOreName(oreId));
+            if (tool != null) return tool;
         }
-        return false;
+        ItemStack copy = stack.copy();
+        copy.stackSize = 1;
+        return TCRecipeTools.checkInputSpecial(copy)[0];
     }
 
     public static String findOreDictionaryName(Object input) {

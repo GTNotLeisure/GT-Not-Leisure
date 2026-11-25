@@ -7,7 +7,7 @@ import gregtech.api.recipe.check.SimpleCheckRecipeResult;
 
 public interface ICrusherGui {
 
-    CheckRecipeResult INVALID = SimpleCheckRecipeResult.ofFailure("gtnl.crusher.invalid_selection");
+    CheckRecipeResult INVALID = SimpleCheckRecipeResult.ofFailure("gtnl.crusher_invalid_selection");
 
     ItemId getItemEntry();
 

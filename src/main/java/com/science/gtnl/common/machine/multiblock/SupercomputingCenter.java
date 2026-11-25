@@ -313,7 +313,7 @@ public class SupercomputingCenter extends TTMultiMachineBase implements ISurviva
         double overClockRatio = overclock.get();
         double overVoltageRatio = overvolt.get();
         if (Double.isNaN(overClockRatio) || Double.isNaN(overVoltageRatio)) {
-            return SimpleCheckRecipeResult.ofFailure("no_computing");
+            return SimpleCheckRecipeResult.ofFailure("gtnl.no_computing");
         }
         if (overclock.getStatus(true).isOk && overvolt.getStatus(true).isOk) {
             ArrayList<MTEHatchRack> rackHatches = getValidRackHatches();
@@ -373,7 +373,7 @@ public class SupercomputingCenter extends TTMultiMachineBase implements ISurviva
                 mEfficiencyIncrease = 10000;
                 maxCurrentTemp.set(maxTemp);
                 availableData.set(eAvailableData);
-                return SimpleCheckRecipeResult.ofSuccess("computing");
+                return SimpleCheckRecipeResult.ofSuccess("gtnl.computing");
             }
 
             eAvailableData = 0;
@@ -382,9 +382,9 @@ public class SupercomputingCenter extends TTMultiMachineBase implements ISurviva
             mEfficiencyIncrease = 10000;
             maxCurrentTemp.set(maxTemp);
             availableData.set(eAvailableData);
-            return SimpleCheckRecipeResult.ofSuccess("no_computing");
+            return SimpleCheckRecipeResult.ofSuccess("gtnl.no_computing");
         }
-        return SimpleCheckRecipeResult.ofFailure("no_computing");
+        return SimpleCheckRecipeResult.ofFailure("gtnl.no_computing");
     }
 
     @Override

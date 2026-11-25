@@ -19,6 +19,7 @@ import java.lang.management.ManagementFactory;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.RandomAccess;
@@ -33,6 +34,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.google.common.base.Stopwatch;
 import com.gtnllib.utils.LongMath;
+import com.science.gtnl.common.crafting.quantum.api.crafting.IAssemblerPattern;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.networking.crafting.ICraftingService;
 import com.science.gtnl.common.crafting.quantum.api.networking.storage.IStorageService;
@@ -48,9 +50,11 @@ import com.science.gtnl.common.crafting.quantum.core.localization.PlayerMessages
 import com.science.gtnl.common.crafting.quantum.crafting.execution.InputTemplate;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.CraftingGraph;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.CraftingGraphEdge;
-import com.science.gtnl.common.crafting.quantum.crafting.graph.DemandPropagation;
+import com.science.gtnl.common.crafting.quantum.crafting.graph.CraftingGraphNode;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.GraphBuilder;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.GraphExecutor;
+import com.science.gtnl.common.crafting.quantum.crafting.graph.LocalComponentPlan;
+import com.science.gtnl.common.crafting.quantum.crafting.graph.LocalGraphPlanner;
 import com.science.gtnl.common.crafting.quantum.crafting.graph.LocalPatternPlan;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.ChildCraftingSimulationState;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
@@ -71,7 +75,7 @@ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet;
 public class CraftingCalculation {
 
     private final String requesterName;
-    final ICraftingService craftingService;
+    public final ICraftingService craftingService;
     private final NetworkCraftingSimulationState networkInv;
     private final World level;
     private KeyCounter missing = KeyCounter.checked();
@@ -95,6 +99,7 @@ public class CraftingCalculation {
     private final Map<RecursiveNetKey, RecursiveNet> recursiveNetCache = new Object2ObjectOpenHashMap<>();
     private final RecursiveNetKey recursiveNetLookup = RecursiveNetKey.mutableProbe();
     private final ObjectPool<RecursiveNetKey> recursiveNetKeyPool = new ObjectPool<>(RecursiveNetKey::new, 100);
+    private final Map<IAssemblerPattern, CraftingAssemblerSimulation> assemblerSimulations = new Reference2ObjectOpenHashMap<>();
     // Plans the crafting CPU was already shown to run, which need no repair
     private final Set<CraftingPlan> plansKnownToRun = new ReferenceOpenHashSet<>();
     private final Set<AEKey> realSeededRecursiveRequests = new ObjectOpenHashSet<>();
@@ -169,6 +174,16 @@ public class CraftingCalculation {
     private NetworkCraftingSimulationState createNetworkInventory(IStorageService storage) {
         if (storage.getInventorySize() > NetworkCraftingSimulationState.SNAPSHOT_SUBSET_THRESHOLD) {
             var graph = this.craftingService.peekCachedGraph(this.output);
+            if (graph != null && graph.getMaterialClosure() != null) {
+                var closure = graph.getMaterialClosure();
+                var keys = closure.keys();
+                if (keys.size() < storage.getInventorySize()) {
+                    var stock = storage.copyInventory(keys, closure.fuzzyKeysOf(keys));
+                    var snapshot = new NetworkCraftingSimulationState(stock);
+                    recordPerformanceCount("inventorySnapshotKeys", snapshot.getSnapshotEntryCount());
+                    return snapshot;
+                }
+            }
             if (graph != null && !graph.hasAlternatives()) {
                 var keys = graph.getSnapshotKeys();
                 if (keys.size() < storage.getInventorySize()) {
@@ -323,12 +338,20 @@ public class CraftingCalculation {
         missing.add(what, amount);
     }
 
+    public CraftingAssemblerSimulation assemblerSimulation(IAssemblerPattern pattern) {
+        return this.assemblerSimulations.computeIfAbsent(pattern, p -> new CraftingAssemblerSimulation(p, this.level));
+    }
+
+    public Comparator<IPatternDetails> getCpuTaskComparator() {
+        return this.craftingService.getCpuTaskComparator();
+    }
+
     public ObjectList<IPatternDetails> getCraftingFor(AEKey what) {
         return this.patternCache
             .computeIfAbsent(what, key -> new ObjectArrayList<>(this.craftingService.getCraftingFor(key)));
     }
 
-    Set<IPatternDetails> getMissingProducers(KeyCounter missing) {
+    public Set<IPatternDetails> getMissingProducers(KeyCounter missing) {
         var result = new ObjectOpenHashSet<IPatternDetails>();
         for (var entry : missing) {
             if (entry.getLongValue() > 0) result.addAll(getCraftingFor(entry.getKey()));
@@ -405,7 +428,40 @@ public class CraftingCalculation {
         throw new CraftBranchFailure(what, requestedAmount);
     }
 
-    List<InputTemplate> collectValidTemplates(Iterable<InputTemplate> templates) {
+    public LocalComponentPlan previewLocalComponent(List<CraftingGraphNode> nodes, CraftingSimulationState parent)
+        throws InterruptedException, CraftBranchFailure {
+        var scope = new ObjectOpenHashSet<AEKey>();
+        for (var node : nodes) scope.add(node.getWhat());
+        var localInventory = new ChildCraftingSimulationState(parent);
+        var deliveries = KeyCounter.checked();
+        try (var context = enterLocalUnit(scope)) {
+            for (var node : nodes) {
+                if (node.getDemandAmount() <= 0 || node.getPattern() == null) continue;
+                var root = new CraftingTreeNode(this.craftingService, this, node.getWhat(), 1, null, -1);
+                root.request(localInventory, node.getDemandAmount(), null);
+                deliveries.add(node.getWhat(), node.getDemandAmount());
+            }
+            // Tree requests consume their delivered outputs. Reserve all deliveries before exposing them to consumers.
+            deliveries.forEach((key, amount) -> localInventory.insert(key, amount, Actionable.MODULATE));
+            var entries = new ObjectArrayList<LocalComponentPlan.Entry>();
+            var remainingCrafts = new Reference2ObjectOpenHashMap<IPatternDetails, Long>();
+            localInventory.getCrafts()
+                .forEach((pattern, times) -> remainingCrafts.put(pattern, times));
+            for (int i = 0; i < nodes.size(); i++) {
+                var node = nodes.get(i);
+                for (var candidate : node.getPatternCandidates()) {
+                    var times = remainingCrafts.remove(candidate);
+                    if (times != null && times > 0) entries.add(new LocalComponentPlan.Entry(i, candidate, times));
+                }
+            }
+            var boundaries = context.boundaryDemands();
+            var delta = context.calculationDelta();
+            context.rollback();
+            return new LocalComponentPlan(entries, boundaries, localInventory.freezeDiff(), delta);
+        }
+    }
+
+    public List<InputTemplate> collectValidTemplates(Iterable<InputTemplate> templates) {
         ObjectArrayList<InputTemplate> collected = null;
         for (var template : templates) {
             if (collected == null) collected = new ObjectArrayList<>(1);
@@ -431,10 +487,15 @@ public class CraftingCalculation {
             this.handlePausing();
 
             CraftingPlan plan;
-            if (isPerformanceTrackingEnabled()) {
-                plan = timed("compute-plan", this::computePlan);
-            } else {
-                plan = computePlan();
+            long computeStart = System.nanoTime();
+            try {
+                if (isPerformanceTrackingEnabled()) {
+                    plan = timed("compute-plan", this::computePlan);
+                } else {
+                    plan = computePlan();
+                }
+            } finally {
+                finishPerformanceListener(System.nanoTime() - computeStart);
             }
             // The legacy tree overshoots on cycles spanning several patterns
             if (plan != null) {
@@ -485,7 +546,7 @@ public class CraftingCalculation {
     /**
      * Check final per-material totals too: separate producers may each fit while their combined output does not.
      */
-    static void validateAmounts(CraftingPlan plan) {
+    public static void validateAmounts(CraftingPlan plan) {
         var required = KeyCounter.checked();
         required.addAll(plan.usedItems());
         required.addAll(plan.missingItems());
@@ -507,6 +568,18 @@ public class CraftingCalculation {
             return task.get();
         }
         return calculation.handOver(task, fallback);
+    }
+
+    public static boolean isCalculationThread() {
+        return CURRENT.get() != null;
+    }
+
+    public static <T> T runOnMainThread(Supplier<T> action) {
+        return callOnSteppingThread(
+            action,
+            () -> {
+                throw new IllegalStateException("Recipe callback was cancelled before reaching the server thread");
+            });
     }
 
     private <T> T handOver(Supplier<T> task, Supplier<T> fallback) {
@@ -552,16 +625,21 @@ public class CraftingCalculation {
     }
 
     private CraftingPlan computePlan() throws InterruptedException {
-        if (!isPerformanceTrackingEnabled()) {
-            return computePlanUnmeasured();
-        }
+        return computePlanUnmeasured();
+    }
 
-        long calculationStart = System.nanoTime();
-        try {
-            return computePlanUnmeasured();
-        } finally {
-            finishPerformanceListener(System.nanoTime() - calculationStart);
+    /** Required stock retained after a bounded conversion search. */
+    public KeyCounter recursiveReserveTargets() {
+        var targets = KeyCounter.checked();
+        if (this.recursiveIngredientReserveAmount > 0) {
+            this.recursiveReserveCandidates.forEach(
+                (key, amount) -> targets.add(
+                    key,
+                    Math.min(
+                        getNetworkAmount(key),
+                        LongMath.saturatedMultiply(this.recursiveIngredientReserveAmount, amount))));
         }
+        return targets;
     }
 
     private CraftingPlan computePlanUnmeasured() throws InterruptedException {
@@ -683,7 +761,7 @@ public class CraftingCalculation {
     }
 
     private static boolean needsLegacyTree(CraftingGraph graph) {
-        return graph.requiresLegacyFallback() || hasUnsolvableCycle(graph);
+        return graph.requiresLegacyFallback();
     }
 
     private CraftingPlan runGraphBasedAttemptBody(CraftingGraph graph, long productionAmount,
@@ -731,13 +809,8 @@ public class CraftingCalculation {
 
     private @Nullable CraftingPlan planGraphOnce(CraftingGraph graph, long productionAmount)
         throws InterruptedException {
-        var propagation = new DemandPropagation(this);
-        var planningInventory = new ChildCraftingSimulationState(this.networkInv);
-        timed("propagateDemand", () -> {
-            propagation.propagate(graph, planningInventory);
-            return null;
-        });
-        if (graph.requiresLegacyFallback()) {
+        var planner = new LocalGraphPlanner(this, graph);
+        if (!timed("propagateDemand", () -> planner.plan(this.networkInv, productionAmount))) {
             return null;
         }
 
@@ -992,19 +1065,19 @@ public class CraftingCalculation {
         return this.simulate;
     }
 
-    boolean canUseMissingItems() {
+    public boolean canUseMissingItems() {
         return (this.simulate || this.allowMissing) && this.missingSuppression == 0;
     }
 
-    void pushMissingSuppression() {
+    public void pushMissingSuppression() {
         this.missingSuppression++;
     }
 
-    void popMissingSuppression() {
+    public void popMissingSuppression() {
         this.missingSuppression--;
     }
 
-    boolean isRequesting(AEKey what) {
+    public boolean isRequesting(AEKey what) {
         for (int i = 0; i < this.requestStack.size(); i++) {
             if (this.requestStack.get(i)
                 .equals(what)) {
@@ -1014,7 +1087,7 @@ public class CraftingCalculation {
         return false;
     }
 
-    boolean isCheckingAvailability(AEKey what) {
+    public boolean isCheckingAvailability(AEKey what) {
         for (int i = 0; i < this.availabilityStack.size(); i++) {
             if (this.availabilityStack.get(i)
                 .equals(what)) {
@@ -1024,29 +1097,28 @@ public class CraftingCalculation {
         return false;
     }
 
-    void pushRequest(AEKey what) {
+    public void pushRequest(AEKey what) {
         this.requestStack.add(what);
         this.maxRequestDepth = Math.max(this.maxRequestDepth, this.requestStack.size());
     }
 
-    void popRequest() {
+    public void popRequest() {
         this.requestStack.removeLast();
     }
 
-    @Nullable
-    AEKey getCurrentRequestKey() {
+    public @Nullable AEKey getCurrentRequestKey() {
         return this.requestStack.isEmpty() ? null : this.requestStack.get(this.requestStack.size() - 1);
     }
 
-    void pushAvailabilityCheck(AEKey what) {
+    public void pushAvailabilityCheck(AEKey what) {
         this.availabilityStack.add(what);
     }
 
-    void popAvailabilityCheck() {
+    public void popAvailabilityCheck() {
         this.availabilityStack.removeLast();
     }
 
-    void pushProcess(CraftingTreeProcess process) {
+    public void pushProcess(CraftingTreeProcess process) {
         this.processStack.add(process);
         int previousHash = this.processHashPrefixes.getInt(this.processHashPrefixes.size() - 1);
         this.processHashPrefixes.add(31 * previousHash + System.identityHashCode(process));
@@ -1054,7 +1126,7 @@ public class CraftingCalculation {
         this.processHashPowers.add(31 * previousPower);
     }
 
-    void popProcess() {
+    public void popProcess() {
         this.processStack.removeLast();
         this.processHashPrefixes.removeInt(this.processHashPrefixes.size() - 1);
         this.processHashPowers.removeInt(this.processHashPowers.size() - 1);
@@ -1080,7 +1152,7 @@ public class CraftingCalculation {
         return requestIndex >= 0 && getCycleBatchRuns(what, requestIndex) != null;
     }
 
-    long getCycleNetOutput(AEKey what) {
+    public long getCycleNetOutput(AEKey what) {
         int requestIndex = -1;
         for (int i = this.requestStack.size() - 1; i >= 0; i--) {
             if (this.requestStack.get(i)
@@ -1102,7 +1174,7 @@ public class CraftingCalculation {
         return netOutput;
     }
 
-    boolean resolveRecursiveRequest(AEKey what, CraftingSimulationState inv, long amount) {
+    public boolean resolveRecursiveRequest(AEKey what, CraftingSimulationState inv, long amount) {
         var resolution = getRecursiveResolution(what, inv);
         if (resolution == null) {
             return false;
@@ -1140,7 +1212,7 @@ public class CraftingCalculation {
         return false;
     }
 
-    boolean canResolveRecursiveRequest(AEKey what, CraftingSimulationState inv, long locallyExtractedAmount) {
+    public boolean canResolveRecursiveRequest(AEKey what, CraftingSimulationState inv, long locallyExtractedAmount) {
         return getRecursiveResolution(what, inv, locallyExtractedAmount) != null;
     }
 
@@ -1358,7 +1430,7 @@ public class CraftingCalculation {
      * the immutable network snapshot remains authoritative even when the current local transaction has already counted
      * the seed in {@code requiredExtract}.
      */
-    static boolean hasRecursiveSeedAvailability(CraftingSimulationState networkInventory,
+    public static boolean hasRecursiveSeedAvailability(CraftingSimulationState networkInventory,
         CraftingSimulationState localInventory, AEKey seed, long requiredAmount, long locallyExtractedAmount,
         boolean seedIsRequested) {
         long localAvailable = localInventory.getAvailableNonProducedAmount(seed);
@@ -1742,7 +1814,7 @@ public class CraftingCalculation {
         return new LocalUnitContext(this, createCalculationMarker());
     }
 
-    boolean interceptLocalBoundaryRequest(AEKey what, long amount, CraftingSimulationState inventory) {
+    public boolean interceptLocalBoundaryRequest(AEKey what, long amount, CraftingSimulationState inventory) {
         var boundaryDemands = this.localBoundaryDemands;
         if (!this.localUnitMode || this.localUnitScope == null
             || boundaryDemands == null
@@ -1756,14 +1828,14 @@ public class CraftingCalculation {
         return true;
     }
 
-    boolean interceptLocalBoundaryAvailability(AEKey what) {
+    public boolean interceptLocalBoundaryAvailability(AEKey what) {
         var boundaryDemands = this.localBoundaryDemands;
         return this.localUnitMode && this.localUnitScope != null
             && boundaryDemands != null
             && !this.localUnitScope.contains(what);
     }
 
-    boolean isLocalUnitMode() {
+    public boolean isLocalUnitMode() {
         return this.localUnitMode;
     }
 
@@ -2039,70 +2111,70 @@ public class CraftingCalculation {
         return intermediateFinalOutputAmount;
     }
 
-    void addIntermediateFinalOutput(long amount) {
+    public void addIntermediateFinalOutput(long amount) {
         this.intermediateFinalOutputAmount = KeyAmounts.add(this.output, this.intermediateFinalOutputAmount, amount);
     }
 
-    void addRecursiveIntermediateFinalOutput(long amount) {
+    public void addRecursiveIntermediateFinalOutput(long amount) {
         this.intermediateFinalOutputAmount = KeyAmounts.add(this.output, this.intermediateFinalOutputAmount, amount);
     }
 
-    void addRecursiveFinalOutputInput(AEKey what) {
+    public void addRecursiveFinalOutputInput(AEKey what) {
         this.recursiveFinalOutputInputs.add(what);
     }
 
-    boolean isRecursiveFinalOutputInput(AEKey what) {
+    public boolean isRecursiveFinalOutputInput(AEKey what) {
         return this.recursiveFinalOutputInputs.contains(what);
     }
 
-    void addIntermediateFinalOutputInput(AEKey what, long amount) {
+    public void addIntermediateFinalOutputInput(AEKey what, long amount) {
         if (what.equals(this.output)) {
             addIntermediateFinalOutput(amount);
         }
     }
 
-    long getIntermediateFinalOutputMarker() {
+    public long getIntermediateFinalOutputMarker() {
         return this.intermediateFinalOutputAmount;
     }
 
-    void restoreIntermediateFinalOutputMarker(long marker) {
+    public void restoreIntermediateFinalOutputMarker(long marker) {
         this.intermediateFinalOutputAmount = marker;
     }
 
-    KeyCounter getRecursiveMissingSeedsMarker() {
+    public KeyCounter getRecursiveMissingSeedsMarker() {
         var marker = KeyCounter.checked();
         marker.addAll(this.recursiveMissingSeeds);
         return marker;
     }
 
-    void restoreRecursiveMissingSeedsMarker(KeyCounter marker) {
+    public void restoreRecursiveMissingSeedsMarker(KeyCounter marker) {
         this.recursiveMissingSeeds.clear();
         this.recursiveMissingSeeds.addAll(marker);
     }
 
-    Set<AEKey> getRealSeededRecursiveRequestsMarker() {
+    public Set<AEKey> getRealSeededRecursiveRequestsMarker() {
         return snapshotSet(this.realSeededRecursiveRequests);
     }
 
-    void restoreRealSeededRecursiveRequestsMarker(Set<AEKey> marker) {
+    public void restoreRealSeededRecursiveRequestsMarker(Set<AEKey> marker) {
         this.realSeededRecursiveRequests.clear();
         this.realSeededRecursiveRequests.addAll(marker);
     }
 
-    void addRealSeededRecursiveRequests(Collection<AEKey> requests) {
+    public void addRealSeededRecursiveRequests(Collection<AEKey> requests) {
         this.realSeededRecursiveRequests.addAll(requests);
     }
 
-    Set<AEKey> getRealRecursiveSeedsMarker() {
+    public Set<AEKey> getRealRecursiveSeedsMarker() {
         return snapshotSet(this.realRecursiveSeeds);
     }
 
-    void restoreRealRecursiveSeedsMarker(Set<AEKey> marker) {
+    public void restoreRealRecursiveSeedsMarker(Set<AEKey> marker) {
         this.realRecursiveSeeds.clear();
         this.realRecursiveSeeds.addAll(marker);
     }
 
-    void addRealRecursiveSeeds(Collection<AEKey> seeds) {
+    public void addRealRecursiveSeeds(Collection<AEKey> seeds) {
         for (AEKey seed : seeds) {
             if (!isReserveProtectedMissingSeed(seed)) {
                 this.realRecursiveSeeds.add(seed);
@@ -2110,16 +2182,16 @@ public class CraftingCalculation {
         }
     }
 
-    Set<AEKey> getRealSeededRecursiveKeysMarker() {
+    public Set<AEKey> getRealSeededRecursiveKeysMarker() {
         return snapshotSet(this.realSeededRecursiveKeys);
     }
 
-    void restoreRealSeededRecursiveKeysMarker(Set<AEKey> marker) {
+    public void restoreRealSeededRecursiveKeysMarker(Set<AEKey> marker) {
         this.realSeededRecursiveKeys.clear();
         this.realSeededRecursiveKeys.addAll(marker);
     }
 
-    void addRealSeededRecursiveKeys(Collection<AEKey> keys) {
+    public void addRealSeededRecursiveKeys(Collection<AEKey> keys) {
         for (AEKey key : keys) {
             if (!isReserveProtectedMissingSeed(key)) {
                 this.realSeededRecursiveKeys.add(key);
@@ -2127,7 +2199,7 @@ public class CraftingCalculation {
         }
     }
 
-    void applyRecursiveMissingSeedPreview(KeyCounter clearedSeeds, KeyCounter addedSeeds) {
+    public void applyRecursiveMissingSeedPreview(KeyCounter clearedSeeds, KeyCounter addedSeeds) {
         clearedSeeds.forEach((entryKey, entryAmount) -> {
             if (!isReserveProtectedMissingSeed(entryKey)) {
                 clearRecursiveMissingSeed(entryKey);
@@ -2136,22 +2208,22 @@ public class CraftingCalculation {
         this.recursiveMissingSeeds.addAll(addedSeeds);
     }
 
-    KeyCounter getMissingItemsMarker() {
+    public KeyCounter getMissingItemsMarker() {
         var marker = KeyCounter.checked();
         marker.addAll(this.missing);
         return marker;
     }
 
-    void restoreMissingItemsMarker(KeyCounter marker) {
+    public void restoreMissingItemsMarker(KeyCounter marker) {
         this.missing.clear();
         this.missing.addAll(marker);
     }
 
-    long getNetworkAmount(AEKey what) {
+    public long getNetworkAmount(AEKey what) {
         return this.networkInv.getAvailableAmount(what);
     }
 
-    World getLevel() {
+    public World getLevel() {
         return this.level;
     }
 
@@ -2222,12 +2294,12 @@ public class CraftingCalculation {
         }
     }
 
-    int getTreeDepth() {
+    public int getTreeDepth() {
         var tree = this.tree;
         return tree == null ? getMaxRequestDepth() : tree.getDepth();
     }
 
-    long getTreeNodeCount() {
+    public long getTreeNodeCount() {
         var tree = this.tree;
         if (tree != null) {
             return tree.getNodeCount();
@@ -2236,7 +2308,7 @@ public class CraftingCalculation {
         return graph == null ? 0 : graph.getNodeCount();
     }
 
-    long getPatternNodeCount() {
+    public long getPatternNodeCount() {
         var tree = this.tree;
         if (tree != null) {
             return tree.getPatternNodeCount();
@@ -2253,7 +2325,7 @@ public class CraftingCalculation {
         return result;
     }
 
-    int getMaxRequestDepth() {
+    public int getMaxRequestDepth() {
         return this.maxRequestDepth;
     }
 
@@ -2279,7 +2351,7 @@ public class CraftingCalculation {
         }
     }
 
-    <T> T timed(String name, InterruptibleSupplier<T> supplier) throws InterruptedException {
+    public <T> T timed(String name, InterruptibleSupplier<T> supplier) throws InterruptedException {
         if (this.performanceLog == null) {
             return supplier.get();
         }
@@ -2291,7 +2363,8 @@ public class CraftingCalculation {
         }
     }
 
-    void runTimedCrafting(String name, CraftingRunnable runnable) throws InterruptedException, CraftBranchFailure {
+    public void runTimedCrafting(String name, CraftingRunnable runnable)
+        throws InterruptedException, CraftBranchFailure {
         if (this.performanceLog == null) {
             runnable.run();
             return;
@@ -2307,13 +2380,13 @@ public class CraftingCalculation {
     @FunctionalInterface
     public interface InterruptibleSupplier<T> {
 
-        T get() throws InterruptedException;
+        public T get() throws InterruptedException;
     }
 
     @FunctionalInterface
     public interface CraftingRunnable {
 
-        void run() throws InterruptedException, CraftBranchFailure;
+        public void run() throws InterruptedException, CraftBranchFailure;
     }
 
     private record CraftAttempt(String description, Stopwatch stopwatch) {}
@@ -2467,19 +2540,19 @@ public class CraftingCalculation {
         private final Supplier<T> factory;
         private final int maxRetained;
 
-        ObjectPool(Supplier<T> factory, int maxRetained) {
+        private ObjectPool(Supplier<T> factory, int maxRetained) {
             this.factory = factory;
             this.maxRetained = maxRetained;
         }
 
-        T acquire() {
+        private T acquire() {
             if (!pool.isEmpty()) {
                 return pool.removeLast();
             }
             return factory.get();
         }
 
-        void release(T obj) {
+        private void release(T obj) {
             if (pool.size() < this.maxRetained) pool.add(obj);
         }
     }
@@ -2494,8 +2567,7 @@ public class CraftingCalculation {
      * The cycle the request for an item being requested further up runs around: the items requested from that request
      * down, and the patterns of the processes between them.
      */
-    @Nullable
-    NoNetOutputCycle describeCycle(AEKey what) {
+    public @Nullable NoNetOutputCycle describeCycle(AEKey what) {
         int requestIndex = this.requestStack.lastIndexOf(what);
         if (requestIndex < 0) {
             return null;
@@ -2511,23 +2583,23 @@ public class CraftingCalculation {
         return NoNetOutputCycle.of(items, patterns);
     }
 
-    KeyCounter getAddedRecursiveMissingSeeds(KeyCounter marker) {
+    public KeyCounter getAddedRecursiveMissingSeeds(KeyCounter marker) {
         return positiveCounterDelta(marker, this.recursiveMissingSeeds);
     }
 
-    KeyCounter getClearedRecursiveMissingSeeds(KeyCounter marker) {
+    public KeyCounter getClearedRecursiveMissingSeeds(KeyCounter marker) {
         return positiveCounterDelta(this.recursiveMissingSeeds, marker);
     }
 
-    Set<AEKey> getRealSeededRecursiveRequestsDelta(Set<AEKey> marker) {
+    public Set<AEKey> getRealSeededRecursiveRequestsDelta(Set<AEKey> marker) {
         return setDelta(marker, this.realSeededRecursiveRequests);
     }
 
-    Set<AEKey> getRealRecursiveSeedsDelta(Set<AEKey> marker) {
+    public Set<AEKey> getRealRecursiveSeedsDelta(Set<AEKey> marker) {
         return setDelta(marker, this.realRecursiveSeeds);
     }
 
-    Set<AEKey> getRealSeededRecursiveKeysDelta(Set<AEKey> marker) {
+    public Set<AEKey> getRealSeededRecursiveKeysDelta(Set<AEKey> marker) {
         return setDelta(marker, this.realSeededRecursiveKeys);
     }
 
@@ -2620,23 +2692,6 @@ public class CraftingCalculation {
         for (var component : topology.getComponents()) {
             var sccPlan = component.cyclic() ? graph.getSccPlan(component.id()) : null;
             if (sccPlan != null && sccPlan.ring()) return true;
-        }
-        return false;
-    }
-
-    /**
-     * Whether a cycle of several patterns is more than a ring the graph plans natively, see
-     * DemandPropagation#ringEdges.
-     */
-    private static boolean hasUnsolvableCycle(CraftingGraph graph) {
-        var topology = graph.getTopology();
-        if (topology.isCondensed()) {
-            for (var component : topology.getComponents()) {
-                if (component.cyclic() && component.nodes()
-                    .size() > 1 && DemandPropagation.ringEdges(topology, component) == null) {
-                    return true;
-                }
-            }
         }
         return false;
     }

@@ -15,12 +15,15 @@
 
 package com.science.gtnl.common.crafting.quantum.crafting;
 
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.RandomAccess;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.science.gtnl.common.crafting.quantum.api.crafting.IAssemblerPattern;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.networking.crafting.ICraftingService;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
@@ -39,12 +42,14 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
  */
 public class CraftingTreeProcess {
 
-    final IPatternDetails details;
+    public final IPatternDetails details;
+    private final @Nullable CraftingAssemblerSimulation assemblerSimulation;
     private final CraftingTreeNode parent;
     private final CraftingCalculation job;
+    private final ICraftingService craftingService;
     private final IPatternDetails.IInput[] inputs;
     private final List<GenericStack> outputs;
-    boolean possible = true;
+    public boolean possible = true;
     private boolean containerItems;
     private Preview reusablePreview;
     /**
@@ -65,7 +70,10 @@ public class CraftingTreeProcess {
         CraftingTreeNode craftingTreeNode) {
         this.parent = craftingTreeNode;
         this.details = details;
+        this.assemblerSimulation = details instanceof IAssemblerPattern assembler ? job.assemblerSimulation(assembler)
+            : null;
         this.job = job;
+        this.craftingService = cc;
         this.inputs = details.getInputs();
         var patternOutputs = details.getOutputs();
         this.outputs = patternOutputs instanceof RandomAccess ? patternOutputs : new ObjectArrayList<>(patternOutputs);
@@ -83,7 +91,7 @@ public class CraftingTreeProcess {
     /**
      * @see CraftingTreeNode#notRecursive
      */
-    boolean notRecursive(IPatternDetails details) {
+    public boolean notRecursive(IPatternDetails details) {
         return this.parent == null || this.parent.notRecursive(details);
     }
 
@@ -233,15 +241,28 @@ public class CraftingTreeProcess {
         return credited;
     }
 
-    boolean limitsQuantity() {
-        return this.limitQty;
+    public boolean limitsQuantity() {
+        return this.assemblerSimulation == null && this.limitQty;
     }
 
-    boolean canReusePreview() {
+    public boolean canReusePreview() {
         return !this.job.isLocalUnitMode() && !this.limitQty && !this.containerItems && !this.batchedSlots;
     }
 
-    long getMaximumCraftableTimes(CraftingSimulationState inv, long maxTimes) throws InterruptedException {
+    public long getMaximumCraftableTimes(CraftingSimulationState inv, long maxTimes) throws InterruptedException {
+        if (this.assemblerSimulation != null) {
+            var marker = this.job.createCalculationMarker();
+            this.job.pushProcess(this);
+            try {
+                return requestAssembler(new ChildCraftingSimulationState(inv), maxTimes, true);
+            } catch (CraftBranchFailure failure) {
+                return 0;
+            } finally {
+                this.job.popProcess();
+                this.job.restoreCalculationMarker(marker);
+            }
+        }
+
         this.job.handlePausing();
 
         boolean trackPerformance = this.job.isPerformanceTrackingEnabled();
@@ -381,7 +402,7 @@ public class CraftingTreeProcess {
             realSeededRecursiveKeys);
     }
 
-    boolean applyReusablePreview(CraftingSimulationState inv, long times) {
+    public boolean applyReusablePreview(CraftingSimulationState inv, long times) {
         var preview = this.reusablePreview;
         if (preview == null || preview.parent() != inv || preview.times() != times) {
             return false;
@@ -411,13 +432,13 @@ public class CraftingTreeProcess {
         return true;
     }
 
-    long getReusablePreviewRecursiveMissingSeedAmount(AEKey what) {
+    public long getReusablePreviewRecursiveMissingSeedAmount(AEKey what) {
         return this.reusablePreview == null ? 0
             : this.reusablePreview.recursiveMissingSeeds()
                 .get(what);
     }
 
-    void applyReusablePreviewRecursiveMissingSeedsOnly() {
+    public void applyReusablePreviewRecursiveMissingSeedsOnly() {
         var preview = this.reusablePreview;
         if (preview == null) {
             return;
@@ -428,11 +449,15 @@ public class CraftingTreeProcess {
         this.reusablePreview = null;
     }
 
-    void request(CraftingSimulationState inv, long times) throws CraftBranchFailure, InterruptedException {
+    public void request(CraftingSimulationState inv, long times) throws CraftBranchFailure, InterruptedException {
         this.job.handlePausing();
 
         this.job.pushProcess(this);
         try {
+            if (this.assemblerSimulation != null) {
+                requestAssembler(inv, times, false);
+                return;
+            }
             var containerItems = this.containerItems ? KeyCounter.checked() : null;
             long intermediateFinalOutputMarker = this.job.getIntermediateFinalOutputMarker();
             var credited = creditContainers(inv, times);
@@ -499,6 +524,111 @@ public class CraftingTreeProcess {
         });
     }
 
+    private long requestAssembler(CraftingSimulationState inventory, long requested, boolean partial)
+        throws InterruptedException, CraftBranchFailure {
+        long done = 0;
+        while (done < requested) {
+            this.job.handlePausing();
+            var marker = this.job.createCalculationMarker();
+            var step = new ChildCraftingSimulationState(inventory);
+            try {
+                var result = Objects.requireNonNull(this.assemblerSimulation)
+                    .select(step, true);
+                if (result == null) throw new CraftBranchFailure(this.parent.getWhat(), requested - done);
+                var acquisitions = new ObjectArrayList<>(
+                    result.consumed()
+                        .keySet());
+                acquisitions.sort(
+                    Comparator.comparingInt(
+                        key -> this.job.getCraftingFor(key)
+                            .isEmpty() ? 1 : 0));
+                for (var key : acquisitions) {
+                    if (step.getAvailableAmount(key) >= result.consumed()
+                        .get(key)) continue;
+                    long amount = this.assemblerSimulation.required(result, key, requested - done);
+                    var node = new CraftingTreeNode(this.craftingService, this.job, key, 1, null, -1);
+                    boolean boundary = this.job.interceptLocalBoundaryAvailability(key);
+                    node.request(step, amount, null);
+                    if (!boundary) step.insert(key, amount, Actionable.MODULATE);
+                }
+                result = this.assemblerSimulation.select(step, false);
+                if (result == null) throw new CraftBranchFailure(this.parent.getWhat(), requested - done);
+                var batch = CraftingAssemblerBatch.plan(this.assemblerSimulation, result, step, requested - done);
+                batch = extendAssemblerLifetime(step, batch, result, requested - done);
+                long times = batch.crafts;
+                if (times <= 0) throw new CraftBranchFailure(this.parent.getWhat(), requested - done);
+                batch.apply(step);
+                batch.consumed.forEach((key, amount) -> step.addStackBytes(key, amount, 1));
+                step.addCrafting(this.details, times);
+                step.addBytes(times);
+                step.applyDiff(inventory);
+                done += times;
+            } catch (CraftBranchFailure failure) {
+                this.job.restoreCalculationMarker(marker);
+                if (partial) return done;
+                throw failure;
+            }
+        }
+        return done;
+    }
+
+    /**
+     * Repeat a fully observed tool lifetime, acquiring replacements in bulk instead of rediscovering it per tool.
+     */
+    private CraftingAssemblerBatch extendAssemblerLifetime(CraftingSimulationState inventory,
+        CraftingAssemblerBatch batch, CraftingAssemblerSimulation.Result first, long limit)
+        throws InterruptedException {
+        if (batch.crafts <= 0 || limit / batch.crafts < 2 || batch.returned.isEmpty()) return batch;
+        boolean wearsOut = false;
+        for (var peak : batch.peak) {
+            if (peak.getLongValue() <= 0) continue;
+            var key = peak.getKey();
+            if (first.consumed()
+                .get(key) == 0) return batch; // The observed run mixed different initial states.
+            if (batch.delta.get(key) >= 0) continue;
+            boolean encoded = false;
+            for (var input : this.inputs) if (input.possibleInputs()[0].what()
+                .equals(key)) encoded = true;
+            if (!encoded) return batch;
+            for (var returned : batch.returned) {
+                if (returned.getKey()
+                    .getPrimaryKey() == key.getPrimaryKey() || Objects.requireNonNull(this.assemblerSimulation)
+                        .acceptsReplacement(key, returned.getKey())) {
+                    // A still-usable (or rechargeable) remainder means this is only a lifetime prefix.
+                    if (batch.delta.get(returned.getKey()) > 0) return batch;
+                    wearsOut = true;
+                }
+            }
+        }
+        if (!wearsOut) return batch;
+        long repeats = limit / batch.crafts;
+        var marker = this.job.createCalculationMarker();
+        var expanded = new ChildCraftingSimulationState(inventory);
+        try {
+            var keys = new ObjectArrayList<>(batch.peak.keySet());
+            keys.sort(
+                Comparator.comparingInt(
+                    key -> this.job.getCraftingFor(key)
+                        .isEmpty() ? 1 : 0));
+            for (var key : keys) {
+                long amount = batch.required(key, repeats);
+                if (expanded.getAvailableAmount(key) >= amount) continue;
+                var node = new CraftingTreeNode(this.craftingService, this.job, key, 1, null, -1);
+                boolean boundary = this.job.interceptLocalBoundaryAvailability(key);
+                node.request(expanded, amount, null);
+                if (!boundary) expanded.insert(key, amount, Actionable.MODULATE);
+            }
+            if (batch.repeats(expanded, repeats) == repeats) {
+                expanded.applyDiff(inventory);
+                return batch.repeated(repeats);
+            }
+        } catch (CraftBranchFailure failure) {
+            // The original batch is still feasible, including when CRAFT_LESS reaches a real resource limit.
+        }
+        this.job.restoreCalculationMarker(marker);
+        return batch;
+    }
+
     private void requestInputs(CraftingSimulationState inv, long times, @Nullable KeyCounter containerItems,
         @Nullable AEKey skippedInput) throws CraftBranchFailure, InterruptedException {
         for (int x = 0; x < this.slotNodes.length; x++) {
@@ -548,7 +678,7 @@ public class CraftingTreeProcess {
         return null;
     }
 
-    long getNodeCount() {
+    public long getNodeCount() {
         long tot = 0;
 
         for (CraftingTreeNode node : this.slotNodes) {
@@ -558,7 +688,7 @@ public class CraftingTreeProcess {
         return tot;
     }
 
-    int getDepth() {
+    public int getDepth() {
         int depth = 1;
         for (CraftingTreeNode node : this.slotNodes) {
             depth = Math.max(depth, 1 + node.getDepth());
@@ -566,7 +696,7 @@ public class CraftingTreeProcess {
         return depth;
     }
 
-    long getPatternNodeCount() {
+    public long getPatternNodeCount() {
         long total = 0;
         for (CraftingTreeNode node : this.slotNodes) {
             total += node.getPatternNodeCount();
@@ -574,7 +704,7 @@ public class CraftingTreeProcess {
         return total;
     }
 
-    long getOutputCount(AEKey what) {
+    public long getOutputCount(AEKey what) {
         long tot = 0;
 
         for (int i = 0, size = this.outputs.size(); i < size; i++) {
@@ -587,7 +717,7 @@ public class CraftingTreeProcess {
         return tot;
     }
 
-    long getEffectiveOutputCount(AEKey what) {
+    public long getEffectiveOutputCount(AEKey what) {
         long output = getOutputCount(what);
         long input = getInputCount(what);
         if (input <= 0 || output <= input) {
@@ -596,7 +726,7 @@ public class CraftingTreeProcess {
         return output - input;
     }
 
-    long getInputCount(AEKey what) {
+    public long getInputCount(AEKey what) {
         long total = 0;
 
         for (var input : this.inputs) {
@@ -612,11 +742,11 @@ public class CraftingTreeProcess {
         return total;
     }
 
-    void accumulateNet(KeyCounter netByKey) {
+    public void accumulateNet(KeyCounter netByKey) {
         accumulateNet(netByKey, 1);
     }
 
-    void accumulateNet(KeyCounter netByKey, long times) {
+    public void accumulateNet(KeyCounter netByKey, long times) {
         for (int i = 0, size = this.outputs.size(); i < size; i++) {
             var output = this.outputs.get(i);
             netByKey.add(output.what(), KeyAmounts.multiply(output.what(), output.amount(), times));
@@ -635,13 +765,13 @@ public class CraftingTreeProcess {
         }
     }
 
-    void accumulateInputKeys(Set<AEKey> inputKeys) {
+    public void accumulateInputKeys(Set<AEKey> inputKeys) {
         for (CraftingTreeNode node : this.slotNodes) {
             inputKeys.add(node.getWhat());
         }
     }
 
-    boolean hasMultiplePaths() {
+    public boolean hasMultiplePaths() {
         for (var node : this.slotNodes) {
             if (node.hasMultiplePaths()) {
                 return true;
@@ -650,7 +780,7 @@ public class CraftingTreeProcess {
         return false;
     }
 
-    void resetPossible() {
+    public void resetPossible() {
         this.possible = true;
         this.reusablePreview = null;
         for (CraftingTreeNode node : this.slotNodes) {
@@ -665,8 +795,7 @@ public class CraftingTreeProcess {
     /**
      * The key of the node this process crafts for, or null if it has none.
      */
-    @Nullable
-    AEKey getRequestedKey() {
+    public @Nullable AEKey getRequestedKey() {
         return this.parent == null ? null : this.parent.getWhat();
     }
 

@@ -141,9 +141,10 @@ GTNL provides industrial-grade automation for your favorite magic mods.
 
 | GTNH Version | Mod Version |      Status       | Download                                                                                                                         |
 |:------------:|:-----------:|:-----------------:|:---------------------------------------------------------------------------------------------------------------------------------|
-|  **2.9.0**   |  `0.2.7+`   | ✅ **Recommended** | [![Latest](https://img.shields.io/badge/Download-Latest-success)](https://github.com/ABKQPO/GT-Not-Leisure/releases/latest)      |
-|  **2.8.4**   |   `0.2.6`   | ✅ **Recommended** | [![0.2.6](https://img.shields.io/badge/Download-0.2.6-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/0.2.6)          |
-|  **2.8.0+**  |   `0.2.2`   | ✅ **Recommended** | [![v0.2.1](https://img.shields.io/badge/Download-v0.2.2-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.2.2)       |
+|  **2.9.1**   |  `dev-build`   | ✅ **Recommended** | [![Latest](https://img.shields.io/badge/Download-Latest-success)](https://github.com/ABKQPO/GT-Not-Leisure/releases/dev-build)      |
+|  **2.9.0**   |  `0.2.7`   | ❌ EOL | [![Latest](https://img.shields.io/badge/Download-0.2.7-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/0.2.7)      |
+|  **2.8.4**   |   `0.2.6`   | ❌ EOL | [![0.2.6](https://img.shields.io/badge/Download-0.2.6-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/0.2.6)          |
+|  **2.8.0+**  |   `0.2.2`   | ❌ EOL | [![v0.2.1](https://img.shields.io/badge/Download-v0.2.2-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.2.2)       |
 |  **2.7.x**   |  `0.1.9.1`  |       ❌ EOL       | [![v0.1.9.1](https://img.shields.io/badge/Download-v0.1.9.1-orange)](https://github.com/ABKQPO/GT-Not-Leisure/releases/v0.1.9.1) |
 
 ## 🧩 Quest Loading

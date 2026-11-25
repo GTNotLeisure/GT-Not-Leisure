@@ -14,6 +14,7 @@ import net.minecraft.util.Vec3;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.science.gtnl.common.gui.GTNLGuiHandler;
+import com.science.gtnl.common.me.OreDictionaryFilter;
 import com.science.gtnl.common.part.universal.UniversalBusHelper;
 import com.science.gtnl.utils.enums.GuiType;
 
@@ -39,10 +40,11 @@ import appeng.util.Platform;
 import appeng.util.inv.IInventoryDestination;
 import appeng.util.inv.ItemSlot;
 import appeng.util.item.AEItemStack;
-import appeng.util.prioitylist.OreFilteredList;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 public class PartUniversalImportBus extends PartBaseImportBus<IAEItemStack> {
+
+    private OreDictionaryFilter oreFilter;
 
     public PartUniversalImportBus(ItemStack is) {
         super(is);
@@ -184,10 +186,13 @@ public class PartUniversalImportBus extends PartBaseImportBus<IAEItemStack> {
     /**
      * Same semantics as the AE2 import bus: an empty expression means no ore filtering.
      */
-    private Predicate<IAEItemStack> getOrePredicate() {
+    public Predicate<IAEItemStack> getOrePredicate() {
         if (this.getInstalledUpgrades(Upgrades.ORE_FILTER) == 0 || this.oreFilterString.isEmpty()) return null;
-        if (this.filterPredicate == null) this.filterPredicate = OreFilteredList.makeFilter(this.oreFilterString);
-        return this.filterPredicate;
+        if (oreFilter == null || !oreFilter.expression()
+            .equals(oreFilterString)) {
+            oreFilter = new OreDictionaryFilter(oreFilterString);
+        }
+        return oreFilter.isEmpty() ? null : oreFilter;
     }
 
     @Override

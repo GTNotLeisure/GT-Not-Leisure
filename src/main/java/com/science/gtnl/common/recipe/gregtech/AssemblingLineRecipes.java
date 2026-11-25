@@ -73,6 +73,28 @@ public class AssemblingLineRecipes implements IRecipePool {
             .definitions()
             .blocks();
 
+        RecipeBuilder.builder()
+            .metadata(GTRecipeConstants.RESEARCH_ITEM, ItemList.SteamTurbineXL.get(1))
+            .metadata(GTRecipeConstants.SCANNING, new Scanning(30 * GTRecipeBuilder.MINUTES, TierEU.RECIPE_IV))
+            .itemInputs(
+                ItemList.Hull_LuV.get(1),
+                ItemList.SteamTurbineXL.get(4),
+                GTNLItemList.PipelessSteamHatch.get(4),
+                ItemList.Electric_Motor_LuV.get(4),
+                ItemList.Electric_Pump_LuV.get(4),
+                ItemList.Field_Generator_LuV.get(1),
+                new Object[] { OrePrefixes.circuit.get(Materials.LuV), 8 },
+                new Object[] { OrePrefixes.circuit.get(Materials.ZPM), 4 },
+                GTOreDictUnificator.get(OrePrefixes.plateDouble, Materials.HSSS, 16),
+                GTOreDictUnificator.get(OrePrefixes.gearGt, Materials.HSSS, 8),
+                GTOreDictUnificator.get(OrePrefixes.pipeLarge, Materials.TungstenSteel, 8),
+                GTOreDictUnificator.get(OrePrefixes.wireGt04, Materials.SuperconductorLuV, 8))
+            .fluidInputs(MaterialsAlloy.INDALLOY_140.getFluidStack(2304), Materials.Lubricant.getFluid(8000))
+            .itemOutputs(GTNLItemList.SiphonTurbine.get(1))
+            .duration(120 * GTRecipeBuilder.SECONDS)
+            .eut(TierEU.RECIPE_LuV)
+            .addTo(AL);
+
         TTRecipeAdder.addResearchableAssemblylineRecipe(
             CustomItemList.Machine_Multi_Research.get(1),
             640000,

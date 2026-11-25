@@ -197,16 +197,16 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
                 }
 
                 if (!isResearchComplete(research)) {
-                    return SimpleCheckRecipeResult.ofFailure("missing_crucible_research");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.missing_crucible_research");
                 }
 
                 if (essentiaSupply.isCommitBlocked(currentWorldTime())) {
-                    return SimpleCheckRecipeResult.ofFailure("essentia_commit_failed");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.essentia_commit_failed");
                 }
 
                 if (essentiaSupply.getAffordableCrafts(requiredAspects, 1) <= 0) {
                     essentiaSupply.requestShortfall(requiredAspects, 1);
-                    return SimpleCheckRecipeResult.ofFailure("insufficient_essentia");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.insufficient_essentia");
                 }
 
                 return CheckRecipeResultRegistry.SUCCESSFUL;
@@ -222,7 +222,7 @@ public class IndustrialCrucible extends MultiMachineBase<IndustrialCrucible> {
                 }
 
                 if (!essentiaSupply.consume(requiredAspects, calculatedParallels, currentWorldTime())) {
-                    return SimpleCheckRecipeResult.ofFailure("insufficient_essentia");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.insufficient_essentia");
                 }
 
                 return CheckRecipeResultRegistry.SUCCESSFUL;

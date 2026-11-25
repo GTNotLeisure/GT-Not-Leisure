@@ -1,13 +1,18 @@
 package com.science.gtnl.common.crafting.quantum.crafting.graph;
 
 import java.util.Objects;
+import java.util.Set;
 
 import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
+import com.science.gtnl.common.crafting.quantum.crafting.CraftBranchFailure;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
+import com.science.gtnl.common.crafting.quantum.crafting.inv.ChildCraftingSimulationState;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
 
 import appeng.api.config.Actionable;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 
 public class GraphExecutor {
 
@@ -21,9 +26,15 @@ public class GraphExecutor {
 
     public void applyGraph(CraftingSimulationState inv) throws InterruptedException {
         var order = graph.getTopologicalOrder();
+        var committedComponents = new IntOpenHashSet();
         for (int nodeIndex = order.size() - 1; nodeIndex >= 0; nodeIndex--) {
             var node = order.get(nodeIndex);
             calc.handlePausing();
+            if (node.getLocalComponentId() >= 0) {
+                if (committedComponents.add(node.getLocalComponentId()))
+                    applyLocalComponent(node.getLocalComponentId(), inv);
+                continue;
+            }
             if (node.isExternalLeaf()) {
                 boolean root = node == graph.getRootNode();
                 inv.addStackBytes(node.getWhat(), 1, node.getDemandAmount());
@@ -33,16 +44,88 @@ public class GraphExecutor {
                 continue;
             }
             if (node.getCraftTimes() == 0 && !hasCycleSeed(node)) continue;
-            applyNode(node, inv);
+            if (node.isLocalUnit()) applyLocalUnit(node, inv);
+            else applyNode(node, inv);
         }
         var root = graph.getRootNode();
         if (root == null) {
             throw new IllegalStateException("Graph has no root node");
         }
-        if (!root.isExternalLeaf() && root.getCraftTimes() >= 0) {
+        if (root.getLocalComponentId() < 0 && !root.isExternalLeaf() && root.getCraftTimes() >= 0) {
             // No parent edge owns the root native/emitter output stack.
             inv.addStackBytes(root.getWhat(), root.getDemandAmount(), 1);
         }
+    }
+
+    private void applyLocalComponent(int componentId, CraftingSimulationState inventory) {
+        var plan = graph.getLocalComponentPlan(componentId);
+        if (plan == null) throw new IllegalStateException("Recursive component has no local plan");
+        var marker = calc.createCalculationMarker();
+        var transaction = new ChildCraftingSimulationState(inventory);
+        try {
+            var missing = extractBoundaries(plan.boundaryDemands(), transaction);
+            plan.commit(calc, transaction);
+            transaction.applyDiff(inventory);
+            missing.forEach(calc::addMissing);
+        } catch (RuntimeException | Error failure) {
+            calc.restoreCalculationMarker(marker);
+            throw failure;
+        }
+        var nodes = graph.getTopology()
+            .getComponents()
+            .get(componentId)
+            .nodes();
+        for (var entry : plan.entries()) {
+            var node = nodes.get(entry.nodeIndex());
+            node.setCraftTimes(Math.addExact(node.getCraftTimes(), entry.craftTimes()));
+        }
+    }
+
+    private void applyLocalUnit(CraftingGraphNode node, CraftingSimulationState inventory) throws InterruptedException {
+        try {
+            var plan = graph.getLocalUnitPlan(node);
+            if (plan == null || !plan.canApplyTo(inventory) || plan.craftTimes() != node.getCraftTimes()) {
+                plan = calc.previewLocalUnit(
+                    node.getWhat(),
+                    node.getPatternCandidates(),
+                    node.getDemandAmount(),
+                    Set.of(node.getWhat()),
+                    inventory);
+            }
+            var boundaries = plan.boundaryDemands();
+            var planned = node.getPlannedBoundaryDemands();
+            if (planned == null) throw new IllegalStateException("Local unit has no planned boundary");
+            for (var boundary : boundaries) {
+                if (boundary.getLongValue() > planned.get(boundary.getKey())) {
+                    throw new IllegalStateException("Local crafting boundary grew for " + node.getWhat());
+                }
+            }
+            var marker = calc.createCalculationMarker();
+            var transaction = new ChildCraftingSimulationState(inventory);
+            try {
+                var missing = extractBoundaries(boundaries, transaction);
+                plan.commit(calc, transaction);
+                transaction.applyDiff(inventory);
+                missing.forEach(calc::addMissing);
+            } catch (RuntimeException | Error failure) {
+                calc.restoreCalculationMarker(marker);
+                throw failure;
+            }
+            node.setCraftTimes(plan.craftTimes());
+        } catch (CraftBranchFailure failure) {
+            throw new IllegalStateException("Local crafting unit failed for " + node.getWhat(), failure);
+        }
+    }
+
+    private static KeyCounter extractBoundaries(KeyCounter boundaries, CraftingSimulationState inventory) {
+        var missing = KeyCounter.checked();
+        for (var boundary : boundaries) {
+            long extracted = inventory.extract(boundary.getKey(), boundary.getLongValue(), Actionable.MODULATE);
+            inventory.addStackBytes(boundary.getKey(), extracted, 1);
+            if (extracted < boundary.getLongValue())
+                missing.add(boundary.getKey(), boundary.getLongValue() - extracted);
+        }
+        return missing;
     }
 
     private void applyNode(CraftingGraphNode node, CraftingSimulationState inv) throws InterruptedException {
@@ -66,7 +149,8 @@ public class GraphExecutor {
             if (cycleCut == null && edge.cycleCut()) cycleCut = edge;
             long needed = edge.cycleCut() ? edge.seedDemand()
                 : KeyAmounts.multiply(edge.inputKey(), edge.amountPerCraft(), times);
-            if (!edge.cycleCut()) {
+            if (!edge.cycleCut() && (edge.producer() == null || edge.producer()
+                .getLocalComponentId() < 0)) {
                 inv.addStackBytes(edge.inputKey(), edge.amountPerCraft(), times);
             }
             if (edge.cycleCut() && needed == 0) {

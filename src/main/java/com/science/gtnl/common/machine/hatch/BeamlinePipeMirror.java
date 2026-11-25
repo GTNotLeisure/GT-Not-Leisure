@@ -13,6 +13,7 @@ import gregtech.api.enums.Dyes;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import gregtech.api.metatileentity.BaseMetaPipeEntity;
 import gregtech.api.render.TextureFactory;
 import gtnhlanth.common.beamline.IConnectsToBeamline;
 import gtnhlanth.common.beamline.MTEBeamlinePipe;
@@ -51,41 +52,45 @@ public class BeamlinePipeMirror extends MTEBeamlinePipe {
     }
 
     @Override
-    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
-        if (aBaseMetaTileEntity.isServerSide()) {
-            if ((aTick & 31) == 31) {
-                mConnections = 0;
-                connectedSides[0] = null;
-                connectedSides[1] = null;
-                connectionCount = 0;
+    public void checkConnections() {
+        mCheckConnections = false;
+        mConnections = 0;
+        connectedSides[0] = null;
+        connectedSides[1] = null;
+        connectionCount = 0;
 
-                for (ForgeDirection dir : ForgeDirection.VALID_DIRECTIONS) {
-                    if (connectionCount < 2) {
-                        TileEntity tTileEntity = aBaseMetaTileEntity.getTileEntityAtSide(dir);
-                        ForgeDirection oppositeDir = dir.getOpposite();
-
-                        boolean canConnect = false;
-                        if (tTileEntity instanceof IConnectsToBeamline beamline) {
-                            canConnect = beamline.canConnect(oppositeDir);
-                        } else if (tTileEntity instanceof IGregTechTileEntity gtTE) {
-                            IMetaTileEntity meta = gtTE.getMetaTileEntity();
-                            if (meta instanceof IConnectsToBeamline beamline) {
-                                canConnect = beamline.canConnect(oppositeDir);
-                            }
-                        }
-
-                        if (canConnect) {
-                            mConnections |= (byte) (1 << dir.ordinal());
-                            connectedSides[connectionCount] = dir;
-                            connectionCount++;
-                        }
-                    }
+        IGregTechTileEntity base = getBaseMetaTileEntity();
+        for (ForgeDirection direction : ForgeDirection.VALID_DIRECTIONS) {
+            if (connectionCount == connectedSides.length) break;
+            TileEntity neighbor = base.getTileEntityAtSide(direction);
+            ForgeDirection opposite = direction.getOpposite();
+            boolean connects = false;
+            if (neighbor instanceof IConnectsToBeamline beamline) {
+                connects = beamline.canConnect(opposite);
+            } else if (neighbor instanceof IGregTechTileEntity neighborBase
+                && neighborBase.getMetaTileEntity() instanceof IConnectsToBeamline beamline) {
+                    connects = beamline.canConnect(opposite);
                 }
+
+            if (connects) {
+                mConnections |= direction.flag;
+                connectedSides[connectionCount++] = direction;
             }
-        } else if (aBaseMetaTileEntity.isClientSide() && GTMod.clientProxy()
+        }
+
+        if (base instanceof BaseMetaPipeEntity pipe) {
+            pipe.updateConnections();
+            pipe.syncConnectionToClient();
+        }
+    }
+
+    @Override
+    public void onPostTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
+        super.onPostTick(aBaseMetaTileEntity, aTick);
+        if (aBaseMetaTileEntity.isClientSide() && GTMod.clientProxy()
             .changeDetected() == 4) {
-                aBaseMetaTileEntity.issueTextureUpdate();
-            }
+            aBaseMetaTileEntity.issueTextureUpdate();
+        }
     }
 
     @Override
@@ -146,9 +151,7 @@ public class BeamlinePipeMirror extends MTEBeamlinePipe {
                     if (aMetaTileEntity instanceof MTEHatchInputBeamline
                         && opposite == tGTTileEntity.getFrontFacing()) {
                         return tGTTileEntity;
-                    } else if (aMetaTileEntity instanceof MTEBeamlinePipe beamlinePipe) {
-                        beamlinePipe.markUsed();
-                    } else {
+                    } else if (!(aMetaTileEntity instanceof MTEBeamlinePipe)) {
                         return null;
                     }
                 } else {
@@ -161,7 +164,6 @@ public class BeamlinePipeMirror extends MTEBeamlinePipe {
         return null;
     }
 
-    // Pipes passed on the way are marked used.
     public static MTEHatchInputBeamline findInputAlongMirrors(IGregTechTileEntity outputBase) {
         ForgeDirection front = outputBase.getFrontFacing();
         ForgeDirection opposite = front.getOpposite();
@@ -182,9 +184,7 @@ public class BeamlinePipeMirror extends MTEBeamlinePipe {
             if (aMetaTileEntity instanceof MTEHatchInputBeamline inputBeamline
                 && opposite == tGTTileEntity.getFrontFacing()) {
                 return inputBeamline;
-            } else if (aMetaTileEntity instanceof MTEBeamlinePipe beamlinePipe) {
-                beamlinePipe.markUsed();
-            } else {
+            } else if (!(aMetaTileEntity instanceof MTEBeamlinePipe)) {
                 return null;
             }
         }

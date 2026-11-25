@@ -209,22 +209,20 @@ public class RecipeInputConflictResolver {
         return best;
     }
 
-    // Whether the inputs supplied for B can also start A. Supplies are not split between A's slots, so this may
-    // report a conflict a strict assignment would rule out, but it never misses one.
+    // Inputs stocked for multiple executions of B may also start A, even when one execution cannot.
+    // Check ingredient kinds conservatively; quantities cannot distinguish recipes under parallel input scaling.
     private boolean isCoveredBy(Entry a, Entry b) {
-        if (b.invalid || a.total > b.total) return false;
+        if (b.invalid) return false;
         if ((a.requiredSignature & ~b.signature) != 0) return false;
 
-        int[] bSlots = b.slots;
-        int[] bAmounts = b.amounts;
-        for (int i = 0; i < a.slots.length; i++) {
-            int slot = a.slots[i];
-            long need = a.amounts[i];
-            long supply = 0;
-            for (int j = 0; j < bSlots.length && supply < need; j++) {
-                if (overlaps(slot, bSlots[j])) supply += bAmounts[j];
+        for (int slot : a.slots) {
+            boolean covered = false;
+            for (int candidate : b.slots) {
+                if (!overlaps(slot, candidate)) continue;
+                covered = true;
+                break;
             }
-            if (supply < need) return false;
+            if (!covered) return false;
         }
         return true;
     }
@@ -337,8 +335,8 @@ public class RecipeInputConflictResolver {
 
     private long atom(ItemStack stack) {
         long nbt = 0;
-        if (nbtSensitive && stack.hasTagCompound()) {
-            NBTTagCompound tag = stack.getTagCompound();
+        NBTTagCompound tag = stack.getTagCompound();
+        if (nbtSensitive && tag != null && !tag.hasNoTags()) {
             int id = nbtIds.getInt(tag);
             if (id == 0) {
                 id = nbtIds.size() + 1;
@@ -388,7 +386,7 @@ public class RecipeInputConflictResolver {
         return stack != null && stack.getItem() != null && GTUtility.isAnyIntegratedCircuit(stack);
     }
 
-    public final class EntryBuilder {
+    public class EntryBuilder {
 
         // slot << 32 | amount, sorted later so equal slots end up adjacent
         private final LongArrayList packed = new LongArrayList();
@@ -502,10 +500,9 @@ public class RecipeInputConflictResolver {
 
             int[] slotArray = new int[sorted.length], amountArray = new int[sorted.length];
             int groups = 0;
-            long total = 0, signature = 0, required = 0;
+            long signature = 0, required = 0;
             for (long value : sorted) {
                 int slotId = (int) (value >>> 32), amount = (int) value;
-                total += amount;
                 if (groups > 0 && slotArray[groups - 1] == slotId) {
                     amountArray[groups - 1] += amount;
                     continue;
@@ -522,7 +519,6 @@ public class RecipeInputConflictResolver {
                 new Entry(
                     Arrays.copyOf(slotArray, groups),
                     Arrays.copyOf(amountArray, groups),
-                    total,
                     signature,
                     required,
                     outputKey,
@@ -577,8 +573,8 @@ public class RecipeInputConflictResolver {
         }
     }
 
-    private record Entry(int[] slots, int[] amounts, long total, long signature, long requiredSignature,
-        List<Object> outputKey, int fixedCircuit, boolean presetCircuit, boolean invalid, String description) {}
+    private record Entry(int[] slots, int[] amounts, long signature, long requiredSignature, List<Object> outputKey,
+        int fixedCircuit, boolean presetCircuit, boolean invalid, String description) {}
 
     private record OutputKey(Object id, int amount) {}
 
@@ -595,7 +591,7 @@ public class RecipeInputConflictResolver {
         }
     }
 
-    private static final class DuplicateKey {
+    private static class DuplicateKey {
 
         final Entry entry;
         final int hash;

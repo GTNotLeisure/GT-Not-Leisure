@@ -1,6 +1,6 @@
 package com.science.gtnl.mixins.late.matterManipulator;
 
-import java.util.List;
+import java.util.Deque;
 
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -27,7 +27,7 @@ import com.science.gtnl.common.wireless.WirelessMachineGroups;
 public abstract class MixinPendingMoveWireless {
 
     @Shadow
-    private List<?> moves;
+    private Deque<?> moves;
 
     @Unique
     private Site gtnl$source;

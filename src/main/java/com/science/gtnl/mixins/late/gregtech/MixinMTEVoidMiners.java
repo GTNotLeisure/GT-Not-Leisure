@@ -14,7 +14,6 @@ import bwcrossmod.galacticgreg.MTEVoidMiners;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.interfaces.IHatchElement;
 import gregtech.api.structure.error.StructureError;
-import gregtech.api.util.MultiblockTooltipBuilder;
 
 @Mixin(value = { MTEVoidMiners.VMUV.class, MTEVoidMiners.VMZPM.class, MTEVoidMiners.VMLUV.class }, remap = false)
 public abstract class MixinMTEVoidMiners extends MTEVoidMinerBase<MixinMTEVoidMiners> {
@@ -46,10 +45,5 @@ public abstract class MixinMTEVoidMiners extends MTEVoidMinerBase<MixinMTEVoidMi
     public void clearHatches() {
         super.clearHatches();
         mExoticEnergyHatches.clear();
-    }
-
-    @Override
-    public MultiblockTooltipBuilder createTooltip() {
-        return VoidMinerHooks.tooltip(TIER_MULTIPLIER, getMinTier());
     }
 }

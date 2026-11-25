@@ -258,7 +258,8 @@ public class SteamApiaryModule extends SteamElevatorModuleBase {
         } else if (mPrimaryMode == MODE_PRIMARY_OPERATING) {
             if (mMaxSlots > 0 && !mStorage.isEmpty()) {
 
-                if (mStorage.size() > mMaxSlots) return SimpleCheckRecipeResult.ofFailure("MegaApiary_slotoverflow");
+                if (mStorage.size() > mMaxSlots)
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.mega_apiary_slot_overflow");
 
                 int maxConsume = mStorage.size() * 40;
                 int toConsume = maxConsume;

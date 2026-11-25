@@ -3,6 +3,7 @@ package com.science.gtnl.config;
 import com.gtnewhorizon.gtnhlib.config.Config;
 import com.gtnewhorizon.gtnhlib.config.Config.Comment;
 import com.gtnewhorizon.gtnhlib.config.Config.DefaultBoolean;
+import com.gtnewhorizon.gtnhlib.config.Config.RequiresMcRestart;
 import com.science.gtnl.ScienceNotLeisure;
 
 @Config(
@@ -13,6 +14,11 @@ import com.science.gtnl.ScienceNotLeisure;
 @Config.LangKeyPattern(pattern = ConfigRegistry.LANG_PATTERN, fullyQualified = true)
 @Comment("Message section")
 public class MessageConfig {
+
+    @Comment("Check for GTNL updates on dedicated servers; notify the console and operators only. Requires a server restart")
+    @DefaultBoolean(true)
+    @RequiresMcRestart
+    public static boolean enableServerUpdateCheck = true;
 
     @Comment("Enable showing loaded mods info to player")
     @DefaultBoolean(true)

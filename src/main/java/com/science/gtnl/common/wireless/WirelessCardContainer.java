@@ -121,7 +121,7 @@ public class WirelessCardContainer extends ModularContainer {
 
     void update(boolean force) {
         if (!(player instanceof EntityPlayerMP)) return;
-        var next = view.build(player, binding, card);
+        var next = view.build(player, binding, card, force);
         boolean cleaned = cleanDisplayModes(false);
         boolean changed = force || !next.sameView(snapshot);
         if (!next.sameActions(snapshot)) revision++;

@@ -177,22 +177,38 @@ public class SteamCactusWonder extends SteamMultiMachineBase<SteamCactusWonder> 
     }
 
     public void outputSteam() {
-        if (fueledAmount > 0) {
-            if (currentSteam == 1) {
-                addOutput(Materials.Steam.getGas((int) Math.min(32000000, fueledAmount)));
-                fueledAmount -= (int) Math.min(32000000, fueledAmount);
-            } else if (currentSteam == 2) {
-                addOutput(GTModHandler.getSuperHeatedSteam((int) Math.min(64000000, fueledAmount)));
-                fueledAmount -= (int) Math.min(64000000, fueledAmount);
-            } else if (currentSteam == 3) {
-                addOutput(Materials.DenseSupercriticalSteam.getGas((int) Math.min(256000000, fueledAmount)));
-                fueledAmount -= (int) Math.min(256000000, fueledAmount);
+        if (fueledAmount <= 0) return;
+        int multiplier, maxOutput;
+        switch (currentSteam) {
+            case 1 -> {
+                multiplier = 1;
+                maxOutput = 32_000_000;
             }
-
-            if (fueledAmount <= 0) {
-                fueledAmount = 0;
-                currentOffer = null;
+            case 2 -> {
+                multiplier = 5;
+                maxOutput = 64_000_000;
             }
+            case 3 -> {
+                multiplier = 25;
+                maxOutput = 256_000_000;
+            }
+            default -> {
+                return;
+            }
+        }
+        int outputAmount = (int) Math.min(maxOutput, fueledAmount / multiplier);
+        if (outputAmount <= 0) return;
+        if (currentSteam == 1) {
+            addOutput(Materials.Steam.getGas(outputAmount));
+        } else if (currentSteam == 2) {
+            addOutput(GTModHandler.getSuperHeatedSteam(outputAmount));
+        } else {
+            addOutput(Materials.DenseSupercriticalSteam.getGas(outputAmount));
+        }
+        fueledAmount -= (long) outputAmount * multiplier;
+        if (fueledAmount <= 0) {
+            fueledAmount = 0;
+            currentOffer = null;
         }
     }
 

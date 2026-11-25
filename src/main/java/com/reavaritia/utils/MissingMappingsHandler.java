@@ -3,6 +3,7 @@ package com.reavaritia.utils;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -15,6 +16,9 @@ import cpw.mods.fml.common.registry.GameRegistry;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 
 public class MissingMappingsHandler {
+
+    private static final Pattern ACRONYM_END = Pattern.compile("([A-Z]+)([A-Z][a-z])");
+    private static final Pattern LOWER_TO_UPPER = Pattern.compile("([a-z0-9])([A-Z])");
 
     private static final Map<String, Item> ITEM_MAPPINGS = new Object2ObjectOpenHashMap<>();
     private static final Map<String, Block> BLOCK_MAPPINGS = new Object2ObjectOpenHashMap<>();
@@ -75,13 +79,15 @@ public class MissingMappingsHandler {
         mappings.put("reavaritia:tile." + legacyName, value);
     }
 
-    private static String normalizeLegacyId(String legacyId) {
+    public static String normalizeLegacyId(String legacyId) {
         String prefix = "reavaritia:";
         if (!legacyId.startsWith(prefix)) return legacyId;
         String id = legacyId.substring(prefix.length());
         if (id.startsWith("item.") || id.startsWith("tile.")) id = id.substring(5);
-        return id.replaceAll("([A-Z]+)([A-Z][a-z])", "$1_$2")
-            .replaceAll("([a-z0-9])([A-Z])", "$1_$2")
+        return LOWER_TO_UPPER.matcher(
+            ACRONYM_END.matcher(id)
+                .replaceAll("$1_$2"))
+            .replaceAll("$1_$2")
             .replace('.', '_')
             .toLowerCase(Locale.ROOT);
     }

@@ -1,5 +1,7 @@
 package com.science.gtnl.common.crafting.quantum.crafting;
 
+import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.RandomAccess;
@@ -10,6 +12,7 @@ import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 
 import com.gtnllib.utils.LongMath;
+import com.science.gtnl.common.crafting.quantum.api.crafting.IAssemblerPattern;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey;
 import com.science.gtnl.common.crafting.quantum.api.stacks.AEKey2LongMap;
@@ -17,7 +20,9 @@ import com.science.gtnl.common.crafting.quantum.api.stacks.GenericStack;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.core.localization.PlayerMessages;
+import com.science.gtnl.common.crafting.quantum.crafting.inv.ICraftingInventory;
 
+import appeng.api.config.Actionable;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
@@ -28,7 +33,7 @@ import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap;
  * and the keys of their fuzzy groups the input accepts, in order until it has enough. What a crafting pattern leaves
  * behind is the container its input gives, see {@link IPatternDetails.IInput#getRemainingKey}.
  */
-public final class CraftingCpuReplay {
+public class CraftingCpuReplay {
 
     private static final int MAX_PASSES = 1_000_000;
     private static final int MAX_SHORTAGE_ATTEMPTS = 1024;
@@ -57,6 +62,9 @@ public final class CraftingCpuReplay {
     private final KeyCounter passRequired = KeyCounter.checked();
     private AEKey2LongMap initialInventory;
     private boolean passLimitReached;
+    private final List<CraftingDispatchOrder.Batch<IPatternDetails>> dispatchOrder = new ArrayList<>();
+    private List<CraftingDispatchOrder.Step<IPatternDetails>> passOrder;
+    private final boolean recordDispatchOrder;
 
     private CraftingCpuReplay(CraftingCalculation calculation, CraftingPlan plan, KeyCounter extra) {
         this.calculation = calculation;
@@ -69,13 +77,15 @@ public final class CraftingCpuReplay {
         plan.missingItems()
             .forEach(addToInventory);
         extra.forEach(addToInventory);
-        // Keep the same default capacity and insertion sequence as ExecutingCraftingJob.tasks.
+        // Preserve a stable fallback order, then apply the execution platform's actual task comparator.
         var taskMap = new Object2ObjectOpenHashMap<IPatternDetails, Task>();
         for (var entry : plan.patternTimes()
             .object2LongEntrySet()) {
             taskMap.put(entry.getKey(), new Task(entry.getKey(), entry.getLongValue()));
         }
         this.tasks = new ObjectArrayList<>(taskMap.values());
+        var taskComparator = calculation.getCpuTaskComparator();
+        this.tasks.sort((first, second) -> taskComparator.compare(first.pattern, second.pattern));
         this.seeds = new CraftingSeedReservations(taskMap.keySet(), pattern -> taskMap.get(pattern).remaining);
         for (var key : this.inventory.keySet()) {
             index(key);
@@ -96,13 +106,43 @@ public final class CraftingCpuReplay {
                 }
             }
         }
+        this.recordDispatchOrder = needsDispatchOrder(
+            plan.finalOutput()
+                .what());
+    }
+
+    private boolean needsDispatchOrder(AEKey finalOutput) {
+        if (!this.seeds.hasMultiPatternCycles()) return false;
+        for (var task : this.tasks) {
+            if (task.pattern.isCrafting() || task.pattern.canSubstitute()) return false;
+            var consumed = BigInteger.ZERO;
+            var produced = BigInteger.ZERO;
+            for (var input : task.inputs) {
+                var possible = input.possibleInputs();
+                if (possible.length != 1 || candidates(input).size() != 1
+                    || input.getRemainingKey(possible[0].what()) != null
+                    || possible[0].what()
+                        .equals(finalOutput))
+                    return false;
+                consumed = consumed.add(
+                    BigInteger.valueOf(possible[0].amount())
+                        .multiply(BigInteger.valueOf(input.getMultiplier())));
+            }
+            for (var output : task.outputs) produced = produced.add(BigInteger.valueOf(output.amount()));
+            if (produced.compareTo(consumed) > 0) return false;
+        }
+        return true;
     }
 
     /**
      * @return whether the CPU runs every craft of the plan and ends up with the requested output
      */
-    static boolean runs(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
+    public static boolean runs(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
         calculation.handlePausing();
+        if (!plan.dispatchOrder()
+            .isEmpty()) {
+            return CraftingOrderReplay.requiredStock(plan, plan.dispatchOrder(), calculation) != null;
+        }
         var replay = new CraftingCpuReplay(calculation, plan, KeyCounter.checked());
         if (replay.orderFree()) {
             return replay.balances(plan);
@@ -113,9 +153,13 @@ public final class CraftingCpuReplay {
     }
 
     /** Initial stock actually needed by the interleaved schedule, or null if the plan does not run. */
-    static @Nullable KeyCounter requiredStock(CraftingPlan plan, CraftingCalculation calculation)
+    public static @Nullable KeyCounter requiredStock(CraftingPlan plan, CraftingCalculation calculation)
         throws InterruptedException {
         calculation.handlePausing();
+        if (!plan.dispatchOrder()
+            .isEmpty()) {
+            return CraftingOrderReplay.requiredStock(plan, plan.dispatchOrder(), calculation);
+        }
         var replay = new CraftingCpuReplay(calculation, plan, KeyCounter.checked());
         if (!replay.run(true) || !replay.coversOutput(plan)) return null;
         replay.recordAllocations(plan);
@@ -126,7 +170,7 @@ public final class CraftingCpuReplay {
      * The items the CPU would have to be given on top of the plan to run it, found by running the plan and, whenever
      * no craft can run, adding everything the stuck crafts lack. Failure to validate reports the specific reason.
      */
-    static KeyCounter lacking(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
+    public static KeyCounter lacking(CraftingPlan plan, CraftingCalculation calculation) throws InterruptedException {
         var extra = KeyCounter.checked();
         for (int attempt = 0; attempt < MAX_SHORTAGE_ATTEMPTS; attempt++) {
             calculation.handlePausing();
@@ -205,11 +249,10 @@ public final class CraftingCpuReplay {
     }
 
     private void recordAllocations(CraftingPlan plan) {
-        if (plan instanceof CraftingPlan concrete) {
-            concrete.recordInputAllocations(this.inputAllocations == null ? Map.of() : this.inputAllocations);
-            concrete.recordRemainderAllocations(this.remainderAllocations);
-            if (this.initialInventory != null) concrete.recordRequiredItems(this.required);
-        }
+        plan.recordDispatchOrder(this.dispatchOrder);
+        plan.recordInputAllocations(this.inputAllocations == null ? Map.of() : this.inputAllocations);
+        plan.recordRemainderAllocations(this.remainderAllocations);
+        if (this.initialInventory != null) plan.recordRequiredItems(this.required);
     }
 
     private void index(AEKey key) {
@@ -259,6 +302,8 @@ public final class CraftingCpuReplay {
         if (this.seeds.hasCycles()) return false;
         for (int i = 0; i < this.tasks.size(); i++) {
             var task = this.tasks.get(i);
+            if (task.pattern instanceof IAssemblerPattern assembler && !this.calculation.assemblerSimulation(assembler)
+                .hasFixedResultWithoutRemainders()) return false;
             if (task.pattern.canSubstitute()) return false;
             for (var input : task.inputs) {
                 var possible = input.possibleInputs();
@@ -284,7 +329,7 @@ public final class CraftingCpuReplay {
         // Stock trimming is for crafts returning containers. Ordinary processing plans do not need a second inventory
         // or a per-craft peak counter, including large legacy trees with processing cycles.
         if (recordRequiredStock || this.tasks.stream()
-            .anyMatch(Task::returnsContainers)) {
+            .anyMatch(task -> task.pattern instanceof IAssemblerPattern || task.returnsContainers())) {
             this.initialInventory = new AEKey2LongMap.CheckedOpenHashMap();
             this.initialInventory.putAll(this.inventory);
         }
@@ -301,6 +346,7 @@ public final class CraftingCpuReplay {
         var previousDelta = new AEKey2LongMap.CheckedOpenHashMap(this.tasks.size());
         var idle = new ObjectArrayList<Task>();
         for (int pass = 0; pass < MAX_PASSES; pass++) {
+            if (this.recordDispatchOrder) this.passOrder = new ArrayList<>();
             crafted.clear();
             idle.clear();
             this.passDelta.clear();
@@ -312,19 +358,30 @@ public final class CraftingCpuReplay {
                 this.calculation.handlePausing();
                 var task = this.tasks.get(taskIndex);
                 if (task.remaining <= 0) continue;
+                if (task.pattern instanceof IAssemblerPattern assembler) {
+                    if (applyAssembler(task, assembler)) crafted.add(task);
+                    else idle.add(task);
+                    exact = false;
+                    continue;
+                }
                 var taken = takeOnce(task);
                 if (taken == null) {
                     idle.add(task);
                     continue;
                 }
                 apply(task, taken);
+                long before = task.remaining;
                 task.remaining--;
                 crafted.add(task);
                 exact &= taken.exact && !repeatIndependentCycle(task, taken);
+                if (this.recordDispatchOrder)
+                    this.passOrder.add(new CraftingDispatchOrder.Step<>(task.pattern, before - task.remaining));
             }
             if (crafted.isEmpty()) {
                 return idle.isEmpty();
             }
+            if (this.recordDispatchOrder)
+                this.dispatchOrder.add(new CraftingDispatchOrder.Batch<>(this.passOrder, 1, true));
             if (exact && crafted.equals(previousCrafted) && this.passDelta.equals(previousDelta)) {
                 repeatPass(crafted, idle);
             }
@@ -449,6 +506,8 @@ public final class CraftingCpuReplay {
         if (repeats <= 0 || repeats == Long.MAX_VALUE) {
             return;
         }
+        if (this.recordDispatchOrder)
+            this.dispatchOrder.add(new CraftingDispatchOrder.Batch<>(this.passOrder, repeats, true));
         for (var entry : this.passRequired) {
             long need = KeyAmounts.add(
                 entry.getKey(),
@@ -569,6 +628,59 @@ public final class CraftingCpuReplay {
         return this.taken;
     }
 
+    private ICraftingInventory assemblerInventory(Task task) {
+        return new ICraftingInventory() {
+
+            @Override
+            public void insert(AEKey key, long amount, Actionable mode) {
+                throw new UnsupportedOperationException("Replay views only simulate extraction");
+            }
+
+            @Override
+            public long extract(AEKey key, long amount, Actionable mode) {
+                if (mode != Actionable.SIMULATE)
+                    throw new UnsupportedOperationException("Replay views only simulate extraction");
+                return Math.min(amount, Math.max(0, inventory.getLong(key) - seeds.reserved(task.pattern, key)));
+            }
+
+            @Override
+            public Iterable<AEKey> findFuzzyTemplates(AEKey key) {
+                var group = keysByGroup.get(key.getPrimaryKey());
+                return group == null ? List.of() : group;
+            }
+        };
+    }
+
+    private boolean applyAssembler(Task task, IAssemblerPattern pattern) {
+        var simulation = this.calculation.assemblerSimulation(pattern);
+        var view = assemblerInventory(task);
+        var first = simulation.select(view, false);
+        if (first == null) return false;
+        var batch = CraftingAssemblerBatch.plan(simulation, first, view, task.remaining);
+        if (batch.crafts <= 0) return false;
+        batch.peak.forEach((key, amount) -> {
+            require(key, amount);
+            this.passRequired.set(
+                key,
+                Math.max(this.passRequired.get(key), KeyAmounts.subtract(key, amount, this.passDelta.getLong(key))));
+        });
+        batch.delta.forEach((key, amount) -> {
+            index(key);
+            this.inventory.addTo(key, amount);
+            this.passDelta.addTo(key, amount);
+        });
+        if (task.consumed == null) {
+            task.consumed = KeyCounter.checked();
+            if (this.inputAllocations == null) this.inputAllocations = new Object2ObjectOpenHashMap<>();
+            this.inputAllocations.put(task.pattern, task.consumed);
+        }
+        task.consumed.addAll(batch.consumed);
+        var returned = this.remainderAllocations.computeIfAbsent(task.pattern, ignored -> KeyCounter.checked());
+        returned.addAll(batch.returned);
+        task.remaining -= batch.crafts;
+        return true;
+    }
+
     // What each planned craft that cannot run lacks for one craft, on the first possible stack of each short input
     private KeyCounter shortages() {
         var result = KeyCounter.checked();
@@ -576,6 +688,17 @@ public final class CraftingCpuReplay {
         for (int i = 0; i < this.tasks.size(); i++) {
             var task = this.tasks.get(i);
             if (task.remaining <= 0) continue;
+            if (task.pattern instanceof IAssemblerPattern assembler) {
+                var selection = this.calculation.assemblerSimulation(assembler)
+                    .select(assemblerInventory(task), true);
+                if (selection != null) {
+                    for (var input : selection.consumed()) {
+                        long lacking = input.getLongValue() - this.inventory.getLong(input.getKey());
+                        if (lacking > 0) result.add(input.getKey(), lacking);
+                    }
+                }
+                continue;
+            }
             reserved.clear();
             for (var input : task.inputs) {
                 var possible = input.possibleInputs();
@@ -629,29 +752,29 @@ public final class CraftingCpuReplay {
      * same as long as that stack lasts; otherwise an input that moved on to a later stack may come back to an earlier
      * one as soon as a craft makes it.
      */
-    private static final class Taken {
+    private static class Taken {
 
-        final AEKey2LongMap keys;
-        final AEKey2LongMap containers;
-        boolean exact;
+        private final AEKey2LongMap keys;
+        private final AEKey2LongMap containers;
+        private boolean exact;
 
-        Taken(AEKey2LongMap keys, AEKey2LongMap containers) {
+        private Taken(AEKey2LongMap keys, AEKey2LongMap containers) {
             this.keys = keys;
             this.containers = containers;
         }
     }
 
-    private static final class Task {
+    private static class Task {
 
-        final IPatternDetails pattern;
-        final IPatternDetails.IInput[] inputs;
-        final List<GenericStack> outputs;
-        long remaining;
-        final long total;
-        KeyCounter consumed;
-        KeyCounter lastReturns;
+        private final IPatternDetails pattern;
+        private final IPatternDetails.IInput[] inputs;
+        private final List<GenericStack> outputs;
+        private long remaining;
+        private final long total;
+        private KeyCounter consumed;
+        private KeyCounter lastReturns;
 
-        Task(IPatternDetails pattern, long remaining) {
+        private Task(IPatternDetails pattern, long remaining) {
             this.pattern = pattern;
             this.inputs = pattern.getInputs();
             var outputs = pattern.getOutputs();
@@ -660,7 +783,7 @@ public final class CraftingCpuReplay {
             this.total = remaining;
         }
 
-        boolean returnsContainers() {
+        private boolean returnsContainers() {
             for (var input : this.inputs) {
                 for (var possible : input.possibleInputs()) {
                     if (input.getRemainingKey(possible.what()) != null) return true;

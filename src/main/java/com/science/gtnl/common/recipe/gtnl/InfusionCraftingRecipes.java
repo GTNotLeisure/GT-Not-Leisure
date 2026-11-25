@@ -15,6 +15,7 @@ import com.science.gtnl.api.IRecipePool;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
 import com.science.gtnl.common.recipe.thaumcraft.TCRecipeTools;
 import com.science.gtnl.utils.recipes.RecipeBuilder;
+import com.science.gtnl.utils.recipes.RecipeItemTransformer;
 
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.TierEU;
@@ -107,6 +108,9 @@ public class InfusionCraftingRecipes implements IRecipePool {
                         recipe.getInputAspects(),
                         TCRecipeTools.INFUSION_DURATION_TICKS_PER_ASPECT))
                 .eut(TierEU.RECIPE_LV);
+            if (recipe.getOutputTransformer() != null) {
+                builder.metadata(RecipeItemTransformer.METADATA_KEY, recipe.getOutputTransformer());
+            }
             if (COSMETIC_SOLID_OUTPUT.equals(ItemId.create(recipe.getOutput()))) builder.circuit(11);
             builder.addTo(GTNLRecipeMaps.IndustrialInfusionCraftingRecipes);
         }

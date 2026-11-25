@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import com.gtnllib.utils.LongMath;
 import com.science.gtnl.common.crafting.quantum.api.stacks.KeyAmounts;
+import com.science.gtnl.common.crafting.quantum.api.stacks.KeyCounter;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingCalculation;
 import com.science.gtnl.common.crafting.quantum.crafting.inv.CraftingSimulationState;
 
@@ -46,6 +47,8 @@ public class DemandPropagation {
                     var component = topology.getComponents()
                         .get(componentId);
                     solveCyclicComponent(graph, topology, component, inventory);
+                    var localPlan = graph.getLocalComponentPlan(componentId);
+                    if (localPlan != null) propagateBoundaries(graph, component.nodes(), localPlan.boundaryDemands());
                 }
                 times = node.getCraftTimes();
             } else {
@@ -59,6 +62,11 @@ public class DemandPropagation {
             }
 
             boolean cyclic = topology.isCyclic(node);
+            if (node.getLocalComponentId() >= 0) continue;
+            if (node.isLocalUnit() && node.getPlannedBoundaryDemands() != null) {
+                propagateBoundaries(graph, List.of(node), node.getPlannedBoundaryDemands());
+                continue;
+            }
             for (var edge : node.getInputs()) {
                 // A solved component already planned what its nodes take from each other
                 if (!edge.cycleCut() && edge.producer() != null
@@ -350,9 +358,31 @@ public class DemandPropagation {
     }
 
     private static void markLocalComponent(CraftingGraph graph, CraftingGraphTopology.Component component) {
-        graph.requireLegacyFallback();
         for (var node : component.nodes()) {
+            node.setLocalComponentId(component.id());
             node.setCraftTimes(0);
+        }
+    }
+
+    private static void propagateBoundaries(CraftingGraph graph, List<CraftingGraphNode> nodes, KeyCounter demands) {
+        for (var boundary : demands) {
+            CraftingGraphNode producer = null;
+            boolean represented = false;
+            for (var node : nodes) {
+                for (var edge : node.getInputs()) {
+                    if (edge.inputKey()
+                        .equals(boundary.getKey())) {
+                        represented = true;
+                        producer = edge.producer();
+                        break;
+                    }
+                }
+                if (producer != null) break;
+            }
+            if (!represented) {
+                // An unrepresented boundary requires the complete legacy closure.
+                graph.requireLegacyFallback();
+            } else if (producer != null) producer.addDemandAmount(boundary.getLongValue());
         }
     }
 

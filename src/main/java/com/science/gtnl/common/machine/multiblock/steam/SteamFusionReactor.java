@@ -135,8 +135,7 @@ public class SteamFusionReactor extends SteamMultiMachineBase<SteamFusionReactor
             @Override
             public CheckRecipeResult validateRecipe(@NotNull GTRecipe recipe) {
                 if (recipe.getMetadataOrDefault(SteamFusionMetadata.INSTANCE, 0) != 0) {
-                    return SimpleCheckRecipeResult
-                        .ofFailure("gtnl.machine.steam_fusion_reactor.error.requires_compact_reactor");
+                    return SimpleCheckRecipeResult.ofFailure("gtnl.requires_steam_compact_reactor");
                 }
                 return super.validateRecipe(recipe);
             }

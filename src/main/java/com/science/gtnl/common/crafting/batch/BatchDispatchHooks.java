@@ -127,18 +127,19 @@ public class BatchDispatchHooks {
     public static List<IAEStack<?>> planExpandedInputs(CraftingCPUCluster cluster, ICraftingPatternDetails details,
         List<IAEStack<?>> expandedInputs, IEnergyGrid eg, Context context, MECraftingInventory inventory) {
         if (expandedInputs == null || context == null || context.taskProgress == null) return expandedInputs;
-
         // A quantum CPU only extracts the variants a substituting pattern has budget for
+        long pending = context.taskProgress.getValue();
+        if (cluster instanceof ECraftingCPUCluster quantum) pending = quantum.limitDispatchPattern(details, pending);
         BatchPlan plan = cluster instanceof ECraftingCPUCluster quantum && quantum.hasVariantBudget(details)
             ? BATCH_PLANNER.plan(
-                context.taskProgress.getValue(),
+                pending,
                 context.mediumStrategy,
                 expandedInputs,
                 details.getCondensedAEOutputs(),
                 input -> quantum.getBudgetedAvailable(details, input),
                 requested -> eg.extractAEPower(requested, Actionable.SIMULATE, PowerMultiplier.CONFIG))
             : BATCH_PLANNER.plan(
-                context.taskProgress.getValue(),
+                pending,
                 context.mediumStrategy,
                 expandedInputs,
                 details.getCondensedAEOutputs(),

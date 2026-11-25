@@ -28,6 +28,8 @@ public class CraftingGraph {
     private CraftingGraphNode rootNode;
     private CraftingGraphTopology topology;
     private final Int2ObjectMap<SccPlan> sccPlans = new Int2ObjectOpenHashMap<>();
+    private final Int2ObjectMap<LocalComponentPlan> localComponentPlans = new Int2ObjectOpenHashMap<>();
+    private final Object2ObjectMap<CraftingGraphNode, LocalPatternPlan> localUnitPlans = new Object2ObjectOpenHashMap<>();
     private Object2ObjectMap<AEKey, CraftingGraphNode> nodeByWhat;
     private boolean requiresLegacyFallback;
     private boolean hasRecursion;
@@ -36,6 +38,7 @@ public class CraftingGraph {
     private final ObjectOpenHashSet<AEKey> fuzzyKeys = new ObjectOpenHashSet<>();
     private ObjectSet<AEKey> snapshotKeys;
     private final ObjectOpenHashSet<AEKey> extraSnapshotKeys = new ObjectOpenHashSet<>();
+    private @Nullable MaterialClosure materialClosure;
 
     public record NodeKey(AEKey what, @Nullable IPatternDetails pattern) {
 
@@ -154,6 +157,15 @@ public class CraftingGraph {
         return this.hasAlternatives;
     }
 
+    public @Nullable MaterialClosure getMaterialClosure() {
+        return this.materialClosure;
+    }
+
+    public void setMaterialClosure(MaterialClosure closure) {
+        this.materialClosure = closure;
+        this.snapshotKeys = null;
+    }
+
     public synchronized ObjectSet<AEKey> getSnapshotKeys() {
         if (this.snapshotKeys == null) {
             var keys = new ObjectOpenHashSet<AEKey>();
@@ -164,6 +176,7 @@ public class CraftingGraph {
                 }
             }
             keys.addAll(this.extraSnapshotKeys);
+            if (this.materialClosure != null) keys.addAll(this.materialClosure.keys());
             this.snapshotKeys = ObjectSets.unmodifiable(keys);
         }
         return this.snapshotKeys;
@@ -214,6 +227,24 @@ public class CraftingGraph {
         return sccPlans.get(componentId);
     }
 
+    public void setLocalComponentPlan(int componentId, LocalComponentPlan plan) {
+        this.localComponentPlans.put(componentId, plan);
+    }
+
+    @Nullable
+    public LocalComponentPlan getLocalComponentPlan(int componentId) {
+        return this.localComponentPlans.get(componentId);
+    }
+
+    public void setLocalUnitPlan(CraftingGraphNode node, LocalPatternPlan plan) {
+        this.localUnitPlans.put(node, plan);
+    }
+
+    @Nullable
+    public LocalPatternPlan getLocalUnitPlan(CraftingGraphNode node) {
+        return this.localUnitPlans.get(node);
+    }
+
     @Nullable
     public CraftingGraphNode getNodeFor(AEKey what) {
         if (nodeByWhat == null) {
@@ -232,7 +263,10 @@ public class CraftingGraph {
     public void resetForReuse() {
         for (var node : nodesInCreationOrder) {
             node.resetPlanningAmounts();
+            node.clearLocalPlanning();
         }
         sccPlans.clear();
+        this.localComponentPlans.clear();
+        this.localUnitPlans.clear();
     }
 }

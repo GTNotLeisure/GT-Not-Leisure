@@ -438,7 +438,6 @@ public class WirelessCardClientView {
         listing = List.copyOf(rows);
         flatten(rows, 0, 0, collapse, shown);
         data.setInteger("rowCount", shown.size());
-        data.setInteger("filterState", state);
         data.setBoolean("filtered", !query.isEmpty() || dimension != null || state != 0);
         // The full tree changes on snapshots, filters and expansion, not on scrollbar movement.
         data.removeTag("rows");

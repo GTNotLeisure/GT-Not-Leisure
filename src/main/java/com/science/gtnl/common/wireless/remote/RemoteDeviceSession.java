@@ -19,6 +19,8 @@ public class RemoteDeviceSession {
     public final Address address;
     public final RemoteDeviceHost host;
     public Container container;
+    private RemoteDeviceState checked;
+    private long checkedTick;
 
     public RemoteDeviceSession(long id, EntityPlayerMP player, TrackedCard card, WirelessCardBinding binding,
         IGridNode node, Address address, RemoteDeviceHost host) {
@@ -32,6 +34,15 @@ public class RemoteDeviceSession {
     }
 
     public RemoteDeviceState check() {
+        long tick = player.worldObj.getTotalWorldTime();
+        if (checked == null || tick != checkedTick) {
+            checked = evaluate();
+            checkedTick = tick;
+        }
+        return checked;
+    }
+
+    private RemoteDeviceState evaluate() {
         if (!player.isEntityAlive()) return RemoteDeviceState.STALE;
         if (!card.carriedBy(player)) return RemoteDeviceState.CARD;
         var located = RemoteDeviceSessions.locate(node);

@@ -13,6 +13,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import com.science.gtnl.common.item.items.WirelessFrequencyCard;
+import com.science.gtnl.common.wireless.WirelessBenchmark;
 import com.science.gtnl.common.wireless.WirelessCardBinding;
 import com.science.gtnl.common.wireless.WirelessChannelManager;
 import com.science.gtnl.common.wireless.WirelessChannelManager.Address;
@@ -41,7 +42,7 @@ public class CommandWirelessME extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/gtnl_wireless_me bind <dim> <x> <y> <z> | link <dim> <x> <y> <z> [side] | unlink <id> | status | clear | owner <player> | limit [count]";
+        return "/gtnl_wireless_me bind <dim> <x> <y> <z> | link <dim> <x> <y> <z> [side] | unlink <id> | status | clear | owner <player> | limit [count] | bench build <subnets> <devices> | bench time | bench remove";
     }
 
     @Override
@@ -121,6 +122,19 @@ public class CommandWirelessME extends CommandBase {
                     message(
                         sender,
                         "Loaded wireless links, entrances and command bindings cleared; unloaded chunks are unchanged.");
+                }
+                case "bench" -> {
+                    if (args.length == 4 && "build".equals(args[1])) WirelessBenchmark.build(
+                        player,
+                        parseIntWithMin(sender, args[2], 1),
+                        parseIntWithMin(sender, args[3], 1),
+                        text -> message(player, text));
+                    else if (args.length == 2 && "time".equals(args[1]))
+                        WirelessBenchmark.measure(player, text -> message(player, text));
+                    else if (args.length == 2 && "remove".equals(args[1]))
+                        WirelessBenchmark.remove(player, text -> message(player, text));
+                    else throw new IllegalArgumentException(
+                        "Usage: /gtnl_wireless_me bench build <subnets> <devices> | bench time | bench remove");
                 }
                 case "status" -> {
                     if (args.length != 1) throw new IllegalArgumentException(getCommandUsage(sender));

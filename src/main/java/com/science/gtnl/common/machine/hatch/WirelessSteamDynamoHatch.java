@@ -109,6 +109,21 @@ public class WirelessSteamDynamoHatch extends MTEHatchOutput implements IFluidSt
     }
 
     @Override
+    public boolean isLiquidOutput(ForgeDirection side) {
+        return false;
+    }
+
+    @Override
+    public boolean canTankBeEmptied() {
+        return false;
+    }
+
+    @Override
+    public boolean doesFillContainers() {
+        return false;
+    }
+
+    @Override
     public boolean doesEmptyContainers() {
         return true;
     }
@@ -219,14 +234,14 @@ public class WirelessSteamDynamoHatch extends MTEHatchOutput implements IFluidSt
         super.onFirstTick(aBaseMetaTileEntity);
         if (!aBaseMetaTileEntity.isServerSide()) return;
         refreshSteamNetworkState(aBaseMetaTileEntity);
-        tryFetchingSteam();
+        tryDepositingSteam();
     }
 
     @Override
     public void onPreTick(IGregTechTileEntity aBaseMetaTileEntity, long aTick) {
         super.onPreTick(aBaseMetaTileEntity, aTick);
         if (aBaseMetaTileEntity.isServerSide() && aTick % number_of_energy_additions == 0L) {
-            tryFetchingSteam();
+            tryDepositingSteam();
         }
     }
 
@@ -253,7 +268,7 @@ public class WirelessSteamDynamoHatch extends MTEHatchOutput implements IFluidSt
         steamDisplay = SteamWirelessNetworkManager.getUserSteam(ownerUUID);
     }
 
-    private void tryFetchingSteam() {
+    private void tryDepositingSteam() {
         if (ownerUUID == null) return;
         FluidStack currentSteamStack = getFillableStack();
 
@@ -270,7 +285,8 @@ public class WirelessSteamDynamoHatch extends MTEHatchOutput implements IFluidSt
                     return;
                 }
 
-                drain(rawAmount, true);
+                setFillableStack(null);
+                getBaseMetaTileEntity().markDirty();
             }
         }
     }

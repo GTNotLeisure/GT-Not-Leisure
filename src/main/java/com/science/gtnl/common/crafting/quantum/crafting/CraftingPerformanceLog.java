@@ -1,5 +1,7 @@
 package com.science.gtnl.common.crafting.quantum.crafting;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -14,25 +16,27 @@ public class CraftingPerformanceLog {
     private AEKey output;
     private long amount;
     private long stages;
+    private final List<String> events = new ArrayList<>();
 
-    void start(AEKey output, long amount) {
+    public void start(AEKey output, long amount) {
         this.output = output;
         this.amount = amount;
         this.stages = 0;
+        this.events.clear();
         log(chinese ? "开始 输出=" + output + " 数量=" + amount : "start output=" + output + " amount=" + amount);
     }
 
-    void stage(String name, long nanos) {
+    public void stage(String name, long nanos) {
         this.stages++;
         var micros = TimeUnit.NANOSECONDS.toMicros(nanos);
         log(chinese ? "阶段=" + name + " 耗时=" + micros + " 微秒" : "stage=" + name + " time=" + micros + " us");
     }
 
-    void count(String name, long amount) {
+    public void count(String name, long amount) {
         log(chinese ? "计数=" + name + " 值=" + amount : "count=" + name + " Value=" + amount);
     }
 
-    void finish(long nanos, CraftingCalculation calculation) {
+    public void finish(long nanos, CraftingCalculation calculation) {
         var micros = TimeUnit.NANOSECONDS.toMicros(nanos);
         if (chinese) {
             log(
@@ -69,9 +73,11 @@ public class CraftingPerformanceLog {
                     + " stages="
                     + stages);
         }
+        AELog.craftingPerformance("%s", String.join(System.lineSeparator(), this.events));
+        this.events.clear();
     }
 
-    private static void log(String message) {
-        AELog.craftingPerformance("%s", message);
+    private void log(String message) {
+        this.events.add(message);
     }
 }
