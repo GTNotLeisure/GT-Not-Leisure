@@ -6,6 +6,7 @@ import static gregtech.api.util.GTStructureUtility.buildHatchAdder;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -404,6 +405,12 @@ public class TreeDiagram extends WirelessEnergyMultiMachineBase<TreeDiagram>
     @Override
     public RecipeMap<?> getRecipeMap() {
         return GTNLRecipeMaps.TreeDiagramRecipes;
+    }
+
+    @NotNull
+    @Override
+    public Collection<RecipeMap<?>> getAvailableRecipeMaps() {
+        return Arrays.asList(GTNLRecipeMaps.TreeDiagramRecipes, GTNLRecipeMaps.CircuitNanitesDataRecipes);
     }
 
     @Override
