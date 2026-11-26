@@ -154,6 +154,11 @@ public enum Mixins implements IMixins {
         new MixinBuilder("ModularUI 2 screens follow live palette themes").addClientMixins("modularUI2.MixinThemeAPI")
             .setPhase(Phase.LATE)),
 
+    MODULAR_UI_MOUSE_TWEAKS(new MixinBuilder("Mouse Tweaks uses ModularUI 2 hovered slots")
+        .addClientMixins("mouseTweaks.MixinModularUIMouseTweaks")
+        .setPhase(Phase.LATE)
+        .addRequiredMod(ModList.MouseTweaks)),
+
     ME_MINI_TERMINAL_BOGO(new MixinBuilder("ME mini portable terminal native Bogo shortcut destinations")
         .addClientMixins("inventoryBogoSorter.MixinMiniTerminalShortcuts")
         .setPhase(Phase.LATE)
