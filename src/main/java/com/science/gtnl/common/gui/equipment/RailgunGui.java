@@ -24,7 +24,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 public class RailgunGui extends EquipmentGui {
 
     public RailgunGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
-        super(data, sync, ScreenThemeConfig.railgun);
+        super(data, sync, ScreenThemeConfig.railgun, ScreenThemeConfig.railgunCustomTheme);
     }
 
     @Override

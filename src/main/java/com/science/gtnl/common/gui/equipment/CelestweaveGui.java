@@ -79,7 +79,7 @@ public class CelestweaveGui extends EquipmentGui {
     private int viewing;
 
     public CelestweaveGui(PlayerInventoryGuiData data, PanelSyncManager sync) {
-        super(data, sync, ScreenThemeConfig.celestweave);
+        super(data, sync, ScreenThemeConfig.celestweave, ScreenThemeConfig.celestweaveCustomTheme);
         this.piece = ((CelestweaveArmor) stack.getItem()).armorType;
     }
 

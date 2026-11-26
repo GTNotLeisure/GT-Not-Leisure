@@ -61,18 +61,23 @@ public abstract class EquipmentGui {
     private IntSupplier energyLabel = () -> 0;
 
     protected EquipmentGui(PlayerInventoryGuiData data, PanelSyncManager sync, EquipmentScreenTheme theme) {
+        this(data, sync, theme, "");
+    }
+
+    protected EquipmentGui(PlayerInventoryGuiData data, PanelSyncManager sync, EquipmentScreenTheme theme,
+        String customTheme) {
         this.data = data;
         this.sync = sync;
         this.stack = data.getUsedItemStack();
         if (!holds(stack)) throw new IllegalStateException("Missing equipment for " + getClass().getSimpleName());
         this.client = data.getPlayer().worldObj.isRemote;
-        this.themeId = client ? themeId(theme) : null;
+        this.themeId = client ? themeId(theme, customTheme) : null;
         this.style = client ? themeStyle(themeId) : LayoutTheme.DEFAULT;
     }
 
     @SideOnly(Side.CLIENT)
-    private static String themeId(EquipmentScreenTheme theme) {
-        return ScreenThemes.of(theme);
+    private static String themeId(EquipmentScreenTheme theme, String customTheme) {
+        return ScreenThemes.of(theme, customTheme);
     }
 
     @SideOnly(Side.CLIENT)

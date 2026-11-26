@@ -1017,7 +1017,7 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
 
         private static final int BLANK = 255, PIN = 5 * 16 + 14, HALF = 8, CELL = 16, SLOT = 18, SHEET = 256;
         private static final float PIN_OPACITY = 0.4F;
-        private static final Skin[] THEMED = new Skin[AE2Variant.values().length];
+        private static @Nullable Skin cached;
 
         public final AE2Variant variant;
         public final ResourceLocation states, terminal;
@@ -1032,9 +1032,8 @@ public class MiniTerminalInventoryPanel extends FloatingWindowPanel {
         public static @Nullable Skin current() {
             AE2Variant variant = AE2Theme.variant(ScreenThemes.miniTerminal());
             if (variant == null) return null;
-            Skin skin = THEMED[variant.ordinal()];
-            if (skin == null) skin = THEMED[variant.ordinal()] = new Skin(variant);
-            return skin;
+            if (cached == null || cached.variant != variant) cached = new Skin(variant);
+            return cached;
         }
 
         public void button(int icon, boolean enabled, int x, int y) {

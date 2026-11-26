@@ -1241,7 +1241,7 @@ public class WirelessCardGui extends ModularPanel {
         public static Palette ae2(AE2Variant variant) {
             AE2Colors colors = variant.colors;
             // The dark theme's line color is near black, so nested rows lighten there instead of darkening.
-            boolean dark = variant != AE2Variant.LIGHT;
+            boolean dark = variant.dark;
             return new Palette(
                 colors.text(),
                 colors.text(),
