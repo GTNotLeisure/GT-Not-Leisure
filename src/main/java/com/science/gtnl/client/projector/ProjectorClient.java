@@ -67,7 +67,7 @@ public class ProjectorClient {
     public static final ProjectorGround GROUND = new ProjectorGround();
     private static NBTTagCompound planTag;
     private static boolean listening;
-    private static long lastClick, ticks, spotTick;
+    private static long lastClick = -CLICK_GAP, ticks, spotTick;
     private static int[] spot;
     private static int spotMachine;
 
@@ -132,6 +132,7 @@ public class ProjectorClient {
         plan = null;
         planTag = null;
         inFlight.clear();
+        lastClick = -CLICK_GAP;
         spot = null;
         focus = new int[0];
         structure = null;

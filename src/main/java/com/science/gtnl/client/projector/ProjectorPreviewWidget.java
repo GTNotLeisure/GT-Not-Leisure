@@ -247,8 +247,15 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
                 int[][] positions = next.simulationPositions();
                 mesh.prepare(next, next.world, positions[0], positions[1], positions[2]);
                 orient(wantedFacing());
-                if (sameMachine) applyLayer();
-                else {
+                if (sameMachine) {
+                    if (layer != ALL_LAYERS) {
+                        int[] bounds = next.worldBounds(facing);
+                        if (next.isEmpty() || bounds[1] > bounds[4]) layer = ALL_LAYERS;
+                        else if (layer < bounds[1] || layer > bounds[4])
+                            layer = Math.max(bounds[1], Math.min(bounds[4], layer));
+                    }
+                    applyLayer();
+                } else {
                     resetCamera();
                     int[] bounds = next.worldBounds(facing);
                     if (restoredLayer >= bounds[1] && restoredLayer <= bounds[4]) {

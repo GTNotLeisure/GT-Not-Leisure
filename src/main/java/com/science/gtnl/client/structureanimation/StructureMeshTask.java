@@ -244,7 +244,8 @@ public abstract class StructureMeshTask extends StructureAnimationTask {
             if (now() - covered < HANDOFF_WAIT) continue;
             if (!matchedAt.containsKey(section) && sectionMatches(world, section)) matchedAt.put(section, now());
             boolean rebuilt = matchedAt.containsKey(section) && now() - matchedAt.get(section) >= HANDOFF_REBUILD;
-            if (rebuilt || doneTick >= 0 && now() - covered >= HANDOFF_FALLBACK) handed.add(section);
+            if (rebuilt || doneTick >= 0 && now() - Math.max(covered, doneTick) >= HANDOFF_FALLBACK)
+                handed.add(section);
         }
     }
 

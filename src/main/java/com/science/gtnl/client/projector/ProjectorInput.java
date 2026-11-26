@@ -81,7 +81,9 @@ public class ProjectorInput {
         if (open) openAnywhere(mc.thePlayer);
         if (lock) ProjectorClient.lockKey(mc.thePlayer.isSneaking());
         ProjectorPlan plan = ProjectorClient.plan;
-        if (plan == null || !plan.hasMachine() || plan.state == ProjectorPlan.State.IDLE) return;
+        if (plan == null || !plan.hasMachine()
+            || plan.state == ProjectorPlan.State.IDLE
+            || plan.isPlaced() && plan.dimension != mc.thePlayer.dimension) return;
         if (rotate) {
             if (isAltDown()) ProjectorPoseScreen.open();
             else if (isShiftDown()) turn(facing -> ProjectorOrientation.mirror(facing, ProjectorClient.validFacings()));
@@ -95,8 +97,13 @@ public class ProjectorInput {
     public static void wheel(MouseEvent event) {
         Minecraft mc = Minecraft.getMinecraft();
         ProjectorPlan plan = ProjectorClient.plan;
-        if (event.dwheel == 0 || mc.currentScreen != null || !isAltDown() || plan == null || !plan.hasMachine()) return;
+        if (event.dwheel == 0 || mc.currentScreen != null
+            || mc.thePlayer == null
+            || !isAltDown()
+            || plan == null
+            || !plan.hasMachine()) return;
         if (plan.state != ProjectorPlan.State.FOLLOW && plan.state != ProjectorPlan.State.LOCKED) return;
+        if (plan.isPlaced() && plan.dimension != mc.thePlayer.dimension) return;
         event.setCanceled(true);
         raise(plan, event.dwheel > 0 ? 1 : -1);
     }

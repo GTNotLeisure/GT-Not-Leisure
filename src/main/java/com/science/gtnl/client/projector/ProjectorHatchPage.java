@@ -32,6 +32,7 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 import gregtech.api.enums.GTValues;
 import gregtech.api.enums.HatchElement;
+import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.util.GTUtility;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 
@@ -532,7 +533,8 @@ public class ProjectorHatchPage {
         if (current == null || current.slotAt(cell) == null) return -1;
         // The shown structure lags behind a choice until the new simulation finishes.
         Integer chosen = working.overrides.get(key(current, cell));
-        return chosen != null ? chosen : current.machines[cell];
+        int id = chosen != null ? chosen : current.machines[cell];
+        return id > 0 && ProjectorMachines.prototype(id) == null ? -1 : id;
     }
 
     private Map<String, List<Integer>> variantsOfHeld() {
@@ -628,9 +630,9 @@ public class ProjectorHatchPage {
         Flow flow = ProjectorEnergyHatches.flowOf(id);
         if (flow != null) return flow;
         HatchElement element = ProjectorMachines.kindOf(id);
-        return element != null ? element
-            : ProjectorMachines.prototype(id)
-                .getClass();
+        if (element != null) return element;
+        IMetaTileEntity prototype = ProjectorMachines.prototype(id);
+        return prototype == null ? Integer.valueOf(id) : prototype.getClass();
     }
 
     // GT gives some hatches of one class different names, such as the auto maintenance hatch, and those are not tiers.
@@ -639,9 +641,11 @@ public class ProjectorHatchPage {
         if (energy != null) return energy;
         String series = ProjectorMachines.seriesOf(id);
         if (series != null) return series;
-        return ProjectorMachines.prototype(id)
-            .getClass()
-            .getName() + "|"
+        IMetaTileEntity prototype = ProjectorMachines.prototype(id);
+        return (prototype == null ? ""
+            : prototype.getClass()
+                .getName())
+            + "|"
             + variantName(id);
     }
 
@@ -664,8 +668,9 @@ public class ProjectorHatchPage {
     }
 
     public static String variantName(int id) {
-        String name = ProjectorMachines.stackOf(id)
-            .getDisplayName();
+        ItemStack stack = ProjectorMachines.stackOf(id);
+        if (stack == null) return "";
+        String name = stack.getDisplayName();
         int tier = ProjectorMachines.tier(id);
         if (tier >= 0 && tier < GTValues.VN.length) name = name.replace(GTValues.VN[tier], "");
         return name.replace("()", "")

@@ -161,6 +161,7 @@ public class ProjectorBuilder {
             refuse(player, "disabled");
             return;
         }
+        if (!player.isEntityAlive()) return;
         ItemStack projector = ProjectorServer.projectorAt(player, location);
         if (projector == null) return;
         UUID id = player.getUniqueID();
@@ -231,7 +232,7 @@ public class ProjectorBuilder {
             Map.Entry<UUID, Preparation> entry = iterator.next();
             Preparation preparation = entry.getValue();
             EntityPlayerMP owner = playerOf(entry.getKey());
-            if (owner == null || owner.dimension != preparation.dimension) {
+            if (owner == null || !owner.isEntityAlive() || owner.dimension != preparation.dimension) {
                 iterator.remove();
                 continue;
             }
@@ -289,7 +290,7 @@ public class ProjectorBuilder {
                 }
                 preparation.simulation = new ProjectorSimulation(
                     preparation.plan.settings(),
-                    ProjectorSimulation.CLIENT_BUDGET);
+                    ProjectorSimulation.SERVER_BUDGET);
                 preparation.stage = Stage.SIMULATING;
                 return true;
             }
@@ -621,7 +622,7 @@ public class ProjectorBuilder {
             job.placingTicks,
             job.placingNanos / 1000 / processed);
         if (processed > 0) ScienceNotLeisure.LOG.debug(
-            "Projector build {} per cell in us: checks {}, set block {}, place event {}, notify {}, take {}",
+            "Projector build {} per cell in us: checks {}, set block {}, place event {}, take {}, notify {}",
             job.id,
             job.phases[0] / 1000 / processed,
             job.phases[1] / 1000 / processed,
@@ -693,7 +694,7 @@ public class ProjectorBuilder {
             Map.Entry<UUID, Job> entry = iterator.next();
             Job job = entry.getValue();
             EntityPlayerMP owner = playerOf(entry.getKey());
-            if (owner == null || owner.dimension != job.dimension) {
+            if (owner == null || !owner.isEntityAlive() || owner.dimension != job.dimension) {
                 iterator.remove();
                 try {
                     finish(job, StructureAnimationStatePacket.ABORTED);
@@ -854,7 +855,7 @@ public class ProjectorBuilder {
         if (!free && InventoryUtility.takeFromInventory(player, single(stack, 1), true) < 1) return SHORT;
         mark = lap(job, 0, mark);
         List<BlockSnapshot> snapshots = new ArrayList<>();
-        boolean keep = false, notified = false;
+        boolean keep = false;
         try {
             boolean placed;
             world.captureBlockSnapshots = true;
@@ -888,8 +889,10 @@ public class ProjectorBuilder {
                     ? ForgeEventFactory.onPlayerBlockPlace(player, snapshots.get(0), ForgeDirection.UP)
                     : null;
             if (event != null && event.isCanceled()) return REFUSED;
-            notified = true;
             mark = lap(job, 2, mark);
+            if (!free && InventoryUtility.takeFromInventory(player, single(stack, 1), false) < 1) return SHORT;
+            keep = true;
+            mark = lap(job, 3, mark);
             for (BlockSnapshot snapshot : snapshots) {
                 Block placedBlock = world.getBlock(snapshot.x, snapshot.y, snapshot.z);
                 int meta = world.getBlockMetadata(snapshot.x, snapshot.y, snapshot.z);
@@ -904,13 +907,10 @@ public class ProjectorBuilder {
                     placedBlock,
                     snapshot.flag);
             }
-            mark = lap(job, 3, mark);
-            if (!free && InventoryUtility.takeFromInventory(player, single(stack, 1), false) < 1) return SHORT;
             lap(job, 4, mark);
-            keep = true;
             return PLACED;
         } finally {
-            if (!keep) restore(world, snapshots, notified);
+            if (!keep) restore(world, snapshots);
         }
     }
 
@@ -930,11 +930,11 @@ public class ProjectorBuilder {
     }
 
     // Restoring with this flag set keeps the removed blocks from dropping items, as Forge does for cancelled places.
-    private static void restore(World world, List<BlockSnapshot> snapshots, boolean notify) {
+    private static void restore(World world, List<BlockSnapshot> snapshots) {
         world.restoringBlockSnapshots = true;
         try {
             for (int i = snapshots.size() - 1; i >= 0; i--) snapshots.get(i)
-                .restore(true, notify);
+                .restore(true, false);
         } finally {
             world.restoringBlockSnapshots = false;
         }

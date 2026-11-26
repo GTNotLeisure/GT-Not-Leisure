@@ -53,7 +53,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 public class ProjectorSimulation {
 
     public static final int CONTROLLER_X = 0, CONTROLLER_Y = 128, CONTROLLER_Z = 0, MAX_ROUNDS = 2000,
-        STABLE_ROUNDS = 3, MAX_BLOCKS = 250_000, CLIENT_BUDGET = 65_536;
+        STABLE_ROUNDS = 3, MAX_BLOCKS = 250_000, CLIENT_BUDGET = 65_536, SERVER_BUDGET = 4096;
     public static final String CHANNEL_TAG = "channels";
     private static final GameProfile PROFILE = new GameProfile(
         UUID.nameUUIDFromBytes("gtnl_projector_simulation".getBytes()),

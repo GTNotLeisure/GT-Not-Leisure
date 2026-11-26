@@ -253,8 +253,8 @@ public class ProjectorGui extends ModularPanel {
                         new AE2Button(this::projectLabel, this::project).expanded()
                             .height(BUTTON))
                     .child(
-                        new AE2Button(() -> StatCollector.translateToLocal(LANG + "build"), ProjectorBuildRequest::send)
-                            .available(ProjectorBuildRequest::canBuild)
+                        new AE2Button(() -> StatCollector.translateToLocal(LANG + "build"), this::build)
+                            .available(this::canBuild)
                             .width(RIGHT_WIDTH / 4)
                             .height(BUTTON))
                     .child(
@@ -411,6 +411,23 @@ public class ProjectorGui extends ModularPanel {
         getScreen().close();
     }
 
+    private boolean canBuild() {
+        return location == ProjectorClient.location && working.isPlaced()
+            && working.machine == stored.machine
+            && ProjectorBuildRequest.canBuild();
+    }
+
+    private void build() {
+        if (!canBuild()) return;
+        if (!working.writeToNBT()
+            .equals(stored.writeToNBT())) {
+            ProjectorClient.send(location, working);
+            stored.readFromNBT(working.writeToNBT());
+        }
+        ProjectorBuildRequest.send(location);
+        getScreen().close();
+    }
+
     private void cycleBuildStyle() {
         StructureAnimationStyle[] values = StructureAnimationStyle.values();
         working.buildStyle = values[(working.buildStyle.ordinal() + 1) % values.length];
@@ -515,8 +532,8 @@ public class ProjectorGui extends ModularPanel {
 
     private String summaryLine() {
         if (!working.hasMachine()) return "";
-        String name = ProjectorMachines.stackOf(working.machine)
-            .getDisplayName();
+        ItemStack stack = ProjectorMachines.stackOf(working.machine);
+        String name = stack == null ? "?" : stack.getDisplayName();
         ProjectorStructure structure = structure();
         String state;
         if (structure == null || simulating()) {

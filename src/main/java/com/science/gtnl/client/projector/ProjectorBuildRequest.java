@@ -21,7 +21,11 @@ public class ProjectorBuildRequest {
     }
 
     public static void send() {
-        if (!canBuild()) return;
-        ScienceNotLeisure.network.sendToServer(new ProjectorBuildPacket(ProjectorClient.location));
+        send(ProjectorClient.location);
+    }
+
+    public static void send(int location) {
+        if (!canBuild() || location == Integer.MIN_VALUE) return;
+        ScienceNotLeisure.network.sendToServer(new ProjectorBuildPacket(location));
     }
 }

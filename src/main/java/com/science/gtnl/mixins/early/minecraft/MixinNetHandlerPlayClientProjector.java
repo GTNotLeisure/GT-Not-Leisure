@@ -14,7 +14,7 @@ import com.science.gtnl.client.projector.ProjectorClient;
 @Mixin(NetHandlerPlayClient.class)
 public abstract class MixinNetHandlerPlayClientProjector {
 
-    @Inject(method = "handleChunkData", at = @At("TAIL"))
+    @Inject(method = "handleChunkData", at = @At("RETURN"))
     private void gtnl$projectorChunk(S21PacketChunkData packet, CallbackInfo ci) {
         ProjectorClient.chunkReceived(packet.func_149273_e(), packet.func_149271_f());
     }
