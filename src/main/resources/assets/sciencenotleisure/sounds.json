@@ -331,5 +331,67 @@
         "stream": false
       }
     ]
+  },
+  "warp_in.tear": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/tear",
+        "stream": false
+      }
+    ]
+  },
+  "warp_in.rift": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/rift",
+        "stream": false
+      }
+    ]
+  },
+  "warp_in.collapse": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/collapse",
+        "stream": false
+      }
+    ]
+  },
+  "warp_in.materialize": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/materialize",
+        "stream": false
+      }
+    ]
+  },
+  "warp_in.snap": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/snap",
+        "stream": false
+      }
+    ]
+  },
+  "warp_in.arc": {
+    "category": "player",
+    "sounds": [
+      {
+        "name": "warp_in/arc1",
+        "stream": false
+      },
+      {
+        "name": "warp_in/arc2",
+        "stream": false
+      },
+      {
+        "name": "warp_in/arc3",
+        "stream": false
+      }
+    ]
   }
 }

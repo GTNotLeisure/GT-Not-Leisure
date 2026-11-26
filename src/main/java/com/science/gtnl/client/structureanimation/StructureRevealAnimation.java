@@ -1,5 +1,7 @@
 package com.science.gtnl.client.structureanimation;
 
+import static com.science.gtnl.common.structureanimation.StructureAnimationStyle.TICKS_PER_SECOND;
+
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
@@ -55,11 +57,11 @@ public class StructureRevealAnimation extends StructureAnimationTask {
     }
 
     public float seconds() {
-        return (now() - startTick) / 20f;
+        return (now() - startTick) / (float) TICKS_PER_SECOND;
     }
 
     public float solid() {
-        return placingTick >= 0 ? Math.min(solidAt, (placingTick - startTick) / 20f) : solidAt;
+        return placingTick >= 0 ? Math.min(solidAt, (placingTick - startTick) / (float) TICKS_PER_SECOND) : solidAt;
     }
 
     public StructureRevealShape ready() {
@@ -150,7 +152,7 @@ public class StructureRevealAnimation extends StructureAnimationTask {
         compileStep();
         StructureRevealShape built = ready();
         if (built == null) return;
-        float t = (float) (age / 20);
+        float t = (float) (age / TICKS_PER_SECOND);
         GL11.glTranslated(start.originX() - cameraX, start.originY() - cameraY, start.originZ() - cameraZ);
         prepare();
         if (t < solid()) hologram(t);
@@ -159,7 +161,7 @@ public class StructureRevealAnimation extends StructureAnimationTask {
 
     @Override
     public float glow(double age) {
-        float t = (float) (age / 20);
+        float t = (float) (age / TICKS_PER_SECOND);
         return ready() != null && t < solid() ? blink(t) * GLOW : 0;
     }
 

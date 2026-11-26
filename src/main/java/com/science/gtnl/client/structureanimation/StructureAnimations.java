@@ -30,9 +30,9 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectLinkedOpenHashMap;
 @EventBusSubscriber(side = Side.CLIENT, phase = Phase.PRE)
 public class StructureAnimations {
 
-    /** Builds the client half of a build style from the common start header and the style's own bytes. */
     public interface Factory {
 
+        /** Builds the client half of a build style from the common start header and the style's own bytes. */
         StructureAnimationTask create(Start start, ByteBuf extra);
     }
 
@@ -51,13 +51,17 @@ public class StructureAnimations {
         FACTORIES.put(StructureAnimationStyle.REVEAL, StructureRevealAnimation::new);
         FACTORIES.put(StructureAnimationStyle.SUMMON, StructureSummonAnimation::new);
         FACTORIES.put(StructureAnimationStyle.FLIGHT, StructureFlightAnimation::new);
+        FACTORIES.put(StructureAnimationStyle.PRINT, StructurePrintAnimation::new);
+        FACTORIES.put(StructureAnimationStyle.RISE, StructureRiseAnimation::new);
+        FACTORIES.put(StructureAnimationStyle.SINGULARITY, StructureSingularityAnimation::new);
+        FACTORIES.put(StructureAnimationStyle.WARP_IN, StructureWarpInAnimation::new);
+        FACTORIES.put(StructureAnimationStyle.ORBITAL, StructureOrbitalAnimation::new);
     }
 
     public static long clientTicks() {
         return clientTicks;
     }
 
-    // Every mesh of every task shares one compile budget per frame.
     public static long compileBudget() {
         return Math.max(0, compileDeadline - System.nanoTime());
     }
@@ -122,7 +126,6 @@ public class StructureAnimations {
         Minecraft minecraft = Minecraft.getMinecraft();
         Entity camera = minecraft.renderViewEntity;
         if (camera == null || minecraft.theWorld == null) return;
-        // A quarter of the frame time, so a slow client still finishes its meshes in about the same wall time.
         long frame = System.nanoTime();
         compileDeadline = frame
             + Math.max(COMPILE_BUDGET_NANOS, Math.min(COMPILE_BUDGET_MAX_NANOS, (frame - lastFrame) / 4));
@@ -151,7 +154,7 @@ public class StructureAnimations {
 
     private static void drawGlow(int dimension, double cameraX, double cameraY, double cameraZ, float strength) {
         if (!GLOW_FX.begin()) return;
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT | GL11.GL_LINE_BIT);
         try {
             GL11.glDisable(GL11.GL_TEXTURE_2D);
             GL11.glDisable(GL11.GL_LIGHTING);
@@ -159,9 +162,11 @@ public class StructureAnimations {
             GL11.glDisable(GL11.GL_CULL_FACE);
             GL11.glDisable(GL11.GL_BLEND);
             GL11.glDisable(GL11.GL_DEPTH_TEST);
-            GL11.glColor4f(1, 1, 1, 1);
-            for (StructureAnimationTask task : TASKS.values())
-                if (task.start.dimension() == dimension) task.drawGlow(cameraX, cameraY, cameraZ);
+            for (StructureAnimationTask task : TASKS.values()) {
+                if (task.start.dimension() != dimension) continue;
+                GL11.glColor4f(1, 1, 1, 1);
+                task.drawGlow(cameraX, cameraY, cameraZ);
+            }
         } finally {
             GL11.glPopAttrib();
         }
