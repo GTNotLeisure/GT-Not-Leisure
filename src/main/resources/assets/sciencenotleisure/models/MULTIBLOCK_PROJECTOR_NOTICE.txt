@@ -1,0 +1,11 @@
+Multiblock Projector item model and texture
+
+Source: PrototypeEngineering (https://github.com/Circulate233/PrototypeEngineering), commit 8b87f1f214b7d34f5edc211bf163f040650399c0
+Original model: src/main/resources/assets/prototype_eng/models/item/build_instrument.json
+Original texture: src/main/resources/assets/prototype_eng/textures/items/construction_instrument.png
+License: GNU Lesser General Public License version 3. See META-INF/licenses/PrototypeEngineering-LGPL-3.0.txt.
+Model credit: Made with WI_8614_ice X:@wi8614ice @wi8614art QQ:1463599076
+
+The texture, geometry and face UVs are copied unchanged. The texture references are remapped
+to the local 1.7.10 block atlas (sciencenotleisure:blocks/multiblock_projector/multiblock_projector_model),
+and the first-person and third-person right-hand poses are scaled to 0.8.

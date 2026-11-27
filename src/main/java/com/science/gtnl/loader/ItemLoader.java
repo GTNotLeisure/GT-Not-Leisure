@@ -82,6 +82,7 @@ import com.science.gtnl.common.item.items.fuelRod.FuelRod;
 import com.science.gtnl.common.item.items.fuelRod.FuelRodDepleted;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.ModsItemlist;
+import com.science.gtnl.utils.text.AnimatedText;
 
 import appeng.api.storage.StorageChannel;
 import cpw.mods.fml.common.registry.GameRegistry;
@@ -751,6 +752,7 @@ public class ItemLoader {
             new ItemStack(ItemLoader.satietyRing, 1),
             AnimatedTooltipHandler
                 .buildTextWithAnimatedEnd(AnimatedTooltipHandler.text("Most machine recipe by zero_CM")));
+        AnimatedTooltipHandler.addItemTooltip(GTNLItemList.MultiblockProjector.get(1), AnimatedText.AUTHOR_LINEBROKE);
     }
 
     public static void registrySuspiciousStewFlower() {

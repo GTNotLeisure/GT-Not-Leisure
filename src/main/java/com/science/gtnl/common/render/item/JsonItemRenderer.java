@@ -1,4 +1,6 @@
-package com.science.gtnl.common.render.beamformer;
+package com.science.gtnl.common.render.item;
+
+import java.util.function.Function;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Tessellator;
@@ -19,11 +21,21 @@ import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
 
 @SideOnly(Side.CLIENT)
-public class BeamFormerItemRenderer implements IItemRenderer {
+public class JsonItemRenderer implements IItemRenderer {
+
+    public static final float ITEM_BLOCK_ENTITY_SCALE = 2, ITEM_ENTITY_SCALE = 1;
+
+    private final Function<Position, Geometry> models;
+    private final float entityScale;
+
+    public JsonItemRenderer(Function<Position, Geometry> models, float entityScale) {
+        this.models = models;
+        this.entityScale = entityScale;
+    }
 
     @Override
     public boolean handleRenderType(ItemStack item, ItemRenderType type) {
-        return BeamFormerModel.INSTANCE.getItem(position(type)) != null;
+        return models.apply(position(type)) != null;
     }
 
     @Override
@@ -37,7 +49,7 @@ public class BeamFormerItemRenderer implements IItemRenderer {
 
     @Override
     public void renderItem(ItemRenderType type, ItemStack item, Object... data) {
-        Geometry model = BeamFormerModel.INSTANCE.getItem(position(type));
+        Geometry model = models.apply(position(type));
         if (model == null) return;
         boolean inventory = type == ItemRenderType.INVENTORY;
         GL11.glPushAttrib(
@@ -100,13 +112,14 @@ public class BeamFormerItemRenderer implements IItemRenderer {
         };
     }
 
-    private static void applyFrame(ItemRenderType type) {
+    private void applyFrame(ItemRenderType type) {
         switch (type) {
             case INVENTORY -> {
                 GL11.glTranslatef(8, 8, 0);
                 GL11.glScalef(16, -16, 16);
             }
-            case ENTITY -> GL11.glScalef(2, 2, 2);
+            // Forge scales a dropped block item by 0.25 and a plain item by 0.5 before calling the renderer.
+            case ENTITY -> GL11.glScalef(entityScale, entityScale, entityScale);
             case EQUIPPED_FIRST_PERSON -> {
                 // Cancel Forge's block offset and Minecraft's legacy item scale and resting yaw.
                 GL11.glTranslatef(0.5F, 0.5F, 0.5F);
