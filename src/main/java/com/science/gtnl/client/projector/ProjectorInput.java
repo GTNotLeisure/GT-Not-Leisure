@@ -42,7 +42,7 @@ import cpw.mods.fml.relauncher.SideOnly;
 @EventBusSubscriber(side = Side.CLIENT, phase = Phase.PRE)
 public class ProjectorInput {
 
-    private static final String CATEGORY = "key.categories.gtnl";
+    public static final String CATEGORY = "key.categories.gtnl";
     private static final KeyBinding ROTATE = new KeyBinding("key.gtnl.projector_rotate", Keyboard.KEY_R, CATEGORY);
     private static final KeyBinding DISPLAY = new KeyBinding("key.gtnl.projector_display", Keyboard.KEY_N, CATEGORY);
     private static final KeyBinding FORWARD = new KeyBinding("key.gtnl.projector_forward", Keyboard.KEY_UP, CATEGORY);
@@ -64,6 +64,7 @@ public class ProjectorInput {
         ClientRegistry.registerKeyBinding(RIGHT);
         ClientRegistry.registerKeyBinding(OPEN);
         ClientRegistry.registerKeyBinding(LOCK);
+        ProjectorHud.register();
         ProjectorClient.registerListener();
     }
 
@@ -85,8 +86,7 @@ public class ProjectorInput {
             || plan.state == ProjectorPlan.State.IDLE
             || plan.isPlaced() && plan.dimension != mc.thePlayer.dimension) return;
         if (rotate) {
-            if (isAltDown()) ProjectorPoseScreen.open();
-            else if (isShiftDown()) turn(facing -> ProjectorOrientation.mirror(facing, ProjectorClient.validFacings()));
+            if (isShiftDown()) turn(facing -> ProjectorOrientation.mirror(facing, ProjectorClient.validFacings()));
             else turn(facing -> ProjectorOrientation.rotateY(facing, 1, ProjectorClient.validFacings()));
         }
         if (display) cycleDisplay(plan);

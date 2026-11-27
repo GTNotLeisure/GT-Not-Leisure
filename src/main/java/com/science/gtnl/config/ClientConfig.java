@@ -371,4 +371,16 @@ public class ClientConfig {
     @LangKey("gtnl.gui.config.client.projector_same_casing")
     @DefaultBoolean(false)
     public static boolean projectorSameCasing = false;
+
+    @Comment("Projector pose panel: horizontal position, 0 at the left edge of the screen and 1 at the right edge")
+    @LangKey("gtnl.gui.config.client.projector_hud_x")
+    @DefaultDouble(1)
+    @RangeDouble(min = 0, max = 1)
+    public static double projectorHudX = 1;
+
+    @Comment("Projector pose panel: vertical position, 0 at the top edge of the screen and 1 at the bottom edge")
+    @LangKey("gtnl.gui.config.client.projector_hud_y")
+    @DefaultDouble(0.3)
+    @RangeDouble(min = 0, max = 1)
+    public static double projectorHudY = 0.3;
 }

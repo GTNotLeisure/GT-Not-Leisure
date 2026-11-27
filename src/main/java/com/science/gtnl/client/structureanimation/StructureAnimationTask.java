@@ -53,6 +53,19 @@ public abstract class StructureAnimationTask {
         }
     }
 
+    public boolean animating() {
+        return placingTick < 0 && animationProgress() < 1;
+    }
+
+    public float animationProgress() {
+        int length = start.placingTick();
+        return length <= 0 ? 1 : Math.min(1, (float) (now() - startTick) / length);
+    }
+
+    public int placed() {
+        return Math.min(processed, start.cells());
+    }
+
     public void drop(int[] boxCells) {}
 
     public boolean timedOut() {

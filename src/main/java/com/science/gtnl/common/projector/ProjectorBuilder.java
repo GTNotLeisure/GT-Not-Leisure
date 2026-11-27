@@ -76,12 +76,12 @@ public class ProjectorBuilder {
     }
 
     public static final int MAX_CELLS = StructureAnimationStartPacket.MAX_CELLS,
-        MAX_SIDE = StructureAnimationStartPacket.MAX_SIDE, VIEW_RANGE = 128, PROGRESS_TICKS = 5,
+        MAX_SIDE = StructureAnimationStartPacket.MAX_SIDE, VIEW_RANGE = 128,
         MAX_START_BYTES = StructureAnimationStartPacket.MAX_START_BYTES, HEARTBEAT_TICKS = 20, STALL_TICKS = 200,
         COOLDOWN_TICKS = 40, SHOWN_SHORTAGES = 8, SCAN_BATCH = 256, RELEASE_TICKS = 4;
     public static final int PLACED = 0, EXISTING = 1, SHORT = 2, BLOCKED = 3, REFUSED = 4, FAILED = 5, OCCUPIED = 6,
         UNLOADED = 7, OBSTRUCTED = 8, OUTCOMES = 9, DENIED_LIMIT = 256, MAX_VOLUME = 4_000_000;
-    private static final String LANG = "gtnl.projector.build.";
+    public static final String LANG = "gtnl.projector.build.";
     private static final Map<UUID, Preparation> PREPARING = new LinkedHashMap<>();
     private static final Map<UUID, Job> JOBS = new HashMap<>();
     private static final Map<UUID, Integer> LAST_REQUEST = new HashMap<>();
@@ -630,6 +630,8 @@ public class ProjectorBuilder {
             site.originZ,
             site.facing.getIndex(),
             style,
+            job.cells.length,
+            job.placingTick,
             false,
             0);
         for (EntityPlayerMP receiver : receivers) sendStart(job, receiver, receiver == player);
@@ -808,8 +810,6 @@ public class ProjectorBuilder {
                 }
                 if (hiding) continue;
                 send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PROGRESS, sent));
-                if ((job.ticks - job.placingTick) % PROGRESS_TICKS == 0)
-                    HotbarMessages.send(owner, new ChatComponentTranslation(LANG + "progress", sent, job.cells.length));
             } catch (RuntimeException e) {
                 ScienceNotLeisure.LOG.warn("Projector build {} stopped", job.id, e);
                 iterator.remove();

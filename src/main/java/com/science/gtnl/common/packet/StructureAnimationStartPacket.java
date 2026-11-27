@@ -17,7 +17,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
 
     public record Start(int job, int dimension, int originX, int originY, int originZ, int sizeX, int sizeY, int sizeZ,
         byte[] kinds, int[] items, int[] damages, int[] frontCells, byte[] fronts, int controllerX, int controllerY,
-        int controllerZ, int facing, StructureAnimationStyle style, boolean own, int elapsed) {
+        int controllerZ, int facing, StructureAnimationStyle style, int cells, int placingTick, boolean own,
+        int elapsed) {
 
         // The same build for another receiver: whether it is theirs, and how many ticks ago it started.
         public Start as(boolean own, int elapsed) {
@@ -40,6 +41,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
                 controllerZ,
                 facing,
                 style,
+                cells,
+                placingTick,
                 own,
                 elapsed);
         }
@@ -89,6 +92,9 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
         int controllerX = buf.readInt(), controllerY = buf.readInt(), controllerZ = buf.readInt(),
             facing = buf.readInt();
         int style = buf.readByte();
+        int cells = buf.readInt(), placingTick = buf.readInt();
+        if (cells < 0 || cells > MAX_CELLS || placingTick < 0)
+            throw new IllegalArgumentException("Invalid projector build length");
         boolean own = buf.readBoolean();
         int elapsed = Math.max(0, buf.readInt());
         int extraLength = buf.readShort();
@@ -117,6 +123,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
             controllerZ,
             facing,
             StructureAnimationStyle.values()[style],
+            cells,
+            placingTick,
             own,
             elapsed);
     }
@@ -150,6 +158,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
         buf.writeByte(
             start.style()
                 .ordinal());
+        buf.writeInt(start.cells());
+        buf.writeInt(start.placingTick());
         buf.writeBoolean(start.own());
         buf.writeInt(start.elapsed());
         buf.writeShort(extra.length);

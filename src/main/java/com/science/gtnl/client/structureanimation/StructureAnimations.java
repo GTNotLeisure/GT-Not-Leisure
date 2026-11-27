@@ -68,8 +68,12 @@ public class StructureAnimations {
 
     // Only the local player's own builds; someone else's build nearby must not block or hide this player's projector.
     public static boolean ownActive() {
-        for (StructureAnimationTask task : TASKS.values()) if (task.start.own()) return true;
-        return false;
+        return ownTask() != null;
+    }
+
+    public static StructureAnimationTask ownTask() {
+        for (StructureAnimationTask task : TASKS.values()) if (task.start.own()) return task;
+        return null;
     }
 
     public static void start(Start start, byte[] extra) {
