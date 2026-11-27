@@ -38,10 +38,8 @@ public class OwnerResearchCache {
         owner = ownerName;
 
         List<String> research = ResearchManager.getResearchForPlayer(ownerName);
-        if (research == null || research.isEmpty()) {
-            completedResearch.clear();
-            return;
-        }
+        // Thaumcraft reads the wrong file for offline players and returns an empty list, so keep the saved copy.
+        if (research == null || research.isEmpty()) return;
         if (research.size() == completedResearch.size() && completedResearch.containsAll(research)) return;
 
         completedResearch.clear();

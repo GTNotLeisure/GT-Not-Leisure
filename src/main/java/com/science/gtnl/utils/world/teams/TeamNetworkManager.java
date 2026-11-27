@@ -136,9 +136,13 @@ public class TeamNetworkManager {
         if (playerName != null && !playerName.isEmpty()) return playerName;
 
         MinecraftServer server = MinecraftServer.getServer();
-        GameProfile profile = server == null ? null : server.func_152358_ax()
-            .func_152652_a(playerId);
-        if (profile != null && profile.getName() != null && !profile.getName().isEmpty()) return profile.getName();
+        GameProfile profile = server == null ? null
+            : server.func_152358_ax()
+                .func_152652_a(playerId);
+        if (profile != null && profile.getName() != null
+            && !profile.getName()
+                .isEmpty())
+            return profile.getName();
         return playerId.toString();
     }
 
