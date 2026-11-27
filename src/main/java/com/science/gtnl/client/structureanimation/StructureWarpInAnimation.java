@@ -59,9 +59,10 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     private static final FxCameraShake.Source SHAKE = new FxCameraShake.Source();
     private static final FloatBuffer MODELVIEW = BufferUtils.createFloatBuffer(16);
     private static final Random RANDOM = new Random();
+    public static final double MOTE_SCALE_MIN = 0.45, MOTE_FULL_RADIUS = 10;
 
     public final int materializeTicks, wormholeEnd, collapseTick;
-    public final double centerY, sphereRadius, holeWorldRadius;
+    public final double centerY, sphereRadius, holeWorldRadius, moteScale;
     private final float localCx, localCy, localCz;
     private float[] wireLines;
     private final FxFractalLightning lightning = new FxFractalLightning(MAX_BOLTS);
@@ -85,6 +86,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
             .sqrt(start.sizeX() * start.sizeX() + start.sizeY() * start.sizeY() + start.sizeZ() * start.sizeZ());
         sphereRadius = Math.max(2.2, diag * 0.56 + 0.8);
         holeWorldRadius = Math.max(1.25, Math.min(15.0, diag * 0.21 + 0.40));
+        moteScale = Math.max(MOTE_SCALE_MIN, Math.min(1, radius / MOTE_FULL_RADIUS));
 
         int[] cells = new int[code.length];
         for (int i = 0; i < cells.length; i++) cells[i] = i;
@@ -350,10 +352,11 @@ public class StructureWarpInAnimation extends StructureMeshTask {
                 new Mote(
                     Kind.DOT,
                     new Vec3d(ox, oy, oz),
-                    0.12 + RANDOM.nextDouble() * 0.10,
+                    (0.12 + RANDOM.nextDouble() * 0.10) * moteScale,
                     10 + RANDOM.nextInt(8),
                     PSIONIC_BLUE,
                     PSIONIC_CORE).velocity(vel)
+                        .smooth()
                         .fall(0.95, 0)
                         .twinkle(RANDOM.nextFloat() * 6.28F),
                 0);
@@ -377,10 +380,11 @@ public class StructureWarpInAnimation extends StructureMeshTask {
                 new Mote(
                     Kind.DOT,
                     origin,
-                    0.14 + RANDOM.nextDouble() * 0.12,
+                    (0.14 + RANDOM.nextDouble() * 0.12) * moteScale,
                     10 + RANDOM.nextInt(8),
                     i % 2 == 0 ? PSIONIC_CORE : PSIONIC_BLUE,
                     PSIONIC_CORE).velocity(vel)
+                        .smooth()
                         .fall(0.94, -0.001)
                         .twinkle(RANDOM.nextFloat() * 6.28F),
                 0);
@@ -401,10 +405,11 @@ public class StructureWarpInAnimation extends StructureMeshTask {
                 new Mote(
                     Kind.DOT,
                     origin,
-                    0.16 + RANDOM.nextDouble() * 0.14,
+                    (0.16 + RANDOM.nextDouble() * 0.14) * moteScale,
                     12 + RANDOM.nextInt(10),
                     PSIONIC_BLUE,
                     PSIONIC_CORE).velocity(vel)
+                        .smooth()
                         .fall(0.90, 0.003)
                         .twinkle(RANDOM.nextFloat() * 6.28F),
                 0);
