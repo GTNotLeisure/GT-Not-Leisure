@@ -908,6 +908,22 @@ gtnl.machine.small_infusion_matrix.recipe_type=Промышленная инфу
 
 gtnl.machine.small_arcane_assembler.name=Малый тайный ассемблер
 gtnl.machine.small_arcane_assembler.recipe_type=Тайное ремесло
+gtnl.machine.small_arcane_assembler.gui.vis_header=§fВис: жезл | буфер контроллера
+gtnl.machine.small_arcane_assembler.gui.vis_header_no_wand=§fВис: нет жезла | буфер контроллера
+gtnl.machine.small_arcane_assembler.gui.vis_line=%s: %s | %s
+gtnl.machine.small_arcane_assembler.gui.charge_state=§fЗарядка: %s
+gtnl.machine.small_arcane_assembler.gui.charge_state.0=§7Машина остановлена
+gtnl.machine.small_arcane_assembler.gui.charge_state.1=§aИдёт зарядка
+gtnl.machine.small_arcane_assembler.gui.charge_state.2=§eПауза во время крафта
+gtnl.machine.small_arcane_assembler.gui.charge_state.3=§bЖезл и буфер заполнены
+gtnl.machine.small_arcane_assembler.gui.charge_state.4=§cНедостаточно энергии
+gtnl.machine.small_arcane_assembler.gui.charge_info=§fУровень §e%s§7 (×%s) §8| §fУзлы §b%s §8| §fЗа цикл §b%s/%s CV
+gtnl.machine.small_arcane_assembler.gui.aspect.aer=Aer
+gtnl.machine.small_arcane_assembler.gui.aspect.terra=Terra
+gtnl.machine.small_arcane_assembler.gui.aspect.ignis=Ignis
+gtnl.machine.small_arcane_assembler.gui.aspect.aqua=Aqua
+gtnl.machine.small_arcane_assembler.gui.aspect.ordo=Ordo
+gtnl.machine.small_arcane_assembler.gui.aspect.perditio=Perditio
 
 gtnl.machine.industrial_crucible.name=Промышленный тигель
 gtnl.recipe.industrial_crucible=Промышленный тигель

@@ -908,6 +908,22 @@ gtnl.machine.small_infusion_matrix.recipe_type=Industrial Infusion
 
 gtnl.machine.small_arcane_assembler.name=Small Arcane Assembler
 gtnl.machine.small_arcane_assembler.recipe_type=Arcane Crafting
+gtnl.machine.small_arcane_assembler.gui.vis_header=§fVis: Wand | Controller buffer
+gtnl.machine.small_arcane_assembler.gui.vis_header_no_wand=§fVis: No wand | Controller buffer
+gtnl.machine.small_arcane_assembler.gui.vis_line=%s: %s | %s
+gtnl.machine.small_arcane_assembler.gui.charge_state=§fCharging: %s
+gtnl.machine.small_arcane_assembler.gui.charge_state.0=§7Machine stopped
+gtnl.machine.small_arcane_assembler.gui.charge_state.1=§aCharging
+gtnl.machine.small_arcane_assembler.gui.charge_state.2=§ePaused while crafting
+gtnl.machine.small_arcane_assembler.gui.charge_state.3=§bWand and buffer full
+gtnl.machine.small_arcane_assembler.gui.charge_state.4=§cNot enough power
+gtnl.machine.small_arcane_assembler.gui.charge_info=§fTier §e%s§7 (×%s) §8| §fNodes §b%s §8| §fThis cycle §b%s/%s CV
+gtnl.machine.small_arcane_assembler.gui.aspect.aer=Aer
+gtnl.machine.small_arcane_assembler.gui.aspect.terra=Terra
+gtnl.machine.small_arcane_assembler.gui.aspect.ignis=Ignis
+gtnl.machine.small_arcane_assembler.gui.aspect.aqua=Aqua
+gtnl.machine.small_arcane_assembler.gui.aspect.ordo=Ordo
+gtnl.machine.small_arcane_assembler.gui.aspect.perditio=Perditio
 
 gtnl.machine.industrial_crucible.name=Industrial Crucible
 gtnl.recipe.industrial_crucible=Industrial Crucible

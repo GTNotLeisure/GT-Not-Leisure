@@ -908,6 +908,22 @@ gtnl.machine.small_infusion_matrix.recipe_type=工业注魔
 
 gtnl.machine.small_arcane_assembler.name=小型奥术组装机
 gtnl.machine.small_arcane_assembler.recipe_type=奥术合成
+gtnl.machine.small_arcane_assembler.gui.vis_header=§f魔力：法杖 | 控制器缓存
+gtnl.machine.small_arcane_assembler.gui.vis_header_no_wand=§f魔力：未放入法杖 | 控制器缓存
+gtnl.machine.small_arcane_assembler.gui.vis_line=%s：%s | %s
+gtnl.machine.small_arcane_assembler.gui.charge_state=§f充能：%s
+gtnl.machine.small_arcane_assembler.gui.charge_state.0=§7已停机
+gtnl.machine.small_arcane_assembler.gui.charge_state.1=§a充能中
+gtnl.machine.small_arcane_assembler.gui.charge_state.2=§e合成中，暂停充能
+gtnl.machine.small_arcane_assembler.gui.charge_state.3=§b法杖与缓存已满
+gtnl.machine.small_arcane_assembler.gui.charge_state.4=§c电力不足
+gtnl.machine.small_arcane_assembler.gui.charge_info=§f档位 §e%s§7（×%s）§8| §f节点 §b%s §8| §f本轮 §b%s/%s CV
+gtnl.machine.small_arcane_assembler.gui.aspect.aer=风
+gtnl.machine.small_arcane_assembler.gui.aspect.terra=地
+gtnl.machine.small_arcane_assembler.gui.aspect.ignis=火
+gtnl.machine.small_arcane_assembler.gui.aspect.aqua=水
+gtnl.machine.small_arcane_assembler.gui.aspect.ordo=秩序
+gtnl.machine.small_arcane_assembler.gui.aspect.perditio=混沌
 
 gtnl.machine.industrial_crucible.name=工业坩埚
 gtnl.recipe.industrial_crucible=工业坩埚

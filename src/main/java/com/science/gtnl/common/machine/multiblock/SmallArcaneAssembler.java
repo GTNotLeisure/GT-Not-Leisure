@@ -27,6 +27,7 @@ import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
 import com.mojang.authlib.GameProfile;
 import com.science.gtnl.api.casing.GTNLCasings;
+import com.science.gtnl.common.gui.modularui.multiblock.SmallArcaneAssemblerGui;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
@@ -39,6 +40,7 @@ import com.science.gtnl.utils.recipes.TransactionalProcessingLogic;
 import gregtech.api.casing.Casings;
 import gregtech.api.enums.HatchElement;
 import gregtech.api.enums.Textures;
+import gregtech.api.enums.VoltageIndex;
 import gregtech.api.interfaces.ITexture;
 import gregtech.api.interfaces.metatileentity.IMetaTileEntity;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
@@ -53,6 +55,7 @@ import gregtech.api.structure.error.StructureError;
 import gregtech.api.util.GTRecipe;
 import gregtech.api.util.GTStructureUtility;
 import gregtech.api.util.MultiblockTooltipBuilder;
+import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
@@ -78,19 +81,28 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
     private static final int VIS_NODE_SCAN_INTERVAL = 200;
     private static final long WAND_CHARGE_EUT = 32;
     private static final int WAND_CHARGE_INTERVAL = 128;
-    private static final int WAND_CHARGE_ASPECT_COUNT = 2;
-    private static final int WAND_CHARGE_MIN_VIS = 1;
-    private static final int WAND_CHARGE_MAX_VIS = 4;
-    private static final int CENTIVIS_PER_VIS = 100;
+    private static final int MAX_CHARGE_OVERCLOCKS = 13;
+    public static final int CHARGE_STATE_STOPPED = 0, CHARGE_STATE_CHARGING = 1, CHARGE_STATE_PAUSED = 2,
+        CHARGE_STATE_FULL = 3, CHARGE_STATE_NO_POWER = 4;
+    private static final int WAND_CHARGE_ASPECT_COUNT = 6;
+    private static final int WAND_CHARGE_MIN_VIS = 2;
+    private static final int WAND_CHARGE_MAX_VIS = 8;
+    public static final int CENTIVIS_PER_VIS = 100;
+    public static final int VIS_BUFFER_CAPACITY_CV = 16384 * CENTIVIS_PER_VIS;
     private static final int MAX_SCALED_VIS = Integer.MAX_VALUE / CENTIVIS_PER_VIS;
     private static final int CV_BOOST_REFERENCE = 30;
     private static final double MAX_CV_CHARGE_BONUS = 2.00;
     private static final int OVERFLOW_TRANSFER_DENOMINATOR = 60;
     private static final int BASE_OVERFLOW_TRANSFER_NUMERATOR = 15;
     private static final int VIS_EFFECT_RANGE = 8;
-    private static final List<Aspect> PRIMAL_ASPECTS = Aspect.getPrimalAspects();
+    public static final List<Aspect> PRIMAL_ASPECTS = Aspect.getPrimalAspects();
 
     private final OwnerResearchCache researchCache = new OwnerResearchCache();
+    private final int[] bufferedCV = new int[6];
+    private int chargeState;
+    private int lastVisNodeCount;
+    private int lastDrainedCV;
+    private int lastDrainTargetCV;
     private final ObjectArrayList<ChunkCoordinates> visNodeCoordinates = new ObjectArrayList<>();
     private long nextVisNodeScanTick;
     private int chargeCycleTicksRemaining;
@@ -151,6 +163,7 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         nbt.setIntArray("WandCycleCharge", cycleChargeCV);
         nbt.setIntArray("WandOverflowNumerators", overflowTransferNumerators);
         nbt.setIntArray("WandOverflowRemainders", overflowTransferRemainders);
+        nbt.setIntArray("VisBuffer", bufferedCV);
         nbt.setBoolean("VisConnectionActive", visConnectionActive);
         if (visEffectAspect != null) nbt.setString("VisConnectionAspect", visEffectAspect.getTag());
         super.saveNBTData(nbt);
@@ -163,6 +176,10 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         loadIntArray(nbt.getIntArray("WandCycleCharge"), cycleChargeCV);
         loadIntArray(nbt.getIntArray("WandOverflowNumerators"), overflowTransferNumerators);
         loadIntArray(nbt.getIntArray("WandOverflowRemainders"), overflowTransferRemainders);
+        loadIntArray(nbt.getIntArray("VisBuffer"), bufferedCV);
+        for (int i = 0; i < bufferedCV.length; i++) {
+            bufferedCV[i] = Math.min(VIS_BUFFER_CAPACITY_CV, Math.max(0, bufferedCV[i]));
+        }
         visConnectionActive = nbt.getBoolean("VisConnectionActive");
         visEffectAspect = nbt.hasKey("VisConnectionAspect") ? Aspect.getAspect(nbt.getString("VisConnectionAspect"))
             : null;
@@ -194,39 +211,83 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         }
 
         if (mMachine && baseMetaTileEntity.isAllowedToWork()) {
-            chargeArcaneWand(baseMetaTileEntity);
-        } else if (visConnectionActive) {
-            stopVisConnectionEffect(baseMetaTileEntity);
+            chargeVis(baseMetaTileEntity);
+        } else {
+            chargeState = CHARGE_STATE_STOPPED;
+            if (visConnectionActive) stopVisConnectionEffect(baseMetaTileEntity);
         }
     }
 
-    private void chargeArcaneWand(IGregTechTileEntity baseMetaTileEntity) {
+    private void chargeVis(IGregTechTileEntity baseMetaTileEntity) {
         ItemStack wandStack = getArcaneWand();
-        if (wandStack == null) {
+        boolean changed = refillWandFromBuffer(wandStack);
+        chargeState = currentChargeState(wandStack);
+        if (chargeState != CHARGE_STATE_CHARGING) {
             if (visConnectionActive) stopVisConnectionEffect(baseMetaTileEntity);
-            return;
-        }
-
-        ItemWandCasting wand = (ItemWandCasting) wandStack.getItem();
-        int maxVis = wand.getMaxVis(wandStack);
-        boolean needsCharge = false;
-        for (Aspect aspect : PRIMAL_ASPECTS) {
-            if (wand.getVis(wandStack, aspect) < maxVis) {
-                needsCharge = true;
-                break;
-            }
-        }
-        if (!needsCharge || !drainEnergyInput(WAND_CHARGE_EUT)) {
-            if (visConnectionActive) stopVisConnectionEffect(baseMetaTileEntity);
+            if (changed) baseMetaTileEntity.markDirty();
             return;
         }
         if (chargeCycleTicksRemaining <= 0) beginChargeCycle(baseMetaTileEntity);
-        if (chargeCycleTicksRemaining <= 0) return;
+        if (chargeCycleTicksRemaining > 0) {
+            changed |= transferPendingCharge(baseMetaTileEntity, wandStack);
+            chargeCycleTicksRemaining--;
+            if (chargeCycleTicksRemaining <= 0) clearChargeCycle();
+        }
+        if (changed) baseMetaTileEntity.markDirty();
+    }
 
-        boolean charged = transferPendingCharge(baseMetaTileEntity, wand, wandStack, maxVis);
-        chargeCycleTicksRemaining--;
-        if (chargeCycleTicksRemaining <= 0) clearChargeCycle();
-        if (charged) baseMetaTileEntity.markDirty();
+    private int currentChargeState(ItemStack wandStack) {
+        if (mMaxProgresstime > 0) return CHARGE_STATE_PAUSED;
+        if (!hasVisRoom(wandStack)) return CHARGE_STATE_FULL;
+        if (!drainEnergyInput(WAND_CHARGE_EUT << 2 * chargeOverclocks())) return CHARGE_STATE_NO_POWER;
+        return CHARGE_STATE_CHARGING;
+    }
+
+    public int chargeOverclocks() {
+        return Math.min(MAX_CHARGE_OVERCLOCKS, Math.max(0, mEnergyHatchTier - VoltageIndex.LV));
+    }
+
+    private boolean refillWandFromBuffer(ItemStack wandStack) {
+        if (wandStack == null) return false;
+        ItemWandCasting wand = (ItemWandCasting) wandStack.getItem();
+        boolean moved = false;
+        for (int i = 0; i < bufferedCV.length; i++) {
+            Aspect aspect = PRIMAL_ASPECTS.get(i);
+            int amount = Math.min(bufferedCV[i], wandRoom(wandStack, aspect));
+            if (amount <= 0) continue;
+            wand.addRealVis(wandStack, aspect, amount, true);
+            bufferedCV[i] -= amount;
+            moved = true;
+        }
+        return moved;
+    }
+
+    private boolean hasVisRoom(ItemStack wandStack) {
+        for (int i = 0; i < PRIMAL_ASPECTS.size(); i++) {
+            if (visRoom(wandStack, i) > 0) return true;
+        }
+        return false;
+    }
+
+    private int wandRoom(ItemStack wandStack, Aspect aspect) {
+        if (wandStack == null) return 0;
+        ItemWandCasting wand = (ItemWandCasting) wandStack.getItem();
+        return Math.max(0, wand.getMaxVis(wandStack) - wand.getVis(wandStack, aspect));
+    }
+
+    private int visRoom(ItemStack wandStack, int aspectIndex) {
+        return wandRoom(wandStack, PRIMAL_ASPECTS.get(aspectIndex)) + VIS_BUFFER_CAPACITY_CV - bufferedCV[aspectIndex];
+    }
+
+    private int storeVis(ItemStack wandStack, int aspectIndex, int amount) {
+        int toWand = Math.min(amount, wandRoom(wandStack, PRIMAL_ASPECTS.get(aspectIndex)));
+        if (toWand > 0) {
+            ((ItemWandCasting) wandStack.getItem())
+                .addRealVis(wandStack, PRIMAL_ASPECTS.get(aspectIndex), toWand, true);
+        }
+        int toBuffer = Math.max(0, Math.min(amount - toWand, VIS_BUFFER_CAPACITY_CV - bufferedCV[aspectIndex]));
+        bufferedCV[aspectIndex] += toBuffer;
+        return toWand + toBuffer;
     }
 
     private void beginChargeCycle(IGregTechTileEntity baseMetaTileEntity) {
@@ -235,9 +296,13 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         List<TileVisNode> visNodes = getNearbyVisNodes(baseMetaTileEntity);
         boolean connectionEffectStarted = false;
         int aspectCount = Math.min(WAND_CHARGE_ASPECT_COUNT, selectedAspects.size());
+        lastVisNodeCount = visNodes.size();
+        lastDrainedCV = 0;
+        lastDrainTargetCV = aspectCount * CV_BOOST_REFERENCE;
         for (int i = 0; i < aspectCount; i++) {
             Aspect aspect = selectedAspects.remove(baseMetaTileEntity.getWorld().rand.nextInt(selectedAspects.size()));
             int drainedCV = drainVisWithoutParticles(visNodes, aspect, CV_BOOST_REFERENCE);
+            lastDrainedCV += drainedCV;
             if (drainedCV > 0 && !connectionEffectStarted) {
                 connectionEffectStarted = beginVisConnectionEffect(baseMetaTileEntity, aspect);
             }
@@ -245,8 +310,8 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
             int baseVis = WAND_CHARGE_MIN_VIS
                 + baseMetaTileEntity.getWorld().rand.nextInt(WAND_CHARGE_MAX_VIS - WAND_CHARGE_MIN_VIS + 1);
             int aspectIndex = PRIMAL_ASPECTS.indexOf(aspect);
-            cycleChargeCV[aspectIndex] = (int) Math
-                .round(baseVis * CENTIVIS_PER_VIS * (1.0 + MAX_CV_CHARGE_BONUS * cvPercentage));
+            cycleChargeCV[aspectIndex] = (int) Math.round(
+                baseVis * CENTIVIS_PER_VIS * (1.0 + MAX_CV_CHARGE_BONUS * cvPercentage) * (1 << chargeOverclocks()));
             overflowTransferNumerators[aspectIndex] = BASE_OVERFLOW_TRANSFER_NUMERATOR + drainedCV;
         }
         if (!connectionEffectStarted && visConnectionActive) stopVisConnectionEffect(baseMetaTileEntity);
@@ -316,9 +381,7 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
         return drained;
     }
 
-    private boolean transferPendingCharge(IGregTechTileEntity baseMetaTileEntity, ItemWandCasting wand,
-        ItemStack wandStack, int maxVis) {
-        int overflowPool = 0;
+    private boolean transferPendingCharge(IGregTechTileEntity baseMetaTileEntity, ItemStack wandStack) {
         boolean charged = false;
         int elapsedTicks = WAND_CHARGE_INTERVAL - chargeCycleTicksRemaining + 1;
         for (int i = 0; i < cycleChargeCV.length; i++) {
@@ -327,20 +390,32 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
             int amount = (int) ((long) cycleChargeCV[i] * elapsedTicks / WAND_CHARGE_INTERVAL
                 - (long) cycleChargeCV[i] * (elapsedTicks - 1) / WAND_CHARGE_INTERVAL);
             if (amount <= 0) continue;
-            Aspect aspect = PRIMAL_ASPECTS.get(i);
-            int acceptedCV = Math.min(amount, maxVis - wand.getVis(wandStack, aspect));
-            if (acceptedCV > 0) {
-                wand.addRealVis(wandStack, aspect, acceptedCV, true);
+            int toWand = Math.min(amount, wandRoom(wandStack, PRIMAL_ASPECTS.get(i)));
+            if (toWand > 0) {
+                storeVis(wandStack, i, toWand);
                 charged = true;
             }
+            int overflowCV = amount - toWand;
+            if (overflowCV <= 0) continue;
 
-            int overflowCV = amount - acceptedCV;
-            int scaledOverflow = overflowCV * overflowTransferNumerators[i] + overflowTransferRemainders[i];
-            overflowPool += scaledOverflow / OVERFLOW_TRANSFER_DENOMINATOR;
-            overflowTransferRemainders[i] = scaledOverflow % OVERFLOW_TRANSFER_DENOMINATOR;
+            int transferredCV = scaleOverflow(i, overflowCV);
+            int keptCV = overflowCV - transferredCV;
+            int toBuffer = Math.min(keptCV, VIS_BUFFER_CAPACITY_CV - bufferedCV[i]);
+            bufferedCV[i] += toBuffer;
+            int pool = transferredCV + scaleOverflow(i, keptCV - toBuffer);
+            int distributed = distributeOverflowVis(baseMetaTileEntity, wandStack, pool, i);
+            int returned = Math.min(pool - distributed, VIS_BUFFER_CAPACITY_CV - bufferedCV[i]);
+            bufferedCV[i] += returned;
+            if (toBuffer + distributed + returned > 0) charged = true;
         }
+        return charged;
+    }
 
-        return distributeOverflowVis(baseMetaTileEntity, wand, wandStack, maxVis, overflowPool) || charged;
+    private int scaleOverflow(int aspectIndex, int overflowCV) {
+        if (overflowCV <= 0) return 0;
+        int scaled = overflowCV * overflowTransferNumerators[aspectIndex] + overflowTransferRemainders[aspectIndex];
+        overflowTransferRemainders[aspectIndex] = scaled % OVERFLOW_TRANSFER_DENOMINATOR;
+        return scaled / OVERFLOW_TRANSFER_DENOMINATOR;
     }
 
     private void clearChargeCycle() {
@@ -449,24 +524,25 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
             && (node.isSource() || VisNetHandler.isNodeValid(node.getParent()));
     }
 
-    private boolean distributeOverflowVis(IGregTechTileEntity baseMetaTileEntity, ItemWandCasting wand,
-        ItemStack wandStack, int maxVis, int overflowPool) {
-        if (overflowPool <= 0) return false;
+    private int distributeOverflowVis(IGregTechTileEntity baseMetaTileEntity, ItemStack wandStack, int overflowPool,
+        int sourceIndex) {
+        if (overflowPool <= 0) return 0;
 
-        ObjectArrayList<Aspect> targets = new ObjectArrayList<>();
+        IntArrayList targets = new IntArrayList();
         IntArrayList rooms = new IntArrayList();
-        int totalRoom = 0;
-        for (Aspect aspect : PRIMAL_ASPECTS) {
-            int room = maxVis - wand.getVis(wandStack, aspect);
+        long totalRoom = 0;
+        for (int i = 0; i < PRIMAL_ASPECTS.size(); i++) {
+            if (i == sourceIndex) continue;
+            int room = visRoom(wandStack, i);
             if (room <= 0) continue;
 
-            targets.add(aspect);
+            targets.add(i);
             rooms.add(room);
             totalRoom += room;
         }
-        if (targets.isEmpty()) return false;
+        if (targets.isEmpty()) return 0;
 
-        int distributable = Math.min(overflowPool, totalRoom);
+        int distributable = (int) Math.min(overflowPool, totalRoom);
         int[] shares = new int[targets.size()];
         int distributed = 0;
         for (int i = 0; i < targets.size(); i++) {
@@ -480,10 +556,42 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
             shares[(start + i) % targets.size()]++;
         }
 
+        int stored = 0;
         for (int i = 0; i < targets.size(); i++) {
-            if (shares[i] > 0) wand.addRealVis(wandStack, targets.get(i), shares[i], true);
+            if (shares[i] > 0) stored += storeVis(wandStack, targets.getInt(i), shares[i]);
         }
-        return distributable > 0;
+        return stored;
+    }
+
+    public int getBufferedVisForGui(int aspectIndex) {
+        return bufferedCV[aspectIndex];
+    }
+
+    public int getWandVisForGui(int aspectIndex) {
+        ItemStack wandStack = getArcaneWand();
+        if (wandStack == null) return 0;
+        return ((ItemWandCasting) wandStack.getItem()).getVis(wandStack, PRIMAL_ASPECTS.get(aspectIndex));
+    }
+
+    public int getChargeStateForGui() {
+        return chargeState;
+    }
+
+    public int getVisNodeCountForGui() {
+        return lastVisNodeCount;
+    }
+
+    public int getDrainedCVForGui() {
+        return lastDrainedCV;
+    }
+
+    public int getDrainTargetCVForGui() {
+        return lastDrainTargetCV;
+    }
+
+    public int getWandMaxVisForGui() {
+        ItemStack wandStack = getArcaneWand();
+        return wandStack == null ? 0 : ((ItemWandCasting) wandStack.getItem()).getMaxVis(wandStack);
     }
 
     private boolean isResearchComplete(String research) {
@@ -694,8 +802,18 @@ public class SmallArcaneAssembler extends MultiMachineBase<SmallArcaneAssembler>
     }
 
     @Override
+    public boolean needsClientTick() {
+        return true;
+    }
+
+    @Override
     public boolean getPerfectOC() {
         return true;
+    }
+
+    @Override
+    protected @NotNull MTEMultiBlockBaseGui<?> getGui() {
+        return new SmallArcaneAssemblerGui(this);
     }
 
     @Override
