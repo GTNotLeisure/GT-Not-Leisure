@@ -56,7 +56,7 @@ public class ProjectorRenderer {
     @SubscribeEvent
     public static void render(RenderWorldLastEvent event) {
         ProjectorPlan plan = ProjectorClient.plan;
-        if (!ProjectorClient.visible || plan == null) return;
+        if (!ProjectorClient.visible || plan == null || StructureAnimations.ownActive()) return;
         FxCamera.capture();
         Minecraft mc = Minecraft.getMinecraft();
         Entity camera = mc.renderViewEntity;
@@ -76,9 +76,7 @@ public class ProjectorRenderer {
                 | GL11.GL_COLOR_BUFFER_BIT);
         try {
             GL11.glTranslated(x - cameraX, y - cameraY, z - cameraZ);
-            if (structure != null && !structure.isEmpty()
-                && plan.display != ProjectorPlan.Display.BOX
-                && !StructureAnimations.ownActive()) {
+            if (structure != null && !structure.isEmpty() && plan.display != ProjectorPlan.Display.BOX) {
                 drawGhosts(
                     structure,
                     plan.display == ProjectorPlan.Display.DIFFERENCE && ProjectorClient.placed,

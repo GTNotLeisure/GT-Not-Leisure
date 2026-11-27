@@ -20,6 +20,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -28,6 +29,7 @@ import net.minecraftforge.event.world.BlockEvent;
 
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
 import com.gtnewhorizon.gtnhlib.eventbus.Phase;
+import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
 import com.gtnewhorizon.structurelib.alignment.IAlignment;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnewhorizon.structurelib.util.InventoryUtility;
@@ -54,6 +56,10 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 @EventBusSubscriber(phase = Phase.PRE)
 public class ProjectorBuilder {
@@ -72,7 +78,7 @@ public class ProjectorBuilder {
     public static final int MAX_CELLS = StructureAnimationStartPacket.MAX_CELLS,
         MAX_SIDE = StructureAnimationStartPacket.MAX_SIDE, VIEW_RANGE = 128, PROGRESS_TICKS = 5,
         MAX_START_BYTES = StructureAnimationStartPacket.MAX_START_BYTES, HEARTBEAT_TICKS = 20, STALL_TICKS = 200,
-        COOLDOWN_TICKS = 40, SHOWN_SHORTAGES = 8, SCAN_BATCH = 256;
+        COOLDOWN_TICKS = 40, SHOWN_SHORTAGES = 8, SCAN_BATCH = 256, RELEASE_TICKS = 4;
     public static final int PLACED = 0, EXISTING = 1, SHORT = 2, BLOCKED = 3, REFUSED = 4, FAILED = 5, OCCUPIED = 6,
         UNLOADED = 7, OBSTRUCTED = 8, OUTCOMES = 9, DENIED_LIMIT = 256, MAX_VOLUME = 4_000_000;
     private static final String LANG = "gtnl.projector.build.";
@@ -115,6 +121,9 @@ public class ProjectorBuilder {
         public long placingNanos;
         public final long[] phases = new long[5];
         public final int placingTick;
+        public final LongOpenHashSet targets, held = new LongOpenHashSet();
+        public long[] releasing;
+        public int released;
         public Start header;
         public byte[] extra;
 
@@ -137,6 +146,16 @@ public class ProjectorBuilder {
             this.cells = cells;
             this.viewers = viewers;
             this.placingTick = placingTick;
+            targets = new LongOpenHashSet(cells.length);
+            for (Cell cell : cells) targets.add(CoordinatePacker.pack(cell.x(), cell.y(), cell.z()));
+        }
+
+        public boolean hiding() {
+            return ticks < placingTick;
+        }
+
+        public boolean releasedAll() {
+            return held.isEmpty() && (releasing == null || released >= releasing.length);
         }
 
         public boolean placedAll() {
@@ -197,6 +216,55 @@ public class ProjectorBuilder {
         LAST_REQUEST.clear();
     }
 
+    // Blocks are placed while the animation still plays; their updates reach clients only once it ends, so nobody
+    // sees real blocks appear before the animation shows them.
+    public static boolean holdUpdate(WorldServer world, int x, int y, int z) {
+        if (JOBS.isEmpty()) return false;
+        for (Job job : JOBS.values()) {
+            if (!job.hiding() || job.dimension != world.provider.dimensionId) continue;
+            if (x < job.minX || y < job.minY || z < job.minZ) continue;
+            if (x >= job.minX + job.sizeX || y >= job.minY + job.sizeY || z >= job.minZ + job.sizeZ) continue;
+            long position = CoordinatePacker.pack(x, y, z);
+            if (!job.targets.contains(position)) continue;
+            job.held.add(position);
+            return true;
+        }
+        return false;
+    }
+
+    // Spread over a few ticks, chunk by chunk, so clients do not rebuild every chunk of the structure in one frame.
+    private static void releaseSome(Job job, boolean all) {
+        if (job.releasing == null) {
+            Long2ObjectLinkedOpenHashMap<LongArrayList> byChunk = new Long2ObjectLinkedOpenHashMap<>();
+            LongIterator held = job.held.iterator();
+            while (held.hasNext()) {
+                long position = held.nextLong();
+                LongArrayList chunk = byChunk.get(chunkOf(position));
+                if (chunk == null) byChunk.put(chunkOf(position), chunk = new LongArrayList());
+                chunk.add(position);
+            }
+            LongArrayList ordered = new LongArrayList(job.held.size());
+            for (LongArrayList chunk : byChunk.values()) ordered.addAll(chunk);
+            job.releasing = ordered.toLongArray();
+            job.held.clear();
+        }
+        World world = DimensionManager.getWorld(job.dimension);
+        int end = all ? job.releasing.length
+            : Math.min(job.releasing.length, job.released + (job.releasing.length + RELEASE_TICKS - 1) / RELEASE_TICKS);
+        while (job.released < end) {
+            long position = job.releasing[job.released++];
+            if (world != null) world.markBlockForUpdate(
+                CoordinatePacker.unpackX(position),
+                CoordinatePacker.unpackY(position),
+                CoordinatePacker.unpackZ(position));
+        }
+    }
+
+    private static long chunkOf(long position) {
+        return (long) (CoordinatePacker.unpackX(position) >> 4) << 32
+            | (CoordinatePacker.unpackZ(position) >> 4) & 0xFFFFFFFFL;
+    }
+
     private static void refuse(EntityPlayerMP player, String reason, Object... args) {
         player.addChatMessage(new ChatComponentTranslation(LANG + reason, args));
     }
@@ -213,8 +281,7 @@ public class ProjectorBuilder {
         if (PREPARING.isEmpty() && JOBS.isEmpty()) return;
         // All jobs and the one preparation share one budget per tick, so several builders cost the server no more than
         // one; a job that needs less than its share leaves the rest to the jobs after it.
-        int sharing = 0;
-        for (Job job : JOBS.values()) if (job.ticks + 1 >= job.placingTick) sharing++;
+        int sharing = JOBS.size();
         boolean preparing = false;
         for (Preparation preparation : PREPARING.values()) preparing |= preparation.stage != Stage.CRAFTING;
         long remaining = MachineConfig.projectorPlaceBudgetMillis * 1_000_000L;
@@ -609,6 +676,7 @@ public class ProjectorBuilder {
     }
 
     private static void finish(Job job, int state) {
+        releaseSome(job, true);
         World world = DimensionManager.getWorld(job.dimension);
         if (world != null && world.blockExists(job.controllerX, job.controllerY, job.controllerZ))
             GregTechAPI.causeMachineUpdate(world, job.controllerX, job.controllerY, job.controllerZ);
@@ -706,19 +774,28 @@ public class ProjectorBuilder {
             try {
                 job.ticks++;
                 if (job.ticks % HEARTBEAT_TICKS == 0) admitViewers(job, owner);
-                if (job.ticks < job.placingTick) {
+                boolean hiding = job.hiding(), released = !hiding && job.releasedAll();
+                if (hiding) {
                     // Keeps clients waiting through a long animation from timing the job out.
                     if (job.ticks % HEARTBEAT_TICKS == 0)
                         send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PROGRESS, 0));
-                    continue;
+                } else {
+                    if (job.ticks == job.placingTick)
+                        send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PLACING, 0));
+                    releaseSome(job, false);
                 }
-                if (job.ticks == job.placingTick)
-                    send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PLACING, 0));
-                // Blocks placed last tick went out to the players during this tick, so only those are reported as
-                // placed; the job therefore ends one tick after its last block.
-                int sent = job.next;
+                // Blocks marked last tick went out to the players during this tick, so a cell counts as sent only once
+                // every held block was marked before this tick; the job therefore ends one tick after its last block.
+                int sent = released ? job.next : 0;
                 long share = remaining / Math.max(1, placing--);
                 if (job.placedAll()) {
+                    if (hiding) continue;
+                    if (!released) {
+                        send(
+                            job,
+                            new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PROGRESS, sent));
+                        continue;
+                    }
                     iterator.remove();
                     end(job, owner, StructureAnimationStatePacket.DONE, "done", job.outcomes[PLACED]);
                     continue;
@@ -729,6 +806,7 @@ public class ProjectorBuilder {
                     end(job, owner, StructureAnimationStatePacket.ABORTED, "denied");
                     continue;
                 }
+                if (hiding) continue;
                 send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PROGRESS, sent));
                 if ((job.ticks - job.placingTick) % PROGRESS_TICKS == 0)
                     HotbarMessages.send(owner, new ChatComponentTranslation(LANG + "progress", sent, job.cells.length));
@@ -770,6 +848,10 @@ public class ProjectorBuilder {
                         job.controllerIndex = index;
                         continue;
                     }
+                } else if (job.hiding()) {
+                    // Retries and the controller wait for the animation to end; a player standing in the site may
+                    // have walked away by then.
+                    break;
                 } else if (job.retried < job.retry.size()) {
                     index = job.retry.getInt(job.retried++);
                 } else {
