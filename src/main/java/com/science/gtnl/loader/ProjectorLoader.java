@@ -9,7 +9,7 @@ import net.minecraftforge.common.MinecraftForge;
 import com.science.gtnl.client.projector.ProjectorInput;
 import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.command.ProjectorSimulationCommand;
-import com.science.gtnl.common.projector.ProjectorBuilder;
+import com.science.gtnl.common.projector.ProjectorServer;
 import com.science.gtnl.common.projector.ProjectorSimulationWorld;
 import com.science.gtnl.common.render.item.JsonItemRenderer;
 import com.science.gtnl.common.render.model.JsonItemModel;
@@ -40,7 +40,7 @@ public class ProjectorLoader implements IContentLoader {
 
     @Override
     public void serverStopping() {
-        ProjectorBuilder.clear();
+        ProjectorServer.clear();
     }
 
     @Override

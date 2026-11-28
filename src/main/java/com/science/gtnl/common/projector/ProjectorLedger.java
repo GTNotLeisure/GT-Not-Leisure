@@ -9,9 +9,7 @@ import java.util.UUID;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraft.world.World;
 import net.minecraft.world.WorldSavedData;
-import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.Constants;
 
 import it.unimi.dsi.fastutil.ints.IntArrayList;
@@ -111,14 +109,7 @@ public class ProjectorLedger extends WorldSavedData {
     }
 
     public static ProjectorLedger get() {
-        World world = DimensionManager.getWorld(0);
-        if (world == null) return null;
-        ProjectorLedger ledger = (ProjectorLedger) world.mapStorage.loadData(ProjectorLedger.class, NAME);
-        if (ledger == null) {
-            ledger = new ProjectorLedger(NAME);
-            world.mapStorage.setData(NAME, ledger);
-        }
-        return ledger;
+        return ProjectorServer.savedData(ProjectorLedger.class, NAME, ProjectorLedger::new);
     }
 
     // A running build writes straight into the ledger, so the blocks it placed are saved with the world even when the
@@ -208,6 +199,15 @@ public class ProjectorLedger extends WorldSavedData {
             iterator.remove();
             for (Build build : builds.remove(entry.getKey())) cells -= build.size();
             count--;
+        }
+        for (Map.Entry<String, List<Build>> entry : builds.entrySet()) {
+            if (cells <= MAX_CELLS) return;
+            if (!sites.get(entry.getKey())
+                .owner()
+                .equals(owner)) continue;
+            List<Build> list = entry.getValue();
+            while (cells > MAX_CELLS && list.size() > 1) cells -= list.remove(0)
+                .size();
         }
     }
 

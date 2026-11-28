@@ -1,13 +1,8 @@
 package com.science.gtnl.common.projector;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.WeakHashMap;
-
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.server.MinecraftServer;
 
 import com.gtnewhorizon.structurelib.util.InventoryUtility;
 import com.science.gtnl.ScienceNotLeisure;
@@ -18,17 +13,12 @@ import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 // the build takes it, without taking anything.
 public class ProjectorQuote {
 
-    public static final int MAX_KINDS = 1024, ANSWER_TICKS = 20;
-    private static final Map<UUID, Integer> LAST_ANSWER = new WeakHashMap<>();
+    public static final int MAX_KINDS = 1024;
 
     private ProjectorQuote() {}
 
     public static void answer(EntityPlayerMP player, int[] items, int[] damages, int[] counts) {
-        int now = MinecraftServer.getServer()
-            .getTickCounter();
-        Integer last = LAST_ANSWER.get(player.getUniqueID());
-        if (last != null && now - last < ANSWER_TICKS) return;
-        LAST_ANSWER.put(player.getUniqueID(), now);
+        if (!ProjectorServer.QUOTES.pass(player.getUniqueID())) return;
         int[] kinds = new int[items.length], available = new int[items.length];
         for (int i = 0; i < items.length; i++) {
             Item item = Item.getItemById(items[i]);

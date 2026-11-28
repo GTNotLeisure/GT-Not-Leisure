@@ -26,7 +26,7 @@ import appeng.util.Platform;
 // screen reaches it, so its range and security rules apply.
 public class ProjectorNetwork {
 
-    public record Link(IGrid grid, PlayerSource source, int terminalSlot) {}
+    public record Link(IGrid grid, PlayerSource source) {}
 
     public static final double MIN_POWER = 0.5;
 
@@ -74,7 +74,7 @@ public class ProjectorNetwork {
         ISecurityGrid security = grid.getCache(ISecurityGrid.class);
         for (SecurityPermissions permission : permissions)
             if (security != null && !security.hasPermission(player, permission)) return null;
-        return new Link(grid, new PlayerSource(player, host), slot);
+        return new Link(grid, new PlayerSource(player, host));
     }
 
     // Puts a stack into the network and gives back what did not fit, or null when all of it went in.

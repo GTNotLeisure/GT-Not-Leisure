@@ -135,7 +135,7 @@ public class StructureRiseAnimation extends StructureMeshTask {
     }
 
     private void applyRumble(Minecraft minecraft, float factor) {
-        if (minecraft.thePlayer == null || !ClientConfig.structureLandingShake) {
+        if (minecraft.thePlayer == null || !ClientConfig.structureLandingShake || muted()) {
             clearRumble();
             return;
         }

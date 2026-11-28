@@ -136,7 +136,7 @@ public class ProjectorGui extends ModularPanel {
             page = HATCHES;
         }
         preview = new ProjectorPreviewWidget(this::structure).selection(this::selectedCell, this::select)
-            .markers(() -> ClientConfig.projectorHatchOutlines, working)
+            .markers(() -> ClientConfig.projectorHatchOutlines || page == HATCHES, working)
             .facing(() -> working.hasMachine() ? working.facing : null)
             .focusKind(() -> page == MATERIALS ? focusKind : -1);
         if (working.machine == lastLayerMachine) preview.restoreLayer(lastLayer);

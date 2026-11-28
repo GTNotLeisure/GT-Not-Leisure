@@ -1,11 +1,11 @@
 package com.science.gtnl.common.projector;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -14,20 +14,28 @@ import net.minecraft.world.World;
 
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 
+import gregtech.api.enums.HatchElement;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 public class ProjectorStructure {
 
-    // The role names the kind of spot by the hatches it accepts, so it survives the structure growing or shrinking.
+    // The role names the kind of spot by the kinds of hatch it accepts, not by their ids, so it survives the structure
+    // growing or shrinking and a pack update adding or removing a hatch of a kind it already takes.
     public record HatchSlot(int[] candidates, int[] accepted, ItemStack casing, String role) {
 
         public static HatchSlot of(int[] candidates, int[] accepted, ItemStack casing) {
-            int[] sorted = accepted.clone();
-            Arrays.sort(sorted);
-            String role = Integer.toHexString(Arrays.hashCode(sorted)) + ":" + sorted.length;
-            return new HatchSlot(candidates, accepted, casing, role);
+            TreeSet<String> kinds = new TreeSet<>();
+            for (int id : accepted) {
+                HatchElement kind = ProjectorMachines.kindOf(id);
+                kinds.add(
+                    kind != null ? kind.name()
+                        : ProjectorMachines.prototype(id)
+                            .getClass()
+                            .getSimpleName());
+            }
+            return new HatchSlot(candidates, accepted, casing, String.join(",", kinds));
         }
     }
 
@@ -61,13 +69,6 @@ public class ProjectorStructure {
                     == id) return tiers[i];
             }
             return 0;
-        }
-
-        public ItemStack blockOfTier(int tier) {
-            for (int i = 0; i < blocks.size() && i < tiers.length; i++) {
-                if (tiers[i] == tier) return blocks.get(i);
-            }
-            return null;
         }
 
         public static int idOf(Item item, int damage) {

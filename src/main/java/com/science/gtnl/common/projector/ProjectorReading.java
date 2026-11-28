@@ -12,24 +12,20 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.world.World;
 
-import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
-import com.gtnewhorizon.gtnhlib.eventbus.Phase;
 import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
 import com.gtnewhorizon.structurelib.alignment.IAlignment;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnllib.utils.HotbarMessages;
 import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.common.projector.ProjectorServer.Budget;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 import com.science.gtnl.common.wireless.WirelessCardInventory;
 import com.science.gtnl.config.MachineConfig;
 import com.science.gtnl.utils.enums.GTNLStructureChannels;
 
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.common.misc.GTStructureChannels;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -37,13 +33,10 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 // Reads a built machine into the projector's plan: its own structure check names its blocks, block-kind settings such
 // as coil tiers come from the blocks that stand there when one kind is used throughout, and size settings are found
 // by simulating each candidate value and keeping the one that matches the site and covers most of the machine.
-@EventBusSubscriber(phase = Phase.PRE)
 public class ProjectorReading {
 
-    public static final int MAX_SIZE_VALUE = 16, MISSES_TO_STOP = 2, HEARTBEAT_TICKS = 40, COOLDOWN_TICKS = 100,
-        FALLBACK_RANGE = 64;
+    public static final int MAX_SIZE_VALUE = 16, MISSES_TO_STOP = 2, HEARTBEAT_TICKS = 40, FALLBACK_RANGE = 64;
     private static final Map<UUID, Reading> READINGS = new HashMap<>();
-    private static final Map<UUID, Integer> LAST_REQUEST = new HashMap<>();
 
     public static class Reading {
 
@@ -79,26 +72,22 @@ public class ProjectorReading {
 
     public static void clear() {
         READINGS.clear();
-        LAST_REQUEST.clear();
+    }
+
+    public static int running() {
+        return READINGS.size();
     }
 
     public static void request(EntityPlayerMP player, int location, int x, int y, int z) {
         if (ProjectorServer.projectorAt(player, location) == null) return;
         // Each request runs the machine's full structure check twice on the spot, so a player gets one every few
         // seconds; a newer request for another machine replaces the one still running.
-        int now = MinecraftServer.getServer()
-            .getTickCounter();
-        Integer last = LAST_REQUEST.get(player.getUniqueID());
-        if (last != null && now - last < COOLDOWN_TICKS) {
-            ProjectorBuilder.refuse(player, "too_soon");
-            return;
-        }
-        LAST_REQUEST.put(player.getUniqueID(), now);
+        if (!ProjectorServer.READS.take(player)) return;
         READINGS.remove(player.getUniqueID());
         World world = player.worldObj;
         int range = MachineConfig.projectorBuildRange > 0 ? MachineConfig.projectorBuildRange : FALLBACK_RANGE;
-        if (ProjectorBuilder.distanceSq(player, x, y, z, x, y, z) > (double) range * range) {
-            ProjectorBuilder.refuse(player, "too_far", range);
+        if (ProjectorServer.distanceSq(player, x, y, z, x, y, z) > (double) range * range) {
+            ProjectorServer.refuse(player, "too_far", range);
             return;
         }
         if (!world.blockExists(x, y, z) || !(world.getTileEntity(x, y, z) instanceof IGregTechTileEntity tile)
@@ -115,32 +104,33 @@ public class ProjectorReading {
             alignment.getExtendedFacing(),
             ProjectorCapture.blocksOf(world, x, y, z));
         READINGS.put(reading.owner, reading);
-        HotbarMessages.send(player, new ChatComponentTranslation(ProjectorBuilder.LANG + "reading"));
+        HotbarMessages.send(player, new ChatComponentTranslation(ProjectorServer.LANG + "reading"));
     }
 
-    @SubscribeEvent
-    public static void serverTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || READINGS.isEmpty()) return;
-        long budget = MachineConfig.projectorPlaceBudgetMillis * 1_000_000L / 2 / READINGS.size();
+    public static void tick(Budget budget) {
+        if (READINGS.isEmpty()) return;
         Iterator<Reading> iterator = READINGS.values()
             .iterator();
         while (iterator.hasNext()) {
             Reading reading = iterator.next();
-            EntityPlayerMP owner = ProjectorBuilder.playerOf(reading.owner);
-            if (owner == null || owner.dimension != reading.dimension) {
+            EntityPlayerMP owner = ProjectorServer.playerOf(reading.owner);
+            if (!ProjectorServer.present(owner, reading.dimension)) {
                 iterator.remove();
                 continue;
             }
+            long share = budget.share(), began = System.nanoTime();
             try {
                 if (++reading.ticks % HEARTBEAT_TICKS == 0)
-                    HotbarMessages.send(owner, new ChatComponentTranslation(ProjectorBuilder.LANG + "reading"));
-                if (!advance(owner, reading, System.nanoTime() + budget)) continue;
+                    HotbarMessages.send(owner, new ChatComponentTranslation(ProjectorServer.LANG + "reading"));
+                if (!advance(owner, reading, began + share)) continue;
                 iterator.remove();
                 write(owner, reading);
             } catch (RuntimeException e) {
                 ScienceNotLeisure.LOG.warn("Projector reading for {} failed", owner.getCommandSenderName(), e);
                 iterator.remove();
-                ProjectorBuilder.refuse(owner, "read_failed");
+                ProjectorServer.refuse(owner, "read_failed");
+            } finally {
+                budget.spend(System.nanoTime() - began);
             }
         }
     }
@@ -273,7 +263,7 @@ public class ProjectorReading {
         WirelessCardInventory.sync(owner, stack);
         owner.addChatMessage(
             new ChatComponentTranslation(
-                ProjectorBuilder.LANG
+                ProjectorServer.LANG
                     + (reading.unread ? "read_unmatched" : reading.ambiguous ? "read_uncertain" : "read_done"),
                 describe(reading.channels),
                 hatches));

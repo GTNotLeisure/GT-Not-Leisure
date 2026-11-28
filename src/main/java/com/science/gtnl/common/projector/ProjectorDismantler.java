@@ -12,41 +12,34 @@ import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentTranslation;
-import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.ForgeDirection;
 
-import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
-import com.gtnewhorizon.gtnhlib.eventbus.Phase;
 import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
 import com.gtnllib.utils.HotbarMessages;
 import com.science.gtnl.ScienceNotLeisure;
-import com.science.gtnl.common.packet.StructureAnimationStartPacket;
 import com.science.gtnl.common.packet.StructureAnimationStartPacket.Start;
 import com.science.gtnl.common.packet.StructureAnimationStatePacket;
+import com.science.gtnl.common.projector.ProjectorBroadcast.Box;
+import com.science.gtnl.common.projector.ProjectorBroadcast.Kinds;
+import com.science.gtnl.common.projector.ProjectorBroadcast.Show;
 import com.science.gtnl.common.projector.ProjectorBuilder.Cell;
-import com.science.gtnl.common.projector.ProjectorBuilder.Kinds;
+import com.science.gtnl.common.projector.ProjectorServer.Budget;
 import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 import com.science.gtnl.config.MachineConfig;
 
 import appeng.api.config.SecurityPermissions;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
 import gregtech.api.GregTechAPI;
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import gregtech.api.threads.RunnableMachineUpdate;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 // Takes down a projected structure, or undoes the last build, re-checking every block right before it goes. The build's
 // animation plays backwards while they go, and what they drop goes back to the player's ME network.
-@EventBusSubscriber(phase = Phase.PRE)
 public class ProjectorDismantler {
 
     public static final int REVERSE_LEAD = 20, HEARTBEAT_TICKS = 20, REPORT_TICKS = 5, MAX_NEIGHBOUR_UPDATES = 4096;
@@ -94,40 +87,47 @@ public class ProjectorDismantler {
         return JOBS.containsKey(id);
     }
 
+    public static int running() {
+        return JOBS.size();
+    }
+
+    // The server saves the world after it reports stopping, so what the jobs hold still reaches a player or the ground.
     public static void clear() {
+        for (Job job : JOBS.values()) abortSafely(job, ProjectorServer.playerOf(job.owner));
         JOBS.clear();
     }
 
     // Undo takes back only the last build: the blocks it placed that are still as it left them.
     public static void undo(EntityPlayerMP player, int location) {
         if (!MachineConfig.projectorBuildEnabled) {
-            ProjectorBuilder.refuse(player, "disabled");
+            ProjectorServer.refuse(player, "disabled");
             return;
         }
         ItemStack projector = ProjectorServer.projectorAt(player, location);
         if (projector == null || !player.isEntityAlive()) return;
         UUID id = player.getUniqueID();
-        if (busy(id) || ProjectorBuilder.busy(id)) {
-            ProjectorBuilder.refuse(player, "busy");
+        if (ProjectorServer.busy(id)) {
+            ProjectorServer.refuse(player, "busy");
             return;
         }
+        if (!ProjectorServer.BUILDS.take(player)) return;
         ProjectorPlan plan = ProjectorPlan.read(projector);
         if (!plan.hasMachine() || !plan.isPlaced() || plan.dimension != player.dimension) {
-            ProjectorBuilder.refuse(player, "not_placed");
+            ProjectorServer.refuse(player, "not_placed");
             return;
         }
         ProjectorLedger ledger = ProjectorLedger.get();
         ProjectorLedger.Site site = ProjectorLedger.Site.of(id, plan);
         List<ProjectorLedger.Build> builds = ledger == null ? new ArrayList<>() : ledger.builds(site);
         if (builds.isEmpty()) {
-            ProjectorBuilder.refuse(player, "dismantle_nothing");
+            ProjectorServer.refuse(player, "dismantle_nothing");
             return;
         }
         ProjectorLedger.Build record = new ProjectorLedger.Build(), leftover = new ProjectorLedger.Build();
         List<Cell> cells = collect(player, builds.subList(builds.size() - 1, builds.size()), record, leftover);
         if (cells.isEmpty()) {
             ledger.replaceLast(site, leftover);
-            ProjectorBuilder.refuse(player, leftover.size() > 0 ? "dismantle_far" : "dismantle_changed");
+            ProjectorServer.refuse(player, leftover.size() > 0 ? "dismantle_far" : "dismantle_changed");
             return;
         }
         List<Cell> sorted = new ArrayList<>(cells.size());
@@ -149,7 +149,7 @@ public class ProjectorDismantler {
             addCell(world, x, y, z, cells, record);
         }
         if (cells.isEmpty()) {
-            ProjectorBuilder.refuse(player, "dismantle_none");
+            ProjectorServer.refuse(player, "dismantle_none");
             return;
         }
         List<Cell> sorted = new ArrayList<>(cells.size());
@@ -192,7 +192,7 @@ public class ProjectorDismantler {
         job.leftover.addAll(leftover);
         JOBS.put(player.getUniqueID(), job);
         announce(player, job, plan);
-        HotbarMessages.send(player, new ChatComponentTranslation(ProjectorBuilder.LANG + "dismantling"));
+        HotbarMessages.send(player, new ChatComponentTranslation(ProjectorServer.LANG + "dismantling"));
     }
 
     // Newest builds first, each position once, and only blocks still exactly as the build left them. Blocks out of
@@ -210,7 +210,7 @@ public class ProjectorDismantler {
                 if (!seen.add(CoordinatePacker.pack(x, y, z))) continue;
                 Item item = Item.getItemById(build.item.getInt(i));
                 boolean reachable = world.blockExists(x, y, z)
-                    && (range <= 0 || ProjectorBuilder.distanceSq(player, x, y, z, x, y, z) <= (double) range * range);
+                    && (range <= 0 || ProjectorServer.distanceSq(player, x, y, z, x, y, z) <= (double) range * range);
                 if (!reachable || item == null || cells.size() >= ProjectorBuilder.MAX_CELLS) {
                     leftover.addFrom(build, i);
                     continue;
@@ -221,15 +221,7 @@ public class ProjectorDismantler {
                         .ordinal()
                     : -1;
                 cells.add(new Cell(cells.size(), x, y, z, new ItemStack(item, 1, build.damage.getInt(i)), front));
-                kept.add(
-                    x,
-                    y,
-                    z,
-                    build.item.getInt(i),
-                    build.damage.getInt(i),
-                    build.block.getInt(i),
-                    build.meta.getInt(i),
-                    build.machine.getInt(i));
+                kept.addFrom(build, i);
             }
         }
         return cells;
@@ -249,15 +241,7 @@ public class ProjectorDismantler {
         for (int index : order) {
             Cell cell = cells.get(index);
             sorted.add(new Cell(sorted.size(), cell.x(), cell.y(), cell.z(), cell.stack(), cell.front()));
-            sortedRecord.add(
-                record.x.getInt(index),
-                record.y.getInt(index),
-                record.z.getInt(index),
-                record.item.getInt(index),
-                record.damage.getInt(index),
-                record.block.getInt(index),
-                record.meta.getInt(index),
-                record.machine.getInt(index));
+            sortedRecord.addFrom(record, index);
         }
         return sortedRecord;
     }
@@ -271,124 +255,54 @@ public class ProjectorDismantler {
         return machine == build.machine.getInt(i);
     }
 
+    // A structure too big for the start packet comes down without an animation.
     private static void announce(EntityPlayerMP player, Job job, ProjectorPlan plan) {
         StructureAnimationStyle style = plan.buildStyle;
         if (style == StructureAnimationStyle.NONE) return;
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE,
-            maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        for (Cell cell : job.cells) {
-            minX = Math.min(minX, cell.x());
-            minY = Math.min(minY, cell.y());
-            minZ = Math.min(minZ, cell.z());
-            maxX = Math.max(maxX, cell.x());
-            maxY = Math.max(maxY, cell.y());
-            maxZ = Math.max(maxZ, cell.z());
-        }
-        int sizeX = maxX - minX + 1, sizeY = maxY - minY + 1, sizeZ = maxZ - minZ + 1;
-        if (sizeX > ProjectorBuilder.MAX_SIDE || sizeY > ProjectorBuilder.MAX_SIDE
-            || sizeZ > ProjectorBuilder.MAX_SIDE
-            || (long) sizeX * sizeY * sizeZ > ProjectorBuilder.MAX_VOLUME) return;
-        Kinds kinds = ProjectorBuilder.encodeKinds(job.cells, minX, minY, minZ, sizeX, sizeY, sizeZ);
-        if (kinds.deflated().length > ProjectorBuilder.MAX_START_BYTES) return;
-        int[] xs = new int[job.cells.size()], ys = new int[xs.length], zs = new int[xs.length];
-        List<Integer> frontCells = new ArrayList<>();
-        List<Byte> fronts = new ArrayList<>();
-        for (int i = 0; i < xs.length; i++) {
-            Cell cell = job.cells.get(i);
-            xs[i] = cell.x();
-            ys[i] = cell.y();
-            zs[i] = cell.z();
-            if (cell.front() < 0) continue;
-            frontCells.add(((cell.y() - minY) * sizeZ + (cell.z() - minZ)) * sizeX + (cell.x() - minX));
-            fronts.add(cell.front());
-        }
-        Vec3 look = player.getLookVec();
-        StructureAnimationStyle.Site animationSite = new StructureAnimationStyle.Site(
-            job.dimension,
-            minX,
-            minY,
-            minZ,
-            sizeX,
-            sizeY,
-            sizeZ,
-            xs,
-            ys,
-            zs,
-            plan.x,
-            plan.y,
-            plan.z,
-            plan.facing.getIndex(),
-            player.posX,
-            player.posZ,
-            look.xCoord,
-            look.zCoord);
-        ByteBuf extra = Unpooled.buffer();
-        int placingTick = style.prepare(animationSite, extra);
-        job.extra = new byte[extra.readableBytes()];
-        extra.readBytes(job.extra);
-        int[] frontArray = new int[frontCells.size()];
-        byte[] frontBytes = new byte[fronts.size()];
-        for (int i = 0; i < frontArray.length; i++) {
-            frontArray[i] = frontCells.get(i);
-            frontBytes[i] = fronts.get(i);
-        }
-        job.header = new Start(
+        int[][] coordinates = ProjectorBroadcast.coordinates(job.cells);
+        Box box = Box.of(coordinates[0], coordinates[1], coordinates[2]);
+        Kinds kinds = box.fits() ? ProjectorBroadcast.kindsOf(job.cells, box) : null;
+        if (kinds == null) return;
+        Show show = ProjectorBroadcast.prepare(
             job.id,
-            job.dimension,
-            minX,
-            minY,
-            minZ,
-            sizeX,
-            sizeY,
-            sizeZ,
-            kinds.deflated(),
-            kinds.items(),
-            kinds.damages(),
-            frontArray,
-            frontBytes,
+            player,
+            job.cells,
+            coordinates,
+            box,
+            kinds,
             plan.x,
             plan.y,
             plan.z,
             plan.facing.getIndex(),
             style,
-            job.cells.size(),
-            placingTick,
-            false,
-            0,
             true);
-        for (Object entry : MinecraftServer.getServer()
-            .getConfigurationManager().playerEntityList) {
-            if (!(entry instanceof EntityPlayerMP other) || other.dimension != job.dimension) continue;
-            if (other != player && ProjectorBuilder.distanceSq(other, minX, minY, minZ, maxX, maxY, maxZ)
-                > ProjectorBuilder.VIEW_RANGE * ProjectorBuilder.VIEW_RANGE) continue;
-            job.viewers.add(other.getUniqueID());
-            ScienceNotLeisure.network
-                .sendTo(new StructureAnimationStartPacket(job.header.as(other == player, 0), job.extra), other);
-        }
+        job.header = show.header;
+        job.extra = show.extra;
+        job.viewers.addAll(show.viewers);
+        ProjectorBroadcast.begin(show, player);
     }
 
-    @SubscribeEvent
-    public static void serverTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || JOBS.isEmpty()) return;
-        long budget = MachineConfig.projectorPlaceBudgetMillis * 1_000_000L / JOBS.size();
+    public static void tick(Budget budget) {
+        if (JOBS.isEmpty()) return;
         Iterator<Map.Entry<UUID, Job>> iterator = JOBS.entrySet()
             .iterator();
         while (iterator.hasNext()) {
             Job job = iterator.next()
                 .getValue();
-            EntityPlayerMP owner = ProjectorBuilder.playerOf(job.owner);
-            if (owner == null || !owner.isEntityAlive() || owner.dimension != job.dimension) {
+            EntityPlayerMP owner = ProjectorServer.playerOf(job.owner);
+            if (!ProjectorServer.present(owner, job.dimension)) {
                 iterator.remove();
-                abort(job, owner);
+                abortSafely(job, owner);
                 continue;
             }
+            long share = budget.share(), began = System.nanoTime();
             try {
                 job.ticks++;
                 if (job.ticks % HEARTBEAT_TICKS == 0)
                     send(job, new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.PROGRESS, 0));
                 // The blocks stay until the meshes standing in for them had a moment to appear.
                 if (job.header != null && job.ticks < REVERSE_LEAD) continue;
-                removeSome(owner, job, budget);
+                removeSome(owner, job, share);
                 report(job, owner);
                 if (job.next < job.cells.size() || !deliver(owner, job)) continue;
                 iterator.remove();
@@ -396,8 +310,10 @@ public class ProjectorDismantler {
             } catch (RuntimeException e) {
                 ScienceNotLeisure.LOG.warn("Projector dismantle {} stopped", job.id, e);
                 iterator.remove();
-                abort(job, owner);
-                ProjectorBuilder.refuse(owner, "error");
+                abortSafely(job, owner);
+                ProjectorServer.refuse(owner, "error");
+            } finally {
+                budget.spend(System.nanoTime() - began);
             }
         }
     }
@@ -405,8 +321,17 @@ public class ProjectorDismantler {
     public static boolean cancel(EntityPlayerMP player) {
         Job job = JOBS.remove(player.getUniqueID());
         if (job == null) return false;
-        abort(job, player);
+        abortSafely(job, player);
         return true;
+    }
+
+    // The job has already left the table, so nothing thrown while giving back its items may reach the tick loop.
+    private static void abortSafely(Job job, EntityPlayerMP owner) {
+        try {
+            abort(job, owner);
+        } catch (RuntimeException e) {
+            ScienceNotLeisure.LOG.warn("Projector dismantle {} could not hand back its items", job.id, e);
+        }
     }
 
     // Whatever the job still holds goes to the player, or onto the site when the player is gone.
@@ -415,7 +340,7 @@ public class ProjectorDismantler {
         World world = owner != null ? owner.worldObj : DimensionManager.getWorld(job.dimension);
         Cell first = job.cells.get(0);
         for (ItemStack stack : job.held) {
-            if (owner != null) ProjectorBuilder.give(owner, stack);
+            if (owner != null) ProjectorBlocks.give(owner, stack);
             else if (world != null) world
                 .spawnEntityInWorld(new EntityItem(world, first.x() + 0.5, first.y() + 0.5, first.z() + 0.5, stack));
         }
@@ -430,7 +355,7 @@ public class ProjectorDismantler {
         World world = owner.worldObj;
         if (!deliver(owner, job)) {
             if (!job.pauseTold)
-                HotbarMessages.send(owner, new ChatComponentTranslation(ProjectorBuilder.LANG + "dismantle_paused"));
+                HotbarMessages.send(owner, new ChatComponentTranslation(ProjectorServer.LANG + "dismantle_paused"));
             job.pauseTold = true;
             return;
         }
@@ -445,7 +370,7 @@ public class ProjectorDismantler {
                     job.outcomes[CHANGED]++;
                     continue;
                 }
-                int result = ProjectorBuilder.breakAsPlayer(
+                int result = ProjectorBlocks.breakAsPlayer(
                     owner,
                     cell.x(),
                     cell.y(),
@@ -468,8 +393,9 @@ public class ProjectorDismantler {
 
     // Drops go to the network, then the inventory; what fits nowhere waits in the job, which pauses until it fits.
     private static void stow(EntityPlayerMP owner, Job job, ItemStack drop) {
+        int size = drop.stackSize;
         ItemStack left = ProjectorNetwork.inject(job.network, drop);
-        if (left != drop) job.toNetwork++;
+        if (left == null || left.stackSize < size) job.toNetwork++;
         if (left == null) return;
         int before = left.stackSize;
         owner.inventory.addItemStackToInventory(left);
@@ -524,7 +450,7 @@ public class ProjectorDismantler {
         }
         owner.addChatMessage(
             new ChatComponentTranslation(
-                ProjectorBuilder.LANG + "dismantled",
+                ProjectorServer.LANG + "dismantled",
                 job.outcomes[REMOVED],
                 job.outcomes[CHANGED],
                 job.outcomes[DENIED],
@@ -533,10 +459,6 @@ public class ProjectorDismantler {
     }
 
     private static void send(Job job, StructureAnimationStatePacket packet) {
-        if (job.header == null) return;
-        for (UUID id : job.viewers) {
-            EntityPlayerMP viewer = ProjectorBuilder.playerOf(id);
-            if (viewer != null) ScienceNotLeisure.network.sendTo(packet, viewer);
-        }
+        if (job.header != null) ProjectorBroadcast.send(job.viewers, packet);
     }
 }

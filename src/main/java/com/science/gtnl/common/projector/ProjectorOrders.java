@@ -21,8 +21,6 @@ import net.minecraft.world.WorldSavedData;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.util.Constants;
 
-import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
-import com.gtnewhorizon.gtnhlib.eventbus.Phase;
 import com.gtnewhorizon.structurelib.util.InventoryUtility;
 import com.gtnllib.utils.HotbarMessages;
 import com.science.gtnl.ScienceNotLeisure;
@@ -32,17 +30,14 @@ import appeng.api.config.SecurityPermissions;
 import appeng.api.networking.crafting.ICraftingGrid;
 import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.storage.data.IAEItemStack;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
 
 // One order per player: every missing material the ME network can make is requested at once, and the build starts by
 // itself once all of them can be taken. The order outlives a restart; the crafts themselves are AE's to keep.
-@EventBusSubscriber(phase = Phase.PRE)
 public class ProjectorOrders {
 
     public static final String NAME = "gtnl_projector_orders";
     public static final int CHECK_TICKS = 40, ORDER_TICKS = 36_000, CPU_RETRY_TICKS = 100, CPU_RETRIES = 12,
-        PROGRESS_TICKS = 600;
+        PROGRESS_TICKS = 600, TICKS_PER_MINUTE = 1200;
 
     public static class Queued {
 
@@ -154,14 +149,7 @@ public class ProjectorOrders {
     }
 
     private static Saved saved() {
-        World world = DimensionManager.getWorld(0);
-        if (world == null) return null;
-        Saved data = (Saved) world.mapStorage.loadData(Saved.class, NAME);
-        if (data == null) {
-            data = new Saved(NAME);
-            world.mapStorage.setData(NAME, data);
-        }
-        return data;
+        return ProjectorServer.savedData(Saved.class, NAME, Saved::new);
     }
 
     private static void save() {
@@ -201,20 +189,21 @@ public class ProjectorOrders {
         ORDERS.put(order.owner, order);
         save();
         owner.addChatMessage(
-            new ChatComponentTranslation(ProjectorBuilder.LANG + "ordered", order.wanted.size(), ORDER_TICKS / 1200));
+            new ChatComponentTranslation(
+                ProjectorServer.LANG + "ordered",
+                order.wanted.size(),
+                ORDER_TICKS / TICKS_PER_MINUTE));
         return true;
     }
 
     public static boolean cancel(EntityPlayerMP player, boolean tell) {
         if (ORDERS.remove(player.getUniqueID()) == null) return false;
         save();
-        if (tell) player.addChatMessage(new ChatComponentTranslation(ProjectorBuilder.LANG + "order_cancelled"));
+        if (tell) player.addChatMessage(new ChatComponentTranslation(ProjectorServer.LANG + "order_cancelled"));
         return true;
     }
 
-    @SubscribeEvent
-    public static void serverTick(TickEvent.ServerTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
+    public static void tick() {
         if (!loaded) {
             loaded = true;
             ORDERS.clear();
@@ -227,12 +216,12 @@ public class ProjectorOrders {
             .iterator();
         while (iterator.hasNext()) {
             Order order = iterator.next();
-            EntityPlayerMP owner = ProjectorBuilder.playerOf(order.owner);
+            EntityPlayerMP owner = ProjectorServer.playerOf(order.owner);
             try {
                 if (now > order.deadline) {
                     iterator.remove();
                     save();
-                    if (owner != null) ProjectorBuilder.refuse(owner, "order_expired");
+                    if (owner != null) ProjectorServer.refuse(owner, "order_expired");
                     continue;
                 }
                 if (owner == null) continue;
@@ -247,12 +236,12 @@ public class ProjectorOrders {
                 int ready = readyKinds(owner, order);
                 if (ticks % PROGRESS_TICKS == 0) HotbarMessages.send(
                     owner,
-                    new ChatComponentTranslation(ProjectorBuilder.LANG + "order_progress", ready, order.wanted.size()));
+                    new ChatComponentTranslation(ProjectorServer.LANG + "order_progress", ready, order.wanted.size()));
                 if (ready < order.wanted.size() || !ProjectorBuilder.canRequest(order.owner)
                     || ProjectorServer.projectorAt(owner, order.location) == null) continue;
                 iterator.remove();
                 save();
-                owner.addChatMessage(new ChatComponentTranslation(ProjectorBuilder.LANG + "order_ready"));
+                owner.addChatMessage(new ChatComponentTranslation(ProjectorServer.LANG + "order_ready"));
                 ProjectorBuilder.request(owner, order.location, true);
             } catch (RuntimeException e) {
                 ScienceNotLeisure.LOG.warn("Projector order for {} failed", order.owner, e);
@@ -305,7 +294,7 @@ public class ProjectorOrders {
         }
         if (!order.pending.isEmpty() || !order.queued.isEmpty()) return;
         if (order.submitted > 0) owner
-            .addChatMessage(new ChatComponentTranslation(ProjectorBuilder.LANG + "order_submitted", order.submitted));
+            .addChatMessage(new ChatComponentTranslation(ProjectorServer.LANG + "order_submitted", order.submitted));
         order.submitted = 0;
         for (IChatComponent line : order.failed) owner.addChatMessage(line);
         order.failed.clear();
@@ -315,17 +304,17 @@ public class ProjectorOrders {
     private static void fail(Order order, ItemStack stack, String reason) {
         order.failed.add(
             new ChatComponentTranslation(
-                ProjectorBuilder.LANG + "order_failed",
+                ProjectorServer.LANG + "order_failed",
                 stack.func_151000_E(),
-                new ChatComponentTranslation(ProjectorBuilder.LANG + reason)));
+                new ChatComponentTranslation(ProjectorServer.LANG + reason)));
         order.wanted.removeIf(wanted -> wanted.isItemEqual(stack));
     }
 
     private static int readyKinds(EntityPlayerMP owner, Order order) {
         int ready = 0;
         for (ItemStack stack : order.wanted) {
-            ItemStack plain = new ItemStack(stack.getItem(), stack.stackSize, stack.getItemDamage());
-            if (InventoryUtility.takeFromInventory(owner, plain, true) >= stack.stackSize) ready++;
+            if (InventoryUtility.takeFromInventory(owner, ProjectorBlocks.single(stack, stack.stackSize), true)
+                >= stack.stackSize) ready++;
         }
         return ready;
     }

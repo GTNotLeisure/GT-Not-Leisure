@@ -7,6 +7,7 @@ import com.gtnllib.network.ServerboundPacket;
 import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.projector.ProjectorDismantler;
 import com.science.gtnl.common.projector.ProjectorOrders;
+import com.science.gtnl.common.projector.ProjectorServer;
 
 import io.netty.buffer.ByteBuf;
 
@@ -44,7 +45,7 @@ public class ProjectorActionPacket extends ServerboundPacket {
                 case CANCEL -> {
                     boolean stopped = ProjectorBuilder.cancel(player) | ProjectorDismantler.cancel(player)
                         | ProjectorOrders.cancel(player, true);
-                    if (!stopped) ProjectorBuilder.refuse(player, "nothing_running");
+                    if (!stopped) ProjectorServer.refuse(player, "nothing_running");
                 }
                 default -> {}
             }

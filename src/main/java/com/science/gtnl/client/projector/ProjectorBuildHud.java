@@ -17,7 +17,7 @@ import com.gtnllib.gui.theme.ae2.PlainLook;
 import com.science.gtnl.client.structureanimation.StructureAnimationTask;
 import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.gui.ScreenThemes;
-import com.science.gtnl.common.projector.ProjectorBuilder;
+import com.science.gtnl.common.projector.ProjectorServer;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.relauncher.Side;
@@ -84,7 +84,7 @@ public class ProjectorBuildHud {
 
     private static String label(StructureAnimationTask task) {
         return StatCollector.translateToLocalFormatted(
-            ProjectorBuilder.LANG + (task.reversed ? "dismantle_progress" : "building"),
+            ProjectorServer.LANG + (task.reversed ? "dismantle_progress" : "building"),
             Math.round(task.buildProgress() * 100));
     }
 }

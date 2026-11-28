@@ -22,9 +22,9 @@ public class ProjectorPlan {
 
     public static final String TAG = "Plan";
     public static final int MAX_MASTER = 64, MAX_CHANNELS = 32, MAX_CHANNEL_NAME = 64, MAX_CHANNEL_VALUE = 1024,
-        MAX_HATCHES = 1024, MAX_ROLES = 256, MAX_ROLE_KEY = 64, MAX_CELL_CHOICES = 1024, MAX_HATCH_TIER = 14,
+        MAX_HATCHES = 1024, MAX_ROLES = 256, MAX_ROLE_KEY = 512, MAX_CELL_CHOICES = 1024, MAX_HATCH_TIER = 14,
         DEFAULT_HATCH_TIER = 1, MAX_OFFSET = 64, MAX_CHOICES = 256, MAX_CHOICE_KEY = 256, MAX_STACK = 16,
-        MAX_STACK_GAP = 64, MAX_COPIES = 64, FORMAT_VERSION = 1;
+        MAX_STACK_GAP = 64, MAX_COPIES = 64, FORMAT_VERSION = 2, KIND_ROLES_VERSION = 2;
     public static final int CASING = 0;
     public static final String AIR = "air";
 
@@ -378,13 +378,14 @@ public class ProjectorPlan {
         for (Object key : channelTag.func_150296_c()) {
             String name = (String) key;
             if (channels.size() >= MAX_CHANNELS || name.isEmpty() || name.length() > MAX_CHANNEL_NAME) continue;
-            channels.put(name, clamp(channelTag.getInteger(name), 0, MAX_CHANNEL_VALUE));
+            setChannel(name, clamp(channelTag.getInteger(name), 0, MAX_CHANNEL_VALUE));
         }
         hatchTier = tag.hasKey("HatchTier") ? clamp(tag.getInteger("HatchTier"), 0, MAX_HATCH_TIER)
             : DEFAULT_HATCH_TIER;
         hatches.clear();
         NBTTagList roleList = tag.getTagList("HatchRoles", Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < roleList.tagCount(); i++) {
+        // Older plans named roles by a hash of hatch ids, which no spot carries any more.
+        for (int i = 0; tag.getInteger("Version") >= KIND_ROLES_VERSION && i < roleList.tagCount(); i++) {
             NBTTagCompound roleTag = roleList.getCompoundTagAt(i);
             String role = roleTag.getString("Role");
             int[] ids = roleTag.getIntArray("Ids");
