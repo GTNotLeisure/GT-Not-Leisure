@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -31,10 +30,14 @@ import com.cleanroommc.modularui.widgets.Dialog;
 import com.cleanroommc.modularui.widgets.ListWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.Icon;
+import com.gtnllib.gui.theme.ae2.AE2Icon;
+import com.gtnllib.gui.theme.ae2.AE2Look;
+import com.gtnllib.gui.widget.AE2Button;
+import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.FadingNotice;
 import com.gtnllib.gui.widget.GTNLListWidget;
 import com.gtnllib.gui.widget.HandleScrollData;
+import com.gtnllib.gui.widget.IconButton;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceGroup;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceView;
 import com.science.gtnl.client.wireless.WirelessCardClientView.Section;
@@ -90,8 +93,11 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         visibleRows = Math.max(1, (owner.ySize - 8 - CHROME - WELL_BORDER) / ROW_HEIGHT);
         int wellHeight = visibleRows * ROW_HEIGHT + WELL_BORDER;
         size(width, CHROME + wellHeight);
-        child(ButtonWidget.panelCloseButton());
-        scroll = new HandleScrollData(owner.variant).rows(ROW_HEIGHT);
+        child(
+            new CloseButton().top(4)
+                .right(4));
+        scroll = new HandleScrollData().look(AE2Look.of(owner.variant))
+            .rows(ROW_HEIGHT);
         rowWidth = width - EDGE * 2 - scroll.getThickness() - WELL_GAP - AE2Theme.INSET_EDGE * 2;
         int modeColumn = 0;
         for (int mode = 0; mode < WirelessCardBinding.DISPLAY_MODES; mode++)
@@ -133,7 +139,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         for (int mode = 0; mode < WirelessCardBinding.DISPLAY_MODES; mode++) modes.child(
             modeButton(mode).expanded()
                 .height(AE2Theme.BUTTON_HEIGHT));
-        ButtonWidget<?> done = textButton(() -> StatCollector.translateToLocal("gui.done"), this::closeIfOpen);
+        ButtonWidget<?> done = new AE2Button(() -> StatCollector.translateToLocal("gui.done"), this::closeIfOpen);
         child(
             Flow.column()
                 .left(EDGE)
@@ -313,8 +319,8 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         return group == null ? null : Target.row(group.header());
     }
 
-    private WirelessCardActionButton renameButton() {
-        return textButton(
+    private AE2Button renameButton() {
+        return new AE2Button(
             () -> StatCollector.translateToLocal("selectWorld.rename"),
             () -> owner.openRename(renameTarget())).size(RENAME_WIDTH, NAME_HEIGHT)
                 .tooltipBuilder(tooltip -> tooltip.addLine(tr(renameTooltip(group.header()))));
@@ -324,37 +330,31 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         return row.getBoolean("group") ? "devices.rename_group" : "devices.rename_cluster";
     }
 
-    private static WirelessCardActionButton textButton(Supplier<String> text, Runnable action) {
-        return new WirelessCardActionButton(() -> true).text(text, () -> false)
-            .onClick(action);
-    }
-
-    private WirelessCardActionButton modeButton(int mode) {
+    private AE2Button modeButton(int mode) {
         BooleanSupplier selected = () -> !devices.isEmpty() && devices.stream()
             .allMatch(
                 device -> owner.clientView()
                     .displayMode(device) == mode);
-        return new WirelessCardActionButton(() -> !devices.isEmpty()).text(() -> tr("display.mode." + mode), selected)
+        return new AE2Button(() -> tr("display.mode." + mode), () -> {
+            if (!owner.clientView()
+                .setDisplayMode(devices, mode))
+                owner.receive(
+                    new ChatComponentTranslation(
+                        WirelessCardGui.KEY_PREFIX + "display.limit",
+                        WirelessCardBinding.MAX_DISPLAY_ENTRIES));
+        }).available(() -> !devices.isEmpty())
+            .selected(selected)
             .tooltipBuilder(tooltip -> {
                 tooltip.addLine(tr("display.apply_all", devices.size(), tr("display.mode." + mode)));
                 tooltip.addLine(tr("display.auto_hint"));
                 tooltip.addLine(tr("display.fallback_hint"));
             })
-            .tooltipAutoUpdate(true)
-            .onClick(() -> {
-                if (!owner.clientView()
-                    .setDisplayMode(devices, mode))
-                    owner.receive(
-                        new ChatComponentTranslation(
-                            WirelessCardGui.KEY_PREFIX + "display.limit",
-                            WirelessCardBinding.MAX_DISPLAY_ENTRIES));
-            });
+            .tooltipAutoUpdate(true);
     }
 
-    private static WirelessCardActionButton iconButton(Icon icon, BooleanSupplier available, Runnable action,
+    private static IconButton iconButton(AE2Icon icon, BooleanSupplier available, Runnable action,
         Consumer<RichTooltip> tooltip) {
-        return new WirelessCardActionButton(available).icon(() -> icon)
-            .onClick(action)
+        return new IconButton(() -> icon, action).available(available)
             .size(BUTTON_SIZE, BUTTON_SIZE)
             .tooltipBuilder(tooltip)
             .tooltipAutoUpdate(true);
@@ -370,11 +370,12 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
     }
 
     private void addLocationButtons(ParentWidget<?> row, int index) {
-        row.child(iconButton(Icon.MOVE_TO, () -> true, () -> owner.sendTarget(TELEPORT, lineData(index)), tooltip -> {
-            tooltip.addLine(tr("teleport_tip"));
-            tooltip.addLine(EnumChatFormatting.GRAY + lineData(index).getString("positionLabel"));
-        }).pos(buttonsX + BUTTON_STEP, 4));
-        row.child(iconButton(Icon.VISIBLE, () -> true, () -> owner.highlightTarget(lineData(index)), tooltip -> {
+        row.child(
+            iconButton(AE2Icon.MOVE_TO, () -> true, () -> owner.sendTarget(TELEPORT, lineData(index)), tooltip -> {
+                tooltip.addLine(tr("teleport_tip"));
+                tooltip.addLine(EnumChatFormatting.GRAY + lineData(index).getString("positionLabel"));
+            }).pos(buttonsX + BUTTON_STEP, 4));
+        row.child(iconButton(AE2Icon.VISIBLE, () -> true, () -> owner.highlightTarget(lineData(index)), tooltip -> {
             tooltip.addLine(tr("highlight_tip"));
             tooltip.addLine(EnumChatFormatting.GRAY + WirelessCardClientView.positionWithSide(lineData(index)));
             tooltip.addLine(WirelessCardButton.highlightRange(lineData(index), owner));
@@ -390,21 +391,20 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         @Override
         protected void addButtons() {
             child(
-                new WirelessCardActionButton(this::remoteOpen).plain()
-                    .onClick(() -> owner.openDevice(view(), data().getLong("targetId")))
+                WirelessCardButton.plain(this::remoteOpen, () -> owner.openDevice(view(), data().getLong("targetId")))
                     .size(rowWidth, ROW_HEIGHT)
                     .tooltipBuilder(this::describe)
                     .tooltipAutoUpdate(true));
             child(
                 iconButton(
-                    Icon.EDIT,
+                    AE2Icon.EDIT,
                     () -> data().getBoolean("renameable"),
                     () -> owner.openRename(Target.device(data())),
                     tooltip -> tooltip.addLine(tr("devices.rename_device"))).pos(buttonsX, 4));
             addLocationButtons(this, index);
             child(
                 iconButton(
-                    Icon.GEAR,
+                    AE2Icon.GEAR,
                     this::remoteOpen,
                     () -> owner.openDevice(view(), data().getLong("targetId")),
                     tooltip -> {
@@ -412,7 +412,7 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
                         WirelessCardButton.remoteState(tooltip, data());
                     }).pos(buttonsX + BUTTON_STEP * 3, 4));
             child(
-                textButton(
+                new AE2Button(
                     () -> tr("display.short." + mode()),
                     () -> owner.clientView()
                         .cycleDisplayMode(data())).size(BUTTON_SIZE, BUTTON_SIZE)
@@ -497,26 +497,24 @@ public class WirelessCardDeviceDialog extends Dialog<Void> {
         @Override
         protected void addButtons() {
             boolean machine = lineData(index).getBoolean("group");
-            child(
-                new WirelessCardActionButton(() -> true).plain()
-                    .onClick(() -> {
-                        String section = lineData(index).getString("key");
-                        if (!expanded.remove(section)) expanded.add(section);
-                        // The clicked row is replaced on the next update, not while it handles its own click.
-                        version = -1;
-                    })
-                    .size(rowWidth, ROW_HEIGHT)
-                    .tooltipBuilder(tooltip -> {
-                        NBTTagCompound row = lineData(index);
-                        tooltip.addLine(
-                            WirelessCardGui.rowName(row, ItemStack.loadItemStackFromNBT(row.getCompoundTag("icon"))));
-                        String position = row.getString("positionLabel");
-                        if (!position.isEmpty()) tooltip.addLine(EnumChatFormatting.GRAY + position);
-                    })
-                    .tooltipAutoUpdate(true));
+            child(WirelessCardButton.plain(() -> true, () -> {
+                String section = lineData(index).getString("key");
+                if (!expanded.remove(section)) expanded.add(section);
+                // The clicked row is replaced on the next update, not while it handles its own click.
+                version = -1;
+            })
+                .size(rowWidth, ROW_HEIGHT)
+                .tooltipBuilder(tooltip -> {
+                    NBTTagCompound row = lineData(index);
+                    tooltip.addLine(
+                        WirelessCardGui.rowName(row, ItemStack.loadItemStackFromNBT(row.getCompoundTag("icon"))));
+                    String position = row.getString("positionLabel");
+                    if (!position.isEmpty()) tooltip.addLine(EnumChatFormatting.GRAY + position);
+                })
+                .tooltipAutoUpdate(true));
             if (Target.row(lineData(index)) != null) child(
                 iconButton(
-                    Icon.EDIT,
+                    AE2Icon.EDIT,
                     () -> Target.row(lineData(index)) != null,
                     () -> owner.openRename(Target.row(lineData(index))),
                     tooltip -> tooltip.addLine(tr(renameTooltip(lineData(index))))).pos(buttonsX, 4));

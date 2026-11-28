@@ -1,5 +1,6 @@
 package com.science.gtnl.common.render.model;
 
+import java.util.Collection;
 import java.util.Set;
 
 import net.minecraft.client.Minecraft;
@@ -126,6 +127,10 @@ public class JsonBlockModel extends JSONModel {
             shades,
             culls.toArray(new ForgeDirection[0]),
             lightSides);
+    }
+
+    public Collection<String> textureNames() {
+        return textures.values();
     }
 
     public ModelDisplay getDisplay(Position position) {

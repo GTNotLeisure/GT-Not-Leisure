@@ -27,10 +27,10 @@ import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.LayoutMath;
 import com.gtnllib.gui.layout.Size;
 import com.gtnllib.gui.theme.ButtonPurpose;
+import com.gtnllib.gui.theme.LayoutTheme;
 import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.Divider;
 import com.gtnllib.gui.widget.FillBar;
-import com.gtnllib.gui.widget.LayoutTheme;
 import com.gtnllib.gui.widget.SlideSwitch;
 import com.science.gtnl.common.equipment.EquipmentEnergy;
 import com.science.gtnl.common.equipment.EquipmentModules;
@@ -306,7 +306,7 @@ public abstract class EquipmentGui {
         BooleanSupplier allowed, String hint) {
         BooleanSyncValue value = syncToggle(key, getter, setter, allowed);
         return new SlideSwitch().value(value::getBoolValue)
-            .availableWhen(allowed)
+            .available(allowed)
             .label(IKey.dynamic(() -> tr(lang)))
             .tooltipBuilder(tooltip -> stateTooltip(tooltip, hint, allowed, value::getBoolValue))
             .onMousePressed(mouse -> {

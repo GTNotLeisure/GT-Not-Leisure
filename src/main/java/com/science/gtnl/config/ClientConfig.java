@@ -341,4 +341,46 @@ public class ClientConfig {
     @DefaultInt(9)
     @RangeInt(min = 4, max = 14)
     public static int portalGunCloseTicks = 9;
+
+    @Comment("Projector preview: outline connected hatch spots as one shape instead of one box per block")
+    @LangKey("gtnl.gui.config.client.projector_merge_outlines")
+    @DefaultBoolean(true)
+    public static boolean projectorMergeOutlines = true;
+
+    @Comment("Projector preview: hatch spot outlines show through the blocks in front of them")
+    @LangKey("gtnl.gui.config.client.projector_outlines_through_blocks")
+    @DefaultBoolean(false)
+    public static boolean projectorOutlinesThroughBlocks = false;
+
+    @Comment("Projector preview: outline hatch spots on every page, not only on the hatch page")
+    @LangKey("gtnl.gui.config.client.projector_hatch_outlines")
+    @DefaultBoolean(true)
+    public static boolean projectorHatchOutlines = true;
+
+    @Comment("Build animations: shake the camera of nearby players when a machine lands or locks into place")
+    @LangKey("gtnl.gui.config.client.structure_landing_shake")
+    @DefaultBoolean(true)
+    public static boolean structureLandingShake = true;
+
+    @Comment("Projector: changing a hatch's model or tier also changes the other spots of the same kind")
+    @LangKey("gtnl.gui.config.client.projector_same_kind")
+    @DefaultBoolean(true)
+    public static boolean projectorSameKind = true;
+
+    @Comment("Projector: choosing a casing changes its whole group of spots, not only the chosen spot")
+    @LangKey("gtnl.gui.config.client.projector_same_casing")
+    @DefaultBoolean(false)
+    public static boolean projectorSameCasing = false;
+
+    @Comment("Projector pose panel: horizontal position, 0 at the left edge of the screen and 1 at the right edge")
+    @LangKey("gtnl.gui.config.client.projector_hud_x")
+    @DefaultDouble(1)
+    @RangeDouble(min = 0, max = 1)
+    public static double projectorHudX = 1;
+
+    @Comment("Projector pose panel: vertical position, 0 at the top edge of the screen and 1 at the bottom edge")
+    @LangKey("gtnl.gui.config.client.projector_hud_y")
+    @DefaultDouble(0.3)
+    @RangeDouble(min = 0, max = 1)
+    public static double projectorHudY = 0.3;
 }

@@ -1,0 +1,535 @@
+package com.science.gtnl.client.projector;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Predicate;
+
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.inventory.IInventory;
+import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.util.EnumChatFormatting;
+import net.minecraft.util.MathHelper;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.StatCollector;
+import net.minecraft.util.Vec3;
+import net.minecraft.world.World;
+import net.minecraftforge.common.util.ForgeDirection;
+import net.minecraftforge.event.world.WorldEvent;
+
+import com.gtnewhorizon.gtnhlib.compat.BaublesCompat;
+import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
+import com.gtnewhorizon.gtnhlib.util.AboveHotbarHUD;
+import com.gtnewhorizon.structurelib.alignment.IAlignment;
+import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
+import com.gtnewhorizon.structurelib.event.BlockChangeNotifier;
+import com.science.gtnl.ScienceNotLeisure;
+import com.science.gtnl.client.structureanimation.StructureAnimations;
+import com.science.gtnl.common.item.items.MultiblockProjector;
+import com.science.gtnl.common.packet.OpenProjectorPacket;
+import com.science.gtnl.common.packet.ProjectorPlanPacket;
+import com.science.gtnl.common.packet.ProjectorReadPacket;
+import com.science.gtnl.common.projector.ProjectorBuilder;
+import com.science.gtnl.common.projector.ProjectorMachines;
+import com.science.gtnl.common.projector.ProjectorOrientation;
+import com.science.gtnl.common.projector.ProjectorPlan;
+import com.science.gtnl.common.projector.ProjectorServer;
+import com.science.gtnl.common.projector.ProjectorSimulation;
+import com.science.gtnl.common.projector.ProjectorStructure;
+import com.science.gtnl.common.projector.ProjectorStructure.Choice;
+
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
+
+@SideOnly(Side.CLIENT)
+@EventBusSubscriber(side = Side.CLIENT)
+public class ProjectorClient {
+
+    public static final String LANG = "gtnl.projector.";
+    public static final int REACH = 128, SEGMENT = 64, FLOAT_WARNING = 3, COMPLETE_TICKS = 40, HUD_TICKS = 10,
+        BLOCK_PREVIEW_LIMIT = 20_000;
+    private static final int CLICK_GAP = 6, MAX_IN_FLIGHT = 16, SPOT_TICKS = 40, SETTLE_TICKS = 5, QUOTE_TICKS = 100;
+    private static final ArrayDeque<NBTTagCompound> inFlight = new ArrayDeque<>();
+
+    public static int location = Integer.MIN_VALUE;
+    public static ProjectorPlan plan;
+    public static ProjectorStructure structure;
+    public static ExtendedFacing facing = ExtendedFacing.DEFAULT;
+    public static int x, y, z;
+    public static int[] offsets = new int[3];
+    public static boolean visible, placed, followed, unloadedGround, tooHigh, tooLow;
+    public static int floating, settledTicks;
+    public static int completeTicks;
+    public static int[] focus = new int[0];
+    public static int focusColor;
+    public static final ProjectorCheck CHECK = new ProjectorCheck();
+    public static final ProjectorGround GROUND = new ProjectorGround();
+    private static final Int2IntOpenHashMap QUOTE = new Int2IntOpenHashMap();
+    private static long quoteTick = Long.MIN_VALUE / 2;
+    private static NBTTagCompound planTag;
+    private static boolean listening;
+    private static long lastClick = -CLICK_GAP, ticks, spotTick;
+    private static int[] spot;
+    private static int spotMachine;
+
+    private ProjectorClient() {}
+
+    public static void registerListener() {
+        if (listening) return;
+        listening = true;
+        BlockChangeNotifier
+            .addListener((world, chunk, blockX, blockY, blockZ, oldBlock, newBlock, oldMeta, newMeta) -> {
+                if (!world.isRemote || world != Minecraft.getMinecraft().theWorld) return;
+                CHECK.blockChanged(world, blockX, blockY, blockZ);
+                GROUND.invalidate(blockX, blockZ);
+            });
+    }
+
+    @SubscribeEvent
+    public static void tick(TickEvent.ClientTickEvent event) {
+        if (event.phase != TickEvent.Phase.END) return;
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.theWorld == null || mc.thePlayer == null) {
+            reset();
+            return;
+        }
+        ticks++;
+        ProjectorStructures.tick();
+        findActive(mc.thePlayer);
+        visible = false;
+        if (plan == null || !plan.hasMachine()
+            || plan.state == ProjectorPlan.State.IDLE
+            || plan.isPlaced() && plan.dimension != mc.thePlayer.dimension) {
+            CHECK.clear();
+            ProjectorRenderer.release();
+            completeTicks = 0;
+            followed = false;
+            if (location == 0 && plan != null && plan.state == ProjectorPlan.State.IDLE && ticks % HUD_TICKS == 0)
+                AboveHotbarHUD.renderTextAboveHotbar(
+                    EnumChatFormatting.WHITE + StatCollector.translateToLocal(LANG + "idle"),
+                    HUD_TICKS + 5,
+                    true,
+                    false);
+            return;
+        }
+        structure = ProjectorStructures.get(plan.settings());
+        int lastX = x, lastY = y, lastZ = z;
+        ExtendedFacing lastFacing = facing;
+        updatePlacement(mc);
+        boolean still = x == lastX && y == lastY && z == lastZ && facing == lastFacing;
+        settledTicks = still ? settledTicks + 1 : 0;
+        // A following projection is only checked once it stops, as every move would rebuild the whole check.
+        if (structure != null && visible && (placed || settledTicks >= SETTLE_TICKS)) {
+            CHECK.update(mc.theWorld, structure, facing, x, y, z, offsets);
+            if (placed) updateCompletion();
+        } else {
+            CHECK.clear();
+        }
+        if (ticks % HUD_TICKS == 0) showStatus();
+    }
+
+    @SubscribeEvent
+    public static void unload(WorldEvent.Unload event) {
+        if (event.world.isRemote) reset();
+    }
+
+    private static void reset() {
+        location = Integer.MIN_VALUE;
+        plan = null;
+        planTag = null;
+        inFlight.clear();
+        lastClick = -CLICK_GAP;
+        spot = null;
+        focus = new int[0];
+        structure = null;
+        visible = false;
+        CHECK.clear();
+        GROUND.clear();
+        ProjectorStructures.clear();
+        ProjectorRenderer.release();
+    }
+
+    private static void findActive(EntityPlayer player) {
+        ItemStack held = player.getCurrentEquippedItem();
+        if (held != null && held.getItem() instanceof MultiblockProjector) {
+            use(0, held);
+            return;
+        }
+        IInventory worn = BaublesCompat.getBaubles(player);
+        if (worn != null) {
+            for (int slot = 0; slot < worn.getSizeInventory(); slot++) {
+                ItemStack stack = worn.getStackInSlot(slot);
+                if (stack == null || !(stack.getItem() instanceof MultiblockProjector)) continue;
+                use(-slot - 1, stack);
+                if (plan.state != ProjectorPlan.State.IDLE) return;
+            }
+        }
+        location = Integer.MIN_VALUE;
+        plan = null;
+        planTag = null;
+    }
+
+    private static void use(int slot, ItemStack stack) {
+        NBTTagCompound tag = stack.getTagCompound() == null ? null
+            : stack.getTagCompound()
+                .getCompoundTag(ProjectorPlan.TAG);
+        if (slot != location || plan == null || tag != planTag) {
+            boolean stale = slot == location && plan != null && isStaleEcho(tag);
+            planTag = tag;
+            if (!stale) plan = ProjectorPlan.read(stack);
+        }
+        location = slot;
+    }
+
+    // The server echoes every edit; an echo of an older edit arriving after newer ones would undo them.
+    private static boolean isStaleEcho(NBTTagCompound tag) {
+        if (tag == null || inFlight.isEmpty()) return false;
+        if (tag.equals(inFlight.peekLast())) {
+            inFlight.clear();
+            return false;
+        }
+        while (!inFlight.isEmpty()) {
+            if (inFlight.removeFirst()
+                .equals(tag)) return true;
+        }
+        return false;
+    }
+
+    public static void send(ProjectorPlan next) {
+        send(location, next);
+    }
+
+    public static void send(int slot, ProjectorPlan next) {
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        ItemStack stack = player == null || slot == Integer.MIN_VALUE ? null
+            : ProjectorServer.projectorAt(player, slot);
+        if (stack == null) return;
+        next.write(stack);
+        if (slot == location) {
+            plan = next;
+            planTag = stack.getTagCompound()
+                .getCompoundTag(ProjectorPlan.TAG);
+            inFlight.addLast((NBTTagCompound) planTag.copy());
+            if (inFlight.size() > MAX_IN_FLIGHT) inFlight.removeFirst();
+        }
+        ScienceNotLeisure.network.sendToServer(new ProjectorPlanPacket(slot, next.writeToNBT()));
+    }
+
+    public static String frontLabel(ForgeDirection front) {
+        String side = front == ForgeDirection.UP ? "up" : front == ForgeDirection.DOWN ? "down" : "horizontal";
+        return StatCollector.translateToLocalFormatted(
+            LANG + "pose.front",
+            StatCollector.translateToLocal(LANG + "pose.front." + side));
+    }
+
+    public static Predicate<ExtendedFacing> validFacings() {
+        return ProjectorMachines.validFacings(plan.machine);
+    }
+
+    public static int quadrant(EntityPlayer player) {
+        return MathHelper.floor_double(player.rotationYaw * 4.0 / 360.0 + 0.5) & 3;
+    }
+
+    public static ExtendedFacing followFacing(ExtendedFacing stored, EntityPlayer player) {
+        return ProjectorOrientation.rotateY(stored, quadrant(player), validFacings());
+    }
+
+    public static void reorient(ProjectorPlan next, ExtendedFacing target, ProjectorStructure shape) {
+        if (next.state == ProjectorPlan.State.LOCKED && next.centerPivot && shape != null) {
+            int[] before = shape.worldBounds(next.facing), after = shape.worldBounds(target);
+            next.x += Math.floorDiv(before[0] + before[3] - after[0] - after[3], 2);
+            next.y = Math.max(0, Math.min(255, next.y + Math.floorDiv(before[1] + before[4] - after[1] - after[4], 2)));
+            next.z += Math.floorDiv(before[2] + before[5] - after[2] - after[5], 2);
+        }
+        next.facing = target;
+    }
+
+    public static ExtendedFacing initialFacing(int machine) {
+        Predicate<ExtendedFacing> valid = ProjectorMachines.validFacings(machine);
+        return ProjectorOrientation.withFront(ProjectorOrientation.canonical(valid), ForgeDirection.NORTH, valid);
+    }
+
+    public static void rightClick(boolean sneaking) {
+        Minecraft mc = Minecraft.getMinecraft();
+        EntityPlayer player = mc.thePlayer;
+        if (player == null) return;
+        long now = mc.theWorld.getTotalWorldTime();
+        boolean repeated = now - lastClick < CLICK_GAP;
+        lastClick = now;
+        if (repeated) return;
+        findActive(player);
+        if (location != 0 || plan == null) return;
+        if (sneaking && alignToController(player)) return;
+        act(player, sneaking);
+    }
+
+    // Sneak-right-clicking a built controller marks it: the projection takes that machine, place and facing, locked,
+    // so the machine can be checked, finished, undone or dismantled from there.
+    private static boolean alignToController(EntityPlayer player) {
+        MovingObjectPosition hit = Minecraft.getMinecraft().objectMouseOver;
+        if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) return false;
+        if (!(player.worldObj.getTileEntity(hit.blockX, hit.blockY, hit.blockZ) instanceof IGregTechTileEntity tile))
+            return false;
+        int id = tile.getMetaTileID();
+        if (!ProjectorMachines.isSupported(id)) return false;
+        ExtendedFacing facing = tile.getMetaTileEntity() instanceof IAlignment alignment ? alignment.getExtendedFacing()
+            : ProjectorOrientation
+                .withFront(initialFacing(id), tile.getFrontFacing(), ProjectorMachines.validFacings(id));
+        ProjectorPlan next = plan.copy();
+        next.selectMachine(id);
+        next.facing = facing;
+        next.dimension = player.dimension;
+        next.x = hit.blockX;
+        next.y = hit.blockY;
+        next.z = hit.blockZ;
+        next.state = ProjectorPlan.State.LOCKED;
+        send(next);
+        ScienceNotLeisure.network.sendToServer(new ProjectorReadPacket(location, hit.blockX, hit.blockY, hit.blockZ));
+        ItemStack stack = ProjectorMachines.stackOf(id);
+        AboveHotbarHUD.renderTextAboveHotbar(
+            EnumChatFormatting.WHITE + StatCollector
+                .translateToLocalFormatted(LANG + "aligned", stack == null ? "?" : stack.getDisplayName()),
+            60,
+            true,
+            true);
+        return true;
+    }
+
+    public static void lockKey(boolean sneaking) {
+        EntityPlayer player = Minecraft.getMinecraft().thePlayer;
+        if (player == null) return;
+        findActive(player);
+        if (location == Integer.MIN_VALUE || plan == null) return;
+        act(player, sneaking);
+    }
+
+    private static void act(EntityPlayer player, boolean sneaking) {
+        ProjectorPlan next = plan.copy();
+        switch (plan.state) {
+            case IDLE -> {
+                if (!sneaking) open();
+            }
+            case FOLLOW -> {
+                if (sneaking) {
+                    next.state = ProjectorPlan.State.IDLE;
+                    send(next);
+                } else if (visible && structure != null && !tooHigh && !tooLow) {
+                    next.facing = facing;
+                    next.dimension = player.dimension;
+                    next.x = x;
+                    next.y = y;
+                    next.z = z;
+                    next.state = ProjectorPlan.State.LOCKED;
+                    send(next);
+                }
+            }
+            case LOCKED -> {
+                if (sneaking) {
+                    next.facing = ProjectorOrientation.rotateY(plan.facing, -quadrant(player), validFacings());
+                    next.state = ProjectorPlan.State.FOLLOW;
+                    send(next);
+                } else open();
+            }
+            case ANCHORED -> {
+                if (sneaking) {
+                    next.state = ProjectorPlan.State.IDLE;
+                    send(next);
+                } else open();
+            }
+        }
+    }
+
+    public static void open() {
+        if (location != Integer.MIN_VALUE) ScienceNotLeisure.network.sendToServer(new OpenProjectorPacket(location));
+    }
+
+    public static void openAt(ProjectorStructure shown, int cell) {
+        spot = new int[] { shown.a[cell], shown.b[cell], shown.c[cell] };
+        spotMachine = plan.machine;
+        spotTick = ticks;
+        open();
+    }
+
+    // The interface only opens once the server answers, so the chosen spot waits here until then.
+    public static int[] takeSpot(int machine) {
+        int[] taken = ticks - spotTick <= SPOT_TICKS && machine == spotMachine ? spot : null;
+        spot = null;
+        return taken;
+    }
+
+    private static void updatePlacement(Minecraft mc) {
+        EntityPlayer player = mc.thePlayer;
+        tooHigh = tooLow = unloadedGround = false;
+        floating = 0;
+        placed = plan.isPlaced();
+        facing = placed ? plan.facing : followFacing(plan.facing, player);
+        int[] single = structure == null ? new int[6] : structure.worldBounds(facing);
+        int[] next = plan.stackOffsets(single);
+        if (structure != null && !ProjectorBuilder.fits(structure, single, next)) next = new int[3];
+        if (!Arrays.equals(next, offsets)) offsets = next;
+        if (placed) {
+            followed = false;
+            x = plan.x;
+            y = plan.y;
+            z = plan.z;
+            int[] all = ProjectorPlan.stackedBounds(single, offsets);
+            tooHigh = y + all[4] > 255;
+            tooLow = y + all[1] < 0;
+            visible = true;
+            return;
+        }
+        MovingObjectPosition hit = trace(mc.theWorld, player);
+        if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) {
+            visible = followed;
+            return;
+        }
+        int[] bounds = structure == null ? new int[6] : structure.worldBounds(facing);
+        int pivotX = plan.centerPivot ? Math.floorDiv(bounds[0] + bounds[3], 2) : 0;
+        int pivotZ = plan.centerPivot ? Math.floorDiv(bounds[2] + bounds[5], 2) : 0;
+        if (plan.groundSnap) {
+            snap(mc.theWorld, hit.blockX - pivotX, hit.blockZ - pivotZ, hit.blockY, bounds);
+        } else {
+            ForgeDirection side = ForgeDirection.getOrientation(hit.sideHit);
+            x = hit.blockX + side.offsetX - pivotX;
+            z = hit.blockZ + side.offsetZ - pivotZ;
+            y = hit.blockY + side.offsetY + plan.verticalOffset;
+        }
+        int[] all = ProjectorPlan.stackedBounds(bounds, offsets);
+        tooHigh = y + all[4] > 255;
+        tooLow = y + all[1] < 0;
+        followed = visible = true;
+    }
+
+    private static void snap(World world, int column, int row, int hitY, int[] bounds) {
+        GROUND.fit((bounds[3] - bounds[0] + 1) * (bounds[5] - bounds[2] + 1));
+        int highest = Integer.MIN_VALUE, lowest = Integer.MAX_VALUE;
+        for (int gx = column + bounds[0]; gx <= column + bounds[3]; gx++) {
+            for (int gz = row + bounds[2]; gz <= row + bounds[5]; gz++) {
+                int height = GROUND.height(world, gx, gz);
+                if (height == ProjectorGround.UNLOADED) {
+                    unloadedGround = true;
+                    continue;
+                }
+                highest = Math.max(highest, height);
+                lowest = Math.min(lowest, height);
+            }
+        }
+        if (highest == Integer.MIN_VALUE) highest = lowest = hitY;
+        x = column;
+        z = row;
+        y = highest + 1 - bounds[1] + Math.max(0, plan.verticalOffset);
+        floating = y + bounds[1] - (lowest + 1);
+    }
+
+    public static void chunkReceived(int chunkX, int chunkZ) {
+        CHECK.chunkReceived(chunkX, chunkZ);
+        GROUND.invalidateChunk(chunkX, chunkZ);
+    }
+
+    public static Vec3 eye(EntityPlayer player) {
+        return Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+    }
+
+    public static MovingObjectPosition trace(World world, EntityPlayer player) {
+        Vec3 start = eye(player);
+        Vec3 look = player.getLook(1.0f);
+        for (int from = 0; from < REACH; from += SEGMENT) {
+            Vec3 segmentStart = start.addVector(look.xCoord * from, look.yCoord * from, look.zCoord * from);
+            int to = Math.min(REACH, from + SEGMENT);
+            Vec3 segmentEnd = start.addVector(look.xCoord * to, look.yCoord * to, look.zCoord * to);
+            MovingObjectPosition hit = world.func_147447_a(segmentStart, segmentEnd, false, true, false);
+            if (hit != null) return hit;
+        }
+        return null;
+    }
+
+    private static void updateCompletion() {
+        if (!CHECK.isComplete() || StructureAnimations.ownActive()) {
+            completeTicks = 0;
+            return;
+        }
+        // The projection stays once complete, so the build can still be undone or the machine dismantled.
+        if (++completeTicks != COMPLETE_TICKS) return;
+        AboveHotbarHUD.renderTextAboveHotbar(
+            EnumChatFormatting.GREEN + StatCollector.translateToLocal(LANG + "complete"),
+            60,
+            true,
+            true);
+    }
+
+    private static void showStatus() {
+        String text;
+        if (structure == null) {
+            ProjectorSimulation running = ProjectorStructures.running(plan.settings());
+            text = StatCollector.translateToLocalFormatted(LANG + "simulating", running == null ? 0 : running.rounds);
+        } else if (!structure.failure.isEmpty()) {
+            text = EnumChatFormatting.RED + StatCollector
+                .translateToLocalFormatted(LANG + "failure", StatCollector.translateToLocal(structure.failure));
+        } else if (tooHigh || tooLow) {
+            text = EnumChatFormatting.RED + StatCollector.translateToLocal(LANG + (tooHigh ? "too_high" : "too_low"));
+        } else if (!placed) {
+            text = location == 0 ? StatCollector.translateToLocal(LANG + "follow") : ProjectorInput.wornFollowHint();
+            if (floating >= FLOAT_WARNING) text = StatCollector.translateToLocalFormatted(
+                LANG + "joined",
+                text,
+                StatCollector.translateToLocalFormatted(LANG + "floating", floating));
+            if (unloadedGround) text = StatCollector.translateToLocalFormatted(
+                LANG + "joined",
+                text,
+                StatCollector.translateToLocal(LANG + "unloaded_ground"));
+            if (CHECK.scanned && CHECK.wrong > 0) text = StatCollector.translateToLocalFormatted(
+                LANG + "joined",
+                text,
+                EnumChatFormatting.RED + StatCollector.translateToLocalFormatted(LANG + "overlaps", CHECK.wrong)
+                    + EnumChatFormatting.WHITE);
+        } else if (!CHECK.scanned) {
+            text = StatCollector.translateToLocal(LANG + "checking");
+        } else if (CHECK.isComplete()) {
+            text = EnumChatFormatting.GREEN + StatCollector.translateToLocal(LANG + "all_placed");
+        } else {
+            text = StatCollector.translateToLocalFormatted(LANG + "locked", CHECK.missing, CHECK.wrong, CHECK.unloaded);
+        }
+        AboveHotbarHUD.renderTextAboveHotbar(EnumChatFormatting.WHITE + text, HUD_TICKS + 5, true, false);
+    }
+
+    public static List<ItemStack> carried(EntityPlayer player) {
+        List<ItemStack> stacks = new ArrayList<>();
+        if (player == null) return stacks;
+        for (ItemStack stack : player.inventory.mainInventory) {
+            if (stack != null && stack.getItem() != null) stacks.add(stack);
+        }
+        IInventory worn = BaublesCompat.getBaubles(player);
+        if (worn != null) {
+            for (int slot = 0; slot < worn.getSizeInventory(); slot++) {
+                ItemStack stack = worn.getStackInSlot(slot);
+                if (stack != null && stack.getItem() != null) stacks.add(stack);
+            }
+        }
+        return stacks;
+    }
+
+    public static void quoted(int[] kinds, int[] available) {
+        QUOTE.clear();
+        for (int i = 0; i < kinds.length; i++) if (kinds[i] >= 0) QUOTE.put(kinds[i], available[i]);
+        quoteTick = ticks;
+    }
+
+    // What the server last said the build could take of each material, or -1 when that answer is too old.
+    public static int quoted(int kind) {
+        return ticks - quoteTick > QUOTE_TICKS || !QUOTE.containsKey(kind) ? -1 : QUOTE.get(kind);
+    }
+
+    public static Int2IntOpenHashMap inventory(EntityPlayer player) {
+        Int2IntOpenHashMap have = new Int2IntOpenHashMap();
+        for (ItemStack stack : carried(player))
+            have.addTo(Choice.idOf(stack.getItem(), stack.getItemDamage()), stack.stackSize);
+        return have;
+    }
+}

@@ -46,6 +46,7 @@ import com.science.gtnl.common.item.items.ItemPartSuperInterface;
 import com.science.gtnl.common.item.items.ItemPartUniversalBus;
 import com.science.gtnl.common.item.items.ItemYogSothothTerminal;
 import com.science.gtnl.common.item.items.KFCFamily;
+import com.science.gtnl.common.item.items.MultiblockProjector;
 import com.science.gtnl.common.item.items.NetherTeleporter;
 import com.science.gtnl.common.item.items.NullPointerException;
 import com.science.gtnl.common.item.items.PortableCellWorkbenchItem;
@@ -81,6 +82,7 @@ import com.science.gtnl.common.item.items.fuelRod.FuelRod;
 import com.science.gtnl.common.item.items.fuelRod.FuelRodDepleted;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.enums.ModsItemlist;
+import com.science.gtnl.utils.text.AnimatedText;
 
 import appeng.api.storage.StorageChannel;
 import cpw.mods.fml.common.registry.GameRegistry;
@@ -217,6 +219,10 @@ public class ItemLoader {
     public static WirelessFrequencyCard wirelessFrequencyCard = ITEMS
         .item("wireless_frequency_card", new WirelessFrequencyCard())
         .bind(GTNLItemList.WirelessFrequencyCard::set)
+        .register();
+    public static MultiblockProjector multiblockProjector = ITEMS
+        .item("multiblock_projector", new MultiblockProjector())
+        .bind(GTNLItemList.MultiblockProjector::set)
         .register();
     public static ItemMEMiniPortableTerminal meMiniPortableTerminal = ITEMS
         .item("me_mini_portable_terminal", new ItemMEMiniPortableTerminal())
@@ -746,6 +752,7 @@ public class ItemLoader {
             new ItemStack(ItemLoader.satietyRing, 1),
             AnimatedTooltipHandler
                 .buildTextWithAnimatedEnd(AnimatedTooltipHandler.text("Most machine recipe by zero_CM")));
+        AnimatedTooltipHandler.addItemTooltip(GTNLItemList.MultiblockProjector.get(1), AnimatedText.AUTHOR_LINEBROKE);
     }
 
     public static void registrySuspiciousStewFlower() {

@@ -40,7 +40,8 @@ public class ContentLoaders {
         new TextEffectLoader(),
         new CommandLoader(),
         new RenderLoader(),
-        new MajoLoader());
+        new MajoLoader(),
+        new ProjectorLoader());
 
     public enum Phase {
         NOT_STARTED,

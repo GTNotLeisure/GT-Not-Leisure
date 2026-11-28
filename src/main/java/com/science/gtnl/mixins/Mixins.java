@@ -120,6 +120,14 @@ public enum Mixins implements IMixins {
         .setPhase(Phase.LATE)
         .addRequiredMod(ModList.AppliedEnergistics)),
 
+    PROJECTOR_CHUNK_CHECK(new MixinBuilder("Projector block check after chunk data")
+        .addClientMixins("minecraft.MixinNetHandlerPlayClientProjector")
+        .setPhase(Phase.EARLY)),
+
+    PROJECTOR_HELD_SYNC(new MixinBuilder("Projector holds block sync while the build animation plays")
+        .addCommonMixins("minecraft.MixinPlayerManagerProjector")
+        .setPhase(Phase.EARLY)),
+
     FLOATING_WINDOW_HOST_TOOLTIP(new MixinBuilder("Floating window host tooltip layering")
         .addClientMixins("minecraft.AccessorGuiScreen", "minecraft.MixinFloatingWindowHostTooltip")
         .setPhase(Phase.EARLY)),
@@ -206,6 +214,7 @@ public enum Mixins implements IMixins {
             "gregtech.MixinGTPPRecipeMaps",
             "gregtech.MixinGTShapedRecipe",
             "gregtech.MixinGTShapelessRecipe",
+            "gregtech.MixinItemMachinesProjector",
             "gregtech.MixinGTUtility",
             "gregtech.MixinGTUtil",
             "gregtech.MixinAssemblyLineUtils",

@@ -40,9 +40,12 @@ import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.Size;
 import com.gtnllib.gui.theme.AE2Theme;
 import com.gtnllib.gui.theme.ButtonPurpose;
+import com.gtnllib.gui.theme.MUI2Fixes;
+import com.gtnllib.gui.theme.ae2.AE2Look;
 import com.gtnllib.gui.widget.SlideSwitch;
 import com.gtnllib.gui.widget.StepSlider;
 import com.gtnllib.utils.ColorMath;
+import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.celestweave.CelestweaveThemeAccent;
 import com.science.gtnl.common.celestweave.CelestweaveBackpack;
 import com.science.gtnl.common.celestweave.CelestweaveBackpackData;
@@ -164,6 +167,7 @@ public class CelestweaveGui extends EquipmentGui {
             .width(this::listWidth, Unit.Measure.PIXEL)
             .height(this::pageHeight, Unit.Measure.PIXEL)
             .setEnabledIf(widget -> page == index);
+        MUI2Fixes.noScrollShadows(list);
         lines.forEach(list::child);
         panel.child(list);
     }
@@ -234,8 +238,8 @@ public class CelestweaveGui extends EquipmentGui {
             labels.add(tr(SHORT_LANG + module.id));
             switches.add(
                 new SlideSwitch().value(() -> (state.getIntValue() & ACTIVE) != 0)
-                    .availableWhen(() -> (state.getIntValue() & INSTALLED) != 0)
-                    .liveWhen(() -> (state.getIntValue() & SHOWN) != 0)
+                    .available(() -> (state.getIntValue() & INSTALLED) != 0)
+                    .glowWhen(() -> (state.getIntValue() & SHOWN) != 0)
                     .label(IKey.dynamic(() -> tr(SHORT_LANG + module.id)))
                     .tooltipAutoUpdate(true)
                     .tooltipBuilder(tooltip -> {
@@ -347,11 +351,11 @@ public class CelestweaveGui extends EquipmentGui {
     @SideOnly(Side.CLIENT)
     private static StepSlider stepSlider(IntSyncValue value, int min, int max, int step, IntFunction<String> format,
         BooleanSupplier active) {
-        return new StepSlider()
+        return new StepSlider().wheel(true)
             .value(value::getIntValue, v -> { if (active.getAsBoolean()) value.setIntValue((int) Math.round(v)); })
             .range(min, max, Math.max(1, (max - min) / step))
             .format(v -> format.apply((int) Math.round(v)))
-            .activeWhen(active);
+            .available(active);
     }
 
     private static float guiScale(CelestweaveCosmeticOption option) {
@@ -441,7 +445,7 @@ public class CelestweaveGui extends EquipmentGui {
                 .leftRel(1f)
                 .background(IDrawable.EMPTY)
                 .disableThemeBackground(false);
-        AE2Theme.sliderHandles(picker, themeId);
+        AE2Theme.polish(picker, AE2Look.ofTheme(themeId), ScienceNotLeisure.MODID, panel.getName());
         return picker;
     }
 

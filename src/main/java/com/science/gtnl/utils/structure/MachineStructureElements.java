@@ -72,7 +72,7 @@ public class MachineStructureElements {
 
     public static TieredCasing<Integer> componentAssemblylineCasing(Supplier<List<Pair<Block, Integer>>> variants) {
         return new TieredCasing<>(
-            (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : -1,
+            (block, meta) -> block == Loaders.componentAssemblylineCasing ? meta : null,
             variants,
             -2);
     }

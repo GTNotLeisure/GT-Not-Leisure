@@ -45,6 +45,7 @@ import com.gtnewhorizon.structurelib.alignment.constructable.IConstructable;
 import com.gtnewhorizon.structurelib.alignment.constructable.ISurvivalConstructable;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
+import com.gtnewhorizon.structurelib.structure.ITierConverter;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnllib.utils.MathUtils;
 import com.science.gtnl.api.casing.GTNLCasings;
@@ -96,10 +97,12 @@ import tectech.thing.metaTileEntity.multi.base.render.TTRenderedExtendedFacingTe
 public class SuperSpaceElevator extends TTMultiMachineBase
     implements IConstructable, ISecondaryDescribable, ISurvivalConstructable {
 
-    private static final TieredCasing<Integer> MOTOR_CASING = new TieredCasing<>(
-        ElevatorUtil.motorTierConverter(),
-        () -> ElevatorUtil.getMotorTiers(),
-        0);
+    private static final ITierConverter<Integer> UPSTREAM_MOTOR_TIERS = ElevatorUtil.motorTierConverter();
+    // Upstream answers -1 instead of null for other blocks, which StructureLib accepts while the tier is unset.
+    private static final TieredCasing<Integer> MOTOR_CASING = new TieredCasing<>((block, meta) -> {
+        Integer tier = UPSTREAM_MOTOR_TIERS.convert(block, meta);
+        return tier == null || tier < 1 ? null : tier;
+    }, () -> ElevatorUtil.getMotorTiers(), 0);
 
     private static final int MODULE_CHARGE_INTERVAL = 20;
     private static final int INTERNAL_BUFFER_MULTIPLIER = 256;

@@ -19,12 +19,12 @@ import net.minecraftforge.client.model.IModelCustom;
 
 import org.lwjgl.opengl.GL11;
 
+import com.gtnllib.client.fx.world.FxCameraShake.Axis;
 import com.gtnllib.client.fx.world.FxMuzzleAnchor;
 import com.gtnllib.utils.Vec3d;
 import com.science.gtnl.client.railgun.RailgunBolts;
 import com.science.gtnl.client.railgun.RailgunBolts.Bolt;
 import com.science.gtnl.client.railgun.RailgunCameraShake;
-import com.science.gtnl.client.railgun.RailgunCameraShake.Axis;
 import com.science.gtnl.client.railgun.RailgunCharge;
 import com.science.gtnl.client.railgun.RailgunClientFx;
 import com.science.gtnl.client.railgun.RailgunOrbRenderer;
