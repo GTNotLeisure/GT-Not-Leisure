@@ -8,11 +8,13 @@ import net.minecraft.world.chunk.Chunk;
 import net.minecraft.world.chunk.EmptyChunk;
 import net.minecraftforge.common.util.ForgeDirection;
 
+import com.gtnewhorizon.gtnhlib.util.CoordinatePacker;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 import com.science.gtnl.common.projector.ProjectorStructure.HatchSlot;
 
 import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 public class ProjectorSite {
 
@@ -24,6 +26,7 @@ public class ProjectorSite {
     public final int[] offsets;
     public final int perCopy;
     public final int[] worldX, worldY, worldZ;
+    private final boolean[] shadowed;
 
     // Cells of copy n follow those of copy n - 1, each copy laid out like a single structure.
     public ProjectorSite(ProjectorStructure structure, ExtendedFacing facing, int x, int y, int z, int[] offsets) {
@@ -56,6 +59,27 @@ public class ProjectorSite {
                 worldZ[index] = z + offsets[copy * 3 + 2] + offset[2];
             }
         }
+        shadowed = copies() > 1 ? findShadowed() : null;
+    }
+
+    // Copies stacked with a negative gap overlap. A spot two copies want a block in goes to the earlier copy, and a
+    // spot one copy wants empty while another wants a block goes to the block; the losing cells are left out.
+    private boolean[] findShadowed() {
+        boolean[] lost = new boolean[total()];
+        LongOpenHashSet blocks = new LongOpenHashSet(structure.size * copies());
+        for (int index = 0; index < total(); index++) {
+            if (isBlock(index) && !blocks.add(CoordinatePacker.pack(worldX[index], worldY[index], worldZ[index])))
+                lost[index] = true;
+        }
+        for (int index = 0; index < total(); index++) {
+            if (!isBlock(index) && blocks.contains(CoordinatePacker.pack(worldX[index], worldY[index], worldZ[index])))
+                lost[index] = true;
+        }
+        return lost;
+    }
+
+    public boolean isShadowed(int index) {
+        return shadowed != null && shadowed[index];
     }
 
     public int total() {
@@ -85,6 +109,7 @@ public class ProjectorSite {
     // Chunks the server has not loaded count as unloaded instead of being loaded from disk for the check.
     public byte compute(World world, int index) {
         int x = worldX[index], y = worldY[index], z = worldZ[index], cell = local(index);
+        if (isShadowed(index)) return CORRECT;
         if (y < 0 || y > 255
             || !world.getChunkProvider()
                 .chunkExists(x >> 4, z >> 4))
@@ -100,8 +125,31 @@ public class ProjectorSite {
             if (choice == null || free) return CORRECT;
             return matches(world, cell, block, meta, x, y, z) ? CORRECT : WRONG;
         }
-        if (matches(world, cell, block, meta, x, y, z)) return CORRECT;
+        if (matches(world, cell, block, meta, x, y, z)) return facesWrong(world, index) ? WRONG : CORRECT;
         return free ? MISSING : WRONG;
+    }
+
+    // A controller of the right machine turned the wrong way cannot form, but the build can turn it in place.
+    public boolean facesWrong(World world, int index) {
+        int x = worldX[index], y = worldY[index], z = worldZ[index];
+        if (!isController(x, y, z) || !(world.getTileEntity(x, y, z) instanceof IGregTechTileEntity tile)) return false;
+        return tile.getMetaTileID() == structure.machines[local(index)]
+            && tile.getFrontFacing() != facing.getDirection();
+    }
+
+    // Stricter than compute(): a spot the structure leaves free counts only when it holds a block the structure accepts
+    // there, so dismantling never takes grass, snow or whatever else happens to stand in such a spot.
+    public boolean holdsStructure(World world, int index) {
+        if (isShadowed(index) || !isBlock(index)) return false;
+        int x = worldX[index], y = worldY[index], z = worldZ[index], cell = local(index);
+        if (y < 0 || y > 255 || !world.blockExists(x, y, z)) return false;
+        Block block = world.getBlock(x, y, z);
+        if (block.isAir(world, x, y, z)) return false;
+        if (structure.blocks[cell] == Blocks.air) {
+            if (structure.choiceAt(cell) == null && structure.slotAt(cell) == null) return false;
+            if (block.isReplaceable(world, x, y, z)) return false;
+        }
+        return matches(world, cell, block, world.getBlockMetadata(x, y, z), x, y, z);
     }
 
     private boolean matches(World world, int cell, Block block, int meta, int x, int y, int z) {

@@ -86,6 +86,10 @@ public class NetWorkHandler {
         registerServerbound(ProjectorBuildPacket.class);
         registerClientbound(StructureAnimationStartPacket.class);
         registerClientbound(StructureAnimationStatePacket.class);
+        registerServerbound(ProjectorQuotePacket.class);
+        registerClientbound(ProjectorQuoteResultPacket.class);
+        registerServerbound(ProjectorActionPacket.class);
+        registerServerbound(ProjectorReadPacket.class);
     }
 
     public static <T extends ClientboundPacket> void registerClientbound(Class<T> packet) {

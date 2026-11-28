@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.zip.Deflater;
 
 import net.minecraft.block.Block;
@@ -23,9 +24,14 @@ import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.AxisAlignedBB;
 import net.minecraft.util.ChatComponentTranslation;
 import net.minecraft.util.Vec3;
+import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
+import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.common.ForgeChunkManager;
+import net.minecraftforge.common.ForgeChunkManager.Ticket;
+import net.minecraftforge.common.ForgeChunkManager.Type;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.util.BlockSnapshot;
 import net.minecraftforge.common.util.ForgeDirection;
@@ -77,21 +83,27 @@ public class ProjectorBuilder {
     public enum Stage {
         WAITING,
         SIMULATING,
-        SCANNING,
-        CRAFTING
+        LOADING,
+        SCANNING
     }
 
     public static final int MAX_CELLS = StructureAnimationStartPacket.MAX_CELLS,
         MAX_SIDE = StructureAnimationStartPacket.MAX_SIDE, VIEW_RANGE = 128,
         MAX_START_BYTES = StructureAnimationStartPacket.MAX_START_BYTES, HEARTBEAT_TICKS = 20, STALL_TICKS = 200,
-        COOLDOWN_TICKS = 40, SHOWN_SHORTAGES = 8, SCAN_BATCH = 256, RELEASE_TICKS = 4, BUILT_TICKS = 5;
+        COOLDOWN_TICKS = 40, SHOWN_SHORTAGES = 8, SCAN_BATCH = 256, RELEASE_TICKS = 4, BUILT_TICKS = 5,
+        LOADS_PER_TICK = 4, LOAD_TICKS = 200, LEDGER_TICKS = 100;
     public static final int PLACED = 0, EXISTING = 1, SHORT = 2, BLOCKED = 3, REFUSED = 4, FAILED = 5, OCCUPIED = 6,
         UNLOADED = 7, OBSTRUCTED = 8, OUTCOMES = 9, CLEARED = -1, DENIED_LIMIT = 256, MAX_VOLUME = 4_000_000;
     public static final String LANG = "gtnl.projector.build.";
     private static final Map<UUID, Preparation> PREPARING = new LinkedHashMap<>();
     private static final Map<UUID, Job> JOBS = new HashMap<>();
     private static final Map<UUID, Integer> LAST_REQUEST = new HashMap<>();
+    private static final Map<UUID, List<Ticket>> TICKETS = new HashMap<>();
     private static int nextJobId;
+
+    public static int nextJobId() {
+        return ++nextJobId;
+    }
 
     public static class Preparation {
 
@@ -100,14 +112,20 @@ public class ProjectorBuilder {
         public Stage stage = Stage.WAITING;
         public ProjectorSimulation simulation;
         public ProjectorSite site;
-        public ProjectorCrafting.Chain crafting;
-        public final IntArrayList candidates = new IntArrayList(), clears = new IntArrayList();
-        public int cursor, existing, occupied, unloaded, ticks, idle;
+        public final IntArrayList candidates = new IntArrayList(), clears = new IntArrayList(),
+            turns = new IntArrayList();
+        public final LongArrayList chunks = new LongArrayList();
+        public final int location;
+        public final boolean fromOrder, dismantle;
+        public int cursor, existing, occupied, unloaded, ticks, idle, chunkCursor, loading, loadTicks;
         public boolean ended;
 
-        public Preparation(int dimension, ProjectorPlan plan) {
+        public Preparation(int dimension, ProjectorPlan plan, int location, boolean fromOrder, boolean dismantle) {
+            this.dismantle = dismantle;
             this.dimension = dimension;
             this.plan = plan;
+            this.location = location;
+            this.fromOrder = fromOrder;
         }
     }
 
@@ -123,7 +141,8 @@ public class ProjectorBuilder {
         public final int[] outcomes = new int[OUTCOMES];
         public final IntArrayList skipped = new IntArrayList(), retry = new IntArrayList(),
             controllers = new IntArrayList();
-        public final int[] clears;
+        public final int[] clears, turns;
+        public int turnsDone;
         public int next, retried, ticks, placingTicks, denied, controllersPlaced, reportedBuilt = -1, cleared,
             clearsDone;
         public long placingNanos;
@@ -134,11 +153,15 @@ public class ProjectorBuilder {
         public int released;
         public Start header;
         public byte[] extra;
+        public final ProjectorLedger.Site ledgerSite;
+        public final ProjectorLedger.Build record;
 
         public Job(int id, UUID owner, Preparation preparation, Cell[] cells, int[] box, List<UUID> viewers,
             int placingTick) {
             this.id = id;
             this.owner = owner;
+            ledgerSite = ProjectorLedger.Site.of(owner, preparation.plan);
+            record = ProjectorLedger.begin(ledgerSite);
             dimension = preparation.dimension;
             site = preparation.site;
             facing = site.facing;
@@ -152,6 +175,7 @@ public class ProjectorBuilder {
             this.viewers = viewers;
             this.placingTick = placingTick;
             clears = preparation.clears.toIntArray();
+            turns = preparation.turns.toIntArray();
             targets = new LongOpenHashSet(cells.length);
             for (Cell cell : cells) targets.add(CoordinatePacker.pack(cell.x(), cell.y(), cell.z()));
         }
@@ -165,7 +189,8 @@ public class ProjectorBuilder {
         }
 
         public boolean placedAll() {
-            return clearsDone >= clears.length && next >= cells.length
+            return turnsDone >= turns.length && clearsDone >= clears.length
+                && next >= cells.length
                 && retried >= retry.size()
                 && controllersPlaced >= controllers.size();
         }
@@ -184,6 +209,30 @@ public class ProjectorBuilder {
     private ProjectorBuilder() {}
 
     public static void request(EntityPlayerMP player, int location) {
+        request(player, location, false);
+    }
+
+    public static boolean busy(UUID id) {
+        return PREPARING.containsKey(id) || JOBS.containsKey(id);
+    }
+
+    public static boolean canRequest(UUID id) {
+        Integer last = LAST_REQUEST.get(id);
+        return !busy(id) && !ProjectorDismantler.busy(id)
+            && (last == null || MinecraftServer.getServer()
+                .getTickCounter() - last >= COOLDOWN_TICKS);
+    }
+
+    public static void request(EntityPlayerMP player, int location, boolean fromOrder) {
+        prepare(player, location, fromOrder, false);
+    }
+
+    // A dismantle goes through the same simulation, chunk loading and scan as a build, then takes down what matches.
+    public static void requestDismantle(EntityPlayerMP player, int location) {
+        prepare(player, location, false, true);
+    }
+
+    private static void prepare(EntityPlayerMP player, int location, boolean fromOrder, boolean dismantle) {
         if (!MachineConfig.projectorBuildEnabled) {
             refuse(player, "disabled");
             return;
@@ -192,7 +241,7 @@ public class ProjectorBuilder {
         ItemStack projector = ProjectorServer.projectorAt(player, location);
         if (projector == null) return;
         UUID id = player.getUniqueID();
-        if (PREPARING.containsKey(id) || JOBS.containsKey(id)) {
+        if (busy(id) || ProjectorDismantler.busy(id)) {
             refuse(player, "busy");
             return;
         }
@@ -213,15 +262,21 @@ public class ProjectorBuilder {
             refuse(player, "not_placed");
             return;
         }
-        PREPARING.put(id, new Preparation(player.dimension, plan));
+        if (!dismantle) ProjectorOrders.cancel(player, false);
+        PREPARING.put(id, new Preparation(player.dimension, plan, location, fromOrder, dismantle));
         HotbarMessages.send(player, new ChatComponentTranslation(LANG + "preparing"));
     }
 
     public static void clear() {
         ProjectorSimulation.clearShared();
         PREPARING.clear();
+        ProjectorLedger.touch();
         JOBS.clear();
         LAST_REQUEST.clear();
+        releaseChunks();
+        ProjectorDismantler.clear();
+        ProjectorOrders.clear();
+        ProjectorReading.clear();
     }
 
     // Blocks are placed while the animation still plays; their updates reach clients only once it ends, so nobody
@@ -273,7 +328,7 @@ public class ProjectorBuilder {
             | (CoordinatePacker.unpackZ(position) >> 4) & 0xFFFFFFFFL;
     }
 
-    private static void refuse(EntityPlayerMP player, String reason, Object... args) {
+    public static void refuse(EntityPlayerMP player, String reason, Object... args) {
         player.addChatMessage(new ChatComponentTranslation(LANG + reason, args));
     }
 
@@ -290,12 +345,10 @@ public class ProjectorBuilder {
         // All jobs and the one preparation share one budget per tick, so several builders cost the server no more than
         // one; a job that needs less than its share leaves the rest to the jobs after it.
         int sharing = JOBS.size();
-        boolean preparing = false;
-        for (Preparation preparation : PREPARING.values()) preparing |= preparation.stage != Stage.CRAFTING;
         long remaining = MachineConfig.projectorPlaceBudgetMillis * 1_000_000L;
-        if (preparing) remaining -= prepareAll(remaining / (sharing + 1));
-        else if (!PREPARING.isEmpty()) prepareAll(0);
+        if (!PREPARING.isEmpty()) remaining -= prepareAll(remaining / (sharing + 1));
         tickJobs(remaining, sharing);
+        releaseChunks();
     }
 
     private static long prepareAll(long share) {
@@ -313,18 +366,6 @@ public class ProjectorBuilder {
             }
             preparation.ticks++;
             try {
-                if (preparation.stage == Stage.CRAFTING) {
-                    if (ProjectorCrafting.isOpen(owner, preparation.crafting)) continue;
-                    iterator.remove();
-                    try {
-                        admit(owner, preparation, true);
-                    } catch (RuntimeException e) {
-                        ScienceNotLeisure.LOG
-                            .warn("Projector build preparation for {} failed", owner.getCommandSenderName(), e);
-                        refuse(owner, "error");
-                    }
-                    continue;
-                }
                 if (preparation.ticks % HEARTBEAT_TICKS == 0)
                     HotbarMessages.send(owner, new ChatComponentTranslation(LANG + "preparing"));
                 if (active) continue;
@@ -342,7 +383,15 @@ public class ProjectorBuilder {
                 }
                 preparation.idle = 0;
                 if (preparation.stage != Stage.SCANNING || preparation.cursor < preparation.site.total()) continue;
-                if (!admit(owner, preparation, false)) iterator.remove();
+                iterator.remove();
+                try {
+                    if (preparation.dismantle) ProjectorDismantler.fromSite(owner, preparation);
+                    else admit(owner, preparation);
+                } catch (RuntimeException e) {
+                    ScienceNotLeisure.LOG
+                        .warn("Projector build preparation for {} failed", owner.getCommandSenderName(), e);
+                    refuse(owner, "error");
+                }
             } catch (RuntimeException e) {
                 ScienceNotLeisure.LOG
                     .warn("Projector build preparation for {} failed", owner.getCommandSenderName(), e);
@@ -377,6 +426,9 @@ public class ProjectorBuilder {
                 ProjectorSimulation.share(structure);
                 simulated(owner, preparation, structure);
                 return true;
+            }
+            case LOADING -> {
+                return loadChunks(owner, preparation);
             }
             case SCANNING -> {
                 ProjectorSite site = preparation.site;
@@ -433,6 +485,65 @@ public class ProjectorBuilder {
             plan.z + bounds[5]) > (double) range * range) {
             refuse(owner, "too_far", range);
             preparation.ended = true;
+            return;
+        }
+        IChunkProvider provider = owner.worldObj.getChunkProvider();
+        for (int chunkX = (plan.x + bounds[0]) >> 4; chunkX <= (plan.x + bounds[3]) >> 4; chunkX++) {
+            for (int chunkZ = (plan.z + bounds[2]) >> 4; chunkZ <= (plan.z + bounds[5]) >> 4; chunkZ++) {
+                if (!provider.chunkExists(chunkX, chunkZ))
+                    preparation.chunks.add(ChunkCoordIntPair.chunkXZ2Int(chunkX, chunkZ));
+            }
+        }
+        if (!preparation.chunks.isEmpty()) preparation.stage = Stage.LOADING;
+    }
+
+    public static void registerChunkLoading() {
+        ForgeChunkManager.setForcedChunkLoadingCallback(
+            ScienceNotLeisure.instance,
+            (tickets, world) -> { for (Ticket ticket : tickets) ForgeChunkManager.releaseTicket(ticket); });
+    }
+
+    // Chunks of the site nobody keeps loaded are loaded off the main thread a few at a time and held by tickets until
+    // the build ends; a chunk that never loads in time is left to count as unloaded.
+    private static boolean loadChunks(EntityPlayerMP owner, Preparation preparation) {
+        WorldServer world = (WorldServer) owner.worldObj;
+        int started = 0;
+        while (preparation.chunkCursor < preparation.chunks.size() && started < LOADS_PER_TICK) {
+            long packed = preparation.chunks.getLong(preparation.chunkCursor++);
+            int chunkX = (int) packed, chunkZ = (int) (packed >> 32);
+            Ticket ticket = ticketFor(owner);
+            if (ticket != null) ForgeChunkManager.forceChunk(ticket, new ChunkCoordIntPair(chunkX, chunkZ));
+            preparation.loading++;
+            started++;
+            world.theChunkProviderServer.loadChunk(chunkX, chunkZ, () -> preparation.loading--);
+        }
+        boolean done = preparation.chunkCursor >= preparation.chunks.size() && preparation.loading <= 0;
+        if (done || ++preparation.loadTicks > LOAD_TICKS) preparation.stage = Stage.SCANNING;
+        return true;
+    }
+
+    private static Ticket ticketFor(EntityPlayerMP owner) {
+        List<Ticket> tickets = TICKETS.computeIfAbsent(owner.getUniqueID(), id -> new ArrayList<>());
+        if (!tickets.isEmpty()) {
+            Ticket last = tickets.get(tickets.size() - 1);
+            if (last.getChunkList()
+                .size() < last.getChunkListDepth()) return last;
+        }
+        Ticket ticket = ForgeChunkManager.requestTicket(ScienceNotLeisure.instance, owner.worldObj, Type.NORMAL);
+        if (ticket != null) tickets.add(ticket);
+        return ticket;
+    }
+
+    private static void releaseChunks() {
+        if (TICKETS.isEmpty()) return;
+        Iterator<Map.Entry<UUID, List<Ticket>>> iterator = TICKETS.entrySet()
+            .iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, List<Ticket>> entry = iterator.next();
+            if (PREPARING.containsKey(entry.getKey()) || JOBS.containsKey(entry.getKey())
+                || ProjectorDismantler.busy(entry.getKey())) continue;
+            for (Ticket ticket : entry.getValue()) ForgeChunkManager.releaseTicket(ticket);
+            iterator.remove();
         }
     }
 
@@ -440,6 +551,11 @@ public class ProjectorBuilder {
     // its own.
     private static void scan(World world, Preparation preparation, int cell) {
         ProjectorSite site = preparation.site;
+        if (site.isShadowed(cell)) return;
+        if (preparation.dismantle) {
+            if (site.holdsStructure(world, cell)) preparation.candidates.add(cell);
+            return;
+        }
         ItemStack stack = site.isBlock(cell) ? site.structure.items[site.local(cell)] : null;
         byte state = site.compute(world, cell);
         if (stack == null || !(stack.getItem() instanceof ItemBlock)) {
@@ -450,6 +566,10 @@ public class ProjectorBuilder {
             case ProjectorSite.CORRECT -> preparation.existing++;
             case ProjectorSite.MISSING -> preparation.candidates.add(cell);
             case ProjectorSite.WRONG -> {
+                if (site.facesWrong(world, cell)) {
+                    preparation.turns.add(cell);
+                    break;
+                }
                 preparation.candidates.add(cell);
                 preparation.occupied++;
             }
@@ -458,8 +578,7 @@ public class ProjectorBuilder {
         }
     }
 
-    // True while the preparation must stay to wait for the AE crafting screens it opened.
-    private static boolean admit(EntityPlayerMP owner, Preparation preparation, boolean afterCrafting) {
+    private static void admit(EntityPlayerMP owner, Preparation preparation) {
         ProjectorSite site = preparation.site;
         ItemStack[] items = site.structure.items;
         int[] order = preparation.candidates.toIntArray();
@@ -498,47 +617,38 @@ public class ProjectorBuilder {
             shortCells += entry.getIntValue();
             missing.add(single(stacks.get(entry.getIntKey()), entry.getIntValue()));
         }
-        if (!afterCrafting) {
+        owner.addChatMessage(
+            new ChatComponentTranslation(
+                LANG + "summary",
+                admitted.size(),
+                preparation.existing,
+                shortCells,
+                preparation.occupied + preparation.clears.size(),
+                preparation.unloaded));
+        for (int i = 0; i < missing.size() && i < SHOWN_SHORTAGES; i++) {
+            ItemStack stack = missing.get(i);
             owner.addChatMessage(
-                new ChatComponentTranslation(
-                    LANG + "summary",
-                    admitted.size(),
-                    preparation.existing,
-                    shortCells,
-                    preparation.occupied + preparation.clears.size(),
-                    preparation.unloaded));
-            for (int i = 0; i < missing.size() && i < SHOWN_SHORTAGES; i++) {
-                ItemStack stack = missing.get(i);
-                owner.addChatMessage(
-                    new ChatComponentTranslation(LANG + "short_item", stack.func_151000_E(), stack.stackSize));
-            }
-            if (missing.size() > SHOWN_SHORTAGES) owner
-                .addChatMessage(new ChatComponentTranslation(LANG + "short_more", missing.size() - SHOWN_SHORTAGES));
-            if (!missing.isEmpty()) owner.addChatMessage(new ChatComponentTranslation(LANG + "short_note"));
+                new ChatComponentTranslation(LANG + "short_item", stack.func_151000_E(), stack.stackSize));
         }
-        if (!afterCrafting && !missing.isEmpty()) {
-            ProjectorCrafting.Chain chain = ProjectorCrafting.start(owner, missing);
-            if (chain != null) {
-                owner.addChatMessage(new ChatComponentTranslation(LANG + "crafting", chain.queue.size() + 1));
-                preparation.crafting = chain;
-                preparation.stage = Stage.CRAFTING;
-                return true;
-            }
-        }
-        if (afterCrafting)
-            owner.addChatMessage(new ChatComponentTranslation(LANG + "craft_later", admitted.size(), shortCells));
+        if (missing.size() > SHOWN_SHORTAGES)
+            owner.addChatMessage(new ChatComponentTranslation(LANG + "short_more", missing.size() - SHOWN_SHORTAGES));
+        if (!missing.isEmpty()) owner.addChatMessage(new ChatComponentTranslation(LANG + "short_note"));
+        // An order waits for the crafts and builds everything at once; a build that an order started does not order
+        // again, so materials the network fails to make end in a partial build instead of an endless wait.
+        if (!missing.isEmpty() && !preparation.fromOrder && ProjectorOrders.place(owner, preparation.location, missing))
+            return;
         if (admitted.isEmpty()) {
-            if (preparation.clears.isEmpty()) refuse(owner, "nothing");
+            if (preparation.clears.isEmpty() && preparation.turns.isEmpty()) refuse(owner, "nothing");
             else clearOnly(owner, preparation);
-            return false;
+            return;
         }
         start(owner, preparation, admitted);
-        return false;
     }
 
     // Nothing left to place, so the obstacles go at once without a job or an animation.
     private static void clearOnly(EntityPlayerMP owner, Preparation preparation) {
         ProjectorSite site = preparation.site;
+        for (int i = 0; i < preparation.turns.size(); i++) turn(owner, site, preparation.turns.getInt(i));
         int cleared = 0, kept = 0;
         for (int i = 0; i < preparation.clears.size(); i++) {
             int cell = preparation.clears.getInt(i);
@@ -546,6 +656,15 @@ public class ProjectorBuilder {
             else kept++;
         }
         HotbarMessages.send(owner, new ChatComponentTranslation(LANG + "cleared", cleared, kept));
+    }
+
+    private static void turn(EntityPlayerMP owner, ProjectorSite site, int index) {
+        World world = owner.worldObj;
+        int x = site.worldX[index], y = site.worldY[index], z = site.worldZ[index];
+        if (!site.facesWrong(world, index) || !world.canMineBlock(owner, x, y, z)
+            || !(world.getTileEntity(x, y, z) instanceof IGregTechTileEntity tile)) return;
+        tile.setFrontFacing(site.facing.getDirection());
+        if (tile.getMetaTileEntity() instanceof IAlignment alignment) alignment.setExtendedFacing(site.facing);
     }
 
     private static int clearSafely(EntityPlayerMP player, Job job, int cell) {
@@ -560,21 +679,36 @@ public class ProjectorBuilder {
         }
     }
 
-    // Breaks a block in the way as the player would, so protection mods can refuse it; its drops, and anything it
-    // spills while breaking, go to the player. Blocks that hold items, fluids or a machine are left alone.
+    // Blocks in the way that hold items, fluids or a machine are left alone.
     private static int clear(EntityPlayerMP player, int x, int y, int z) {
+        return breakAsPlayer(player, x, y, z, true, null, drop -> give(player, drop));
+    }
+
+    public static void give(EntityPlayerMP player, ItemStack drop) {
+        if (!player.inventory.addItemStackToInventory(drop)) player.dropPlayerItemWithRandomChoice(drop, false);
+    }
+
+    // Breaks a block as the player would, so protection mods can refuse it; its drops, and anything it spills while
+    // breaking, go to the sink instead of the ground. A block without a tile entity gives back the item it was placed
+    // from when that is known, as glass or ice would otherwise drop nothing.
+    public static int breakAsPlayer(EntityPlayerMP player, int x, int y, int z, boolean protect, ItemStack placedFrom,
+        Consumer<ItemStack> sink) {
         World world = player.worldObj;
         Block block = world.getBlock(x, y, z);
         if (block.isAir(world, x, y, z)) return CLEARED;
-        if (block.getBlockHardness(world, x, y, z) < 0 || isProtected(world.getTileEntity(x, y, z))) return OCCUPIED;
+        if (block.getBlockHardness(world, x, y, z) < 0 || protect && isProtected(world.getTileEntity(x, y, z)))
+            return OCCUPIED;
         if (!world.canMineBlock(player, x, y, z) || !player.canPlayerEdit(x, y, z, ForgeDirection.UP.ordinal(), null))
             return BLOCKED;
         BlockEvent.BreakEvent event = ForgeHooks
             .onBlockBreakEvent(world, player.theItemInWorldManager.getGameType(), player, x, y, z);
         if (event.isCanceled()) return REFUSED;
         int meta = world.getBlockMetadata(x, y, z);
-        List<ItemStack> drops = player.capabilities.isCreativeMode ? new ArrayList<>()
-            : block.getDrops(world, x, y, z, meta, 0);
+        List<ItemStack> drops = new ArrayList<>();
+        if (!player.capabilities.isCreativeMode) {
+            if (placedFrom != null && !block.hasTileEntity(meta)) drops.add(placedFrom.copy());
+            else drops.addAll(block.getDrops(world, x, y, z, meta, 0));
+        }
         block.onBlockHarvested(world, x, y, z, meta, player);
         if (!block.removedByPlayer(world, player, x, y, z, false)) return FAILED;
         block.onBlockDestroyedByPlayer(world, x, y, z, meta);
@@ -587,8 +721,7 @@ public class ProjectorBuilder {
             spilled.setDead();
         }
         for (ItemStack drop : drops) {
-            if (drop == null || drop.stackSize <= 0) continue;
-            if (!player.inventory.addItemStackToInventory(drop)) player.dropPlayerItemWithRandomChoice(drop, false);
+            if (drop != null && drop.stackSize > 0) sink.accept(drop);
         }
         return CLEARED;
     }
@@ -688,7 +821,7 @@ public class ProjectorBuilder {
         int[] order = style.order(animationSite);
         if (order != null) for (int i = 0; i < order.length; i++) cells[i] = sorted.get(order[i]);
         Job job = new Job(
-            ++nextJobId,
+            nextJobId(),
             player.getUniqueID(),
             preparation,
             cells,
@@ -729,12 +862,13 @@ public class ProjectorBuilder {
             job.cells.length,
             job.placingTick,
             false,
-            0);
+            0,
+            false);
         for (EntityPlayerMP receiver : receivers) sendStart(job, receiver, receiver == player);
     }
 
     // One code per cell of the bounding box (0 = not built), deflated; the code only tells kinds apart for the outline.
-    private static Kinds encodeKinds(List<Cell> cells, int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ) {
+    public static Kinds encodeKinds(List<Cell> cells, int minX, int minY, int minZ, int sizeX, int sizeY, int sizeZ) {
         Long2IntOpenHashMap palette = new Long2IntOpenHashMap();
         IntArrayList items = new IntArrayList(), damages = new IntArrayList();
         short[] grid = new short[sizeX * sizeY * sizeZ];
@@ -766,7 +900,7 @@ public class ProjectorBuilder {
         return new Kinds(out.toByteArray(), items.toIntArray(), damages.toIntArray());
     }
 
-    private static double distanceSq(Entity entity, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+    public static double distanceSq(Entity entity, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         double dx = Math.max(0, Math.max(minX - entity.posX, entity.posX - maxX - 1));
         double dy = Math.max(0, Math.max(minY - entity.posY, entity.posY - maxY - 1));
         double dz = Math.max(0, Math.max(minZ - entity.posZ, entity.posZ - maxZ - 1));
@@ -775,6 +909,7 @@ public class ProjectorBuilder {
 
     private static void finish(Job job, int state) {
         releaseSome(job, true);
+        ProjectorLedger.end(job.ledgerSite, job.record);
         World world = DimensionManager.getWorld(job.dimension);
         ProjectorSite site = job.site;
         for (int copy = 0; world != null && copy < site.copies(); copy++) {
@@ -877,6 +1012,7 @@ public class ProjectorBuilder {
             try {
                 job.ticks++;
                 if (job.ticks % HEARTBEAT_TICKS == 0) admitViewers(job, owner);
+                if (job.ticks % LEDGER_TICKS == 0) ProjectorLedger.touch();
                 boolean hiding = job.hiding(), released = !hiding && job.releasedAll();
                 if (hiding) {
                     // Keeps clients waiting through a long animation from timing the job out.
@@ -931,6 +1067,16 @@ public class ProjectorBuilder {
             .sendTo(new StructureAnimationStatePacket(job.id, StructureAnimationStatePacket.BUILT, built), owner);
     }
 
+    // What is already placed stays; the rest of the build is dropped.
+    public static boolean cancel(EntityPlayerMP player) {
+        UUID id = player.getUniqueID();
+        if (PREPARING.remove(id) != null) return true;
+        Job job = JOBS.remove(id);
+        if (job == null) return false;
+        end(job, player, StructureAnimationStatePacket.ABORTED, "cancelled", job.outcomes[PLACED]);
+        return true;
+    }
+
     // The job has already left the table, so nothing thrown while reporting its end may reach the tick loop.
     private static void end(Job job, EntityPlayerMP owner, int state, String message, Object... args) {
         try {
@@ -952,6 +1098,10 @@ public class ProjectorBuilder {
         RunnableMachineUpdate.setCurrentThreadEnabled(false);
         try {
             while (!job.placedAll() && System.nanoTime() < deadline) {
+                if (job.turnsDone < job.turns.length) {
+                    turn(owner, job.site, job.turns[job.turnsDone++]);
+                    continue;
+                }
                 if (job.clearsDone < job.clears.length) {
                     int cell = job.clears[job.clearsDone++];
                     if (clearSafely(owner, job, cell) == CLEARED) job.cleared++;
@@ -997,7 +1147,7 @@ public class ProjectorBuilder {
         return System.nanoTime() - began;
     }
 
-    private static EntityPlayerMP playerOf(UUID id) {
+    public static EntityPlayerMP playerOf(UUID id) {
         for (Object entry : MinecraftServer.getServer()
             .getConfigurationManager().playerEntityList) {
             if (entry instanceof EntityPlayerMP player && player.getUniqueID()
@@ -1093,6 +1243,16 @@ public class ProjectorBuilder {
             mark = lap(job, 2, mark);
             if (!free && InventoryUtility.takeFromInventory(player, single(stack, 1), false) < 1) return SHORT;
             keep = true;
+            job.record.add(
+                x,
+                y,
+                z,
+                Item.getIdFromItem(item),
+                damage,
+                Block.getIdFromBlock(block),
+                world.getBlockMetadata(x, y, z),
+                world.getTileEntity(x, y, z) instanceof IGregTechTileEntity placedTile ? placedTile.getMetaTileID()
+                    : -1);
             mark = lap(job, 3, mark);
             for (BlockSnapshot snapshot : snapshots) {
                 Block placedBlock = world.getBlock(snapshot.x, snapshot.y, snapshot.z);

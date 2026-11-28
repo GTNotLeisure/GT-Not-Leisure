@@ -4,6 +4,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.science.gtnl.common.packet.NetWorkHandler;
+import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.update.ServerUpdateNotifier;
 import com.science.gtnl.loader.ContentLoaders;
 import com.science.gtnl.utils.item.MissingMappingsHandler;
@@ -75,6 +76,7 @@ public class ScienceNotLeisure {
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
         proxy.init(event);
+        ProjectorBuilder.registerChunkLoading();
     }
 
     @Mod.EventHandler
