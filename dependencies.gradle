@@ -51,7 +51,7 @@ dependencies {
 
     devOnlyNonPublishable("com.github.GTNewHorizons:NotEnoughEnergistics:1.8.0:dev")
 
-    runtimeOnlyNonPublishable("com.github.GTNewHorizons:Hodgepodge:2.8.4:dev") { transitive = false }
+    runtimeOnlyNonPublishable("com.github.GTNewHorizons:Hodgepodge:2.7.226:dev") { transitive = false }
     runtimeOnlyNonPublishable("com.falsepattern:endlessids-mc1.7.10:1.7.4:dev")
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:ServerUtilities:2.5.4:dev")
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:BlockRenderer6343:1.4.25:dev")
