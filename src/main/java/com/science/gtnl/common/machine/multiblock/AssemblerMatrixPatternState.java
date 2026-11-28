@@ -13,12 +13,16 @@ import net.minecraft.world.World;
 import com.github.bsideup.jabel.Desugar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.api.mixinHelper.LargeInventoryCrafting;
+import com.science.gtnl.common.item.items.ArcaneCraftPattern;
 import com.science.gtnl.common.item.items.DireCraftPattern;
+import com.science.gtnl.common.recipe.thaumcraft.ArcanePatternRecipes;
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
 import com.science.gtnl.utils.DireCraftingPatternDetails;
 
 import appeng.api.implementations.ICraftingPatternItem;
 import appeng.api.networking.crafting.ICraftingPatternDetails;
 import appeng.api.storage.data.IAEItemStack;
+import appeng.util.inv.MEInventoryCrafting;
 import appeng.util.item.AEItemStack;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
@@ -85,8 +89,18 @@ public class AssemblerMatrixPatternState {
         if (world == null || stack == null || !(stack.getItem() instanceof ICraftingPatternItem patternItem)) {
             return null;
         }
+        if (patternItem instanceof ArcaneCraftPattern && !InfusionProviders.isAvailable()) return null;
         NBTTagCompound tag = stack.getTagCompound();
         if (tag != null) tag.removeTag(INVALID_PATTERN_TAG);
+
+        if (patternItem instanceof ArcaneCraftPattern item) {
+            var details = item.getPatternForItem(stack, world, multiply);
+            if (tag != null && !world.isRemote) {
+                if (details == null) tag.setBoolean(ArcanePatternRecipes.STALE, true);
+                else tag.removeTag(ArcanePatternRecipes.STALE);
+            }
+            return details;
+        }
 
         if (patternItem instanceof DireCraftPattern direPatternItem) {
             return direPatternItem.getPatternForItem(stack, world, multiply);
@@ -115,16 +129,13 @@ public class AssemblerMatrixPatternState {
 
         ObjectArrayList<IAEItemStack> batchInputs = new ObjectArrayList<>();
         ObjectArrayList<IAEItemStack> batchOutputs = new ObjectArrayList<>();
-        IAEItemStack[] patternInputs = direPattern.getAEInputs();
         try {
             for (int slot = 0; slot < table.getSizeInventory(); slot++) {
                 ItemStack stack = table.getStackInSlot(slot);
                 if (stack != null) {
                     ItemStack containerItem = AssemblerMatrix.resolveContainerItem(stack);
                     if (containerItem != null) {
-                        IAEItemStack patternInput = slot < patternInputs.length ? patternInputs[slot] : null;
-                        long containerAmount = patternInput == null ? assemblerSize
-                            : multiplyStackSize(patternInput.getStackSize(), assemblerSize);
+                        long containerAmount = returnedContainerCount(table, slot, containerItem.stackSize);
                         batchInputs.add(
                             AEItemStack.create(containerItem)
                                 .setStackSize(containerAmount));
@@ -142,11 +153,22 @@ public class AssemblerMatrixPatternState {
             return null;
         }
 
+        return new AcceptedBatch(batchInputs, batchOutputs);
+    }
+
+    static long returnedContainerCount(InventoryCrafting table, int slot, int perItem) {
+        if (table instanceof MEInventoryCrafting meTable) {
+            var extracted = meTable.getAEStackInSlot(slot);
+            return multiplyStackSize(extracted == null ? 0 : extracted.getStackSize(), perItem);
+        }
+        return multiplyStackSize(table.getStackInSlot(slot).stackSize, perItem);
+    }
+
+    public static void normalizeAcceptedTable(InventoryCrafting table) {
         for (int slot = 0; slot < table.getSizeInventory(); slot++) {
             ItemStack stack = table.getStackInSlot(slot);
             if (stack != null) stack.stackSize = 1;
         }
-        return new AcceptedBatch(batchInputs, batchOutputs);
     }
 
     public void clearPatternData() {

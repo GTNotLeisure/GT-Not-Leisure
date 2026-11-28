@@ -16,7 +16,7 @@ import appeng.util.item.AEItemStack;
 import appeng.util.item.ItemList;
 import lombok.Getter;
 
-public final class DireCraftingPatternDetails implements ICraftingPatternDetails {
+public class DireCraftingPatternDetails implements ICraftingPatternDetails {
 
     private final ItemStack pattern;
     private final IAEItemStack patternKey;
@@ -31,7 +31,7 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
     }
 
     public DireCraftingPatternDetails(ItemStack is, int multiply) {
-        this(readInputs(is), readOutputs(is), multiply);
+        this(readInputs(is, 81), readOutputs(is), multiply, null);
     }
 
     public DireCraftingPatternDetails(ICraftingPatternDetails is) {
@@ -39,10 +39,16 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
     }
 
     public DireCraftingPatternDetails(ICraftingPatternDetails is, int multiply) {
-        this(is.getAEInputs(), is.getCondensedAEOutputs(), multiply);
+        this(is.getAEInputs(), is.getCondensedAEOutputs(), multiply, null);
     }
 
-    private DireCraftingPatternDetails(IAEStack<?>[] inputs, IAEStack<?>[] outputs, int multiply) {
+    protected DireCraftingPatternDetails(IAEStack<?>[] inputs, IAEStack<?>[] outputs, int multiply,
+        ItemStack identity) {
+        this(inputs, outputs, multiply, identity, null);
+    }
+
+    protected DireCraftingPatternDetails(IAEStack<?>[] inputs, IAEStack<?>[] outputs, int multiply, ItemStack identity,
+        ItemStack routingKey) {
         this.multiply = Math.max(1, multiply);
         this.inputs = multiplyStacks(inputs, this.multiply);
         this.outputs = multiplyStacks(outputs, this.multiply);
@@ -51,13 +57,13 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
             if (input != null) list.addStorage(input);
         }
         condensedInputs = list.toArray(new IAEItemStack[0]);
-        pattern = createProcessingPattern(this.inputs, this.outputs);
-        patternKey = AEItemStack.create(pattern);
+        pattern = identity != null ? identity : createProcessingPattern(this.inputs, this.outputs);
+        patternKey = AEItemStack.create(routingKey == null ? pattern : routingKey);
     }
 
-    private static IAEItemStack[] readInputs(ItemStack stack) {
+    protected static IAEItemStack[] readInputs(ItemStack stack, int slots) {
         if (!stack.hasTagCompound()) throw new IllegalArgumentException("No pattern here!");
-        IAEItemStack[] inputs = new IAEItemStack[81];
+        IAEItemStack[] inputs = new IAEItemStack[slots];
         NBTTagList in = stack.getTagCompound()
             .getTagList("in", Constants.NBT.TAG_COMPOUND);
         if (in.tagCount() > inputs.length) throw new IllegalArgumentException("Too many pattern inputs!");
@@ -67,7 +73,7 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
         return inputs;
     }
 
-    private static IAEItemStack[] readOutputs(ItemStack stack) {
+    protected static IAEItemStack[] readOutputs(ItemStack stack) {
         if (!stack.hasTagCompound()) throw new IllegalArgumentException("No pattern here!");
         return new IAEItemStack[] { fromTagCreateAEItem(
             stack.getTagCompound()
@@ -120,7 +126,7 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
         return stackSize * multiplier;
     }
 
-    private static IAEItemStack fromTagCreateAEItem(final NBTTagCompound tag) {
+    protected static IAEItemStack fromTagCreateAEItem(final NBTTagCompound tag) {
         if (tag.hasNoTags()) return null;
         if (tag.hasKey("Cnt")) return AEItemStack.loadItemStackFromNBT(tag);
         return AEItemStack.create(Platform.loadItemStackFromNBT(tag));
@@ -142,12 +148,12 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
     }
 
     @Override
-    public IAEItemStack[] getAEInputs() {
+    public IAEStack<?>[] getAEInputs() {
         return inputs;
     }
 
     @Override
-    public IAEItemStack[] getCondensedAEInputs() {
+    public IAEStack<?>[] getCondensedAEInputs() {
         return condensedInputs;
     }
 
@@ -164,13 +170,13 @@ public final class DireCraftingPatternDetails implements ICraftingPatternDetails
     @Deprecated
     @Override
     public IAEItemStack[] getInputs() {
-        return getAEInputs();
+        return inputs;
     }
 
     @Deprecated
     @Override
     public IAEItemStack[] getCondensedInputs() {
-        return getCondensedAEInputs();
+        return condensedInputs;
     }
 
     @Deprecated

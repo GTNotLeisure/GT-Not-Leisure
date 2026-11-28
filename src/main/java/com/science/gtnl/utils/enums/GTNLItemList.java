@@ -343,6 +343,7 @@ public enum GTNLItemList implements IItemContainer {
     SlimeSaddle,
     InfinityCell,
     DireCraftPattern,
+    ArcaneCraftPattern,
     InfinityDyeCell,
     InfinityDyeFluidCell,
     InfinityStoneCell,

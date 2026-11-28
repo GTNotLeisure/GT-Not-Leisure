@@ -4355,6 +4355,14 @@ item.gtnl.infinity_cell.stone=石材
 item.gtnl.infinity_cell.contents=内含物品：
 
 item.gtnl.dire_craft_pattern.name=终极合成样板
+item.gtnl.arcane_craft_pattern.name=奥术合成样板
+gtnl.dire_encoder.mode.arcane=奥术合成
+gtnl.dire_encoder.requires_thaumic_energistics=奥术合成样板需要 Thaumic Energistics。
+gtnl.dire_encoder.ingredients=源质材料
+gtnl.dire_encoder.write.on=写入源质
+gtnl.dire_encoder.write.off=不写入源质
+gtnl.dire_encoder.stale=奥术配方已失效，请在终极样板编码台重新编码。
+gtnl.dire_encoder.mode.dire=终极合成
 
 item.gtnl.wireless_upgrade_chip.name=无线升级芯片
 item.gtnl.wireless_upgrade_chip.tooltip.0=为部分机器开启无线电网模式

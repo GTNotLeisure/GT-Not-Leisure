@@ -19,6 +19,7 @@ import com.science.gtnl.common.crafting.batch.CraftingBatchPlanner.SessionConsum
 import com.science.gtnl.common.crafting.batch.CraftingBatchPlanner.SessionSegment;
 import com.science.gtnl.common.machine.multiblock.AssemblerMatrix;
 import com.science.gtnl.mixins.late.appliedEnergistics.AccessorTaskProgress;
+import com.science.gtnl.utils.ArcaneCraftingPatternDetails;
 import com.science.gtnl.utils.ChiselPatternDetails;
 import com.science.gtnl.utils.DireCraftingPatternDetails;
 import com.science.gtnl.utils.ECraftingCPUCluster;
@@ -50,6 +51,7 @@ public class BatchDispatchHooks {
         private final ICraftingPatternDetails details;
         private final AccessorTaskProgress taskProgress;
         private final MediumStrategy mediumStrategy;
+        private long providerLimit = Long.MAX_VALUE;
         private BatchPlan plan;
         private Phase phase = Phase.UNPLANNED;
         private SessionConsumption<CraftingDiagnosticSessionId> sessionConsumption;
@@ -69,6 +71,10 @@ public class BatchDispatchHooks {
 
         public boolean isPlannedBatch() {
             return this.plan != null && this.plan.isBatched();
+        }
+
+        public boolean hasDispatchCapacity() {
+            return providerLimit > 0;
         }
 
         public boolean isRejected() {
@@ -121,14 +127,24 @@ public class BatchDispatchHooks {
             ScienceNotLeisure.LOG.error("AE crafting task progress is missing the GTNL accessor for pattern {}", key);
             return new Context(key, null, MediumStrategy.NATIVE);
         }
-        return new Context(key, taskProgress, BATCH_PLANNER.resolveMediumStrategy(compatibility));
+        var context = new Context(key, taskProgress, BATCH_PLANNER.resolveMediumStrategy(compatibility));
+        if (context.mediumStrategy == MediumStrategy.BATCH && key instanceof ArcaneCraftingPatternDetails arcane) {
+            long requested = taskProgress.getValue();
+            context.providerLimit = 0;
+            for (var medium : media) {
+                long affordable = ((AssemblerMatrix) medium).affordableArcaneCrafts(arcane, requested);
+                context.providerLimit = Math.max(context.providerLimit, affordable);
+                if (context.providerLimit == requested) break;
+            }
+        }
+        return context;
     }
 
     public static List<IAEStack<?>> planExpandedInputs(CraftingCPUCluster cluster, ICraftingPatternDetails details,
         List<IAEStack<?>> expandedInputs, IEnergyGrid eg, Context context, MECraftingInventory inventory) {
         if (expandedInputs == null || context == null || context.taskProgress == null) return expandedInputs;
         // A quantum CPU only extracts the variants a substituting pattern has budget for
-        long pending = context.taskProgress.getValue();
+        long pending = Math.min(context.taskProgress.getValue(), context.providerLimit);
         if (cluster instanceof ECraftingCPUCluster quantum) pending = quantum.limitDispatchPattern(details, pending);
         BatchPlan plan = cluster instanceof ECraftingCPUCluster quantum && quantum.hasVariantBudget(details)
             ? BATCH_PLANNER.plan(

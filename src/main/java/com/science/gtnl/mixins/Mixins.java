@@ -284,6 +284,11 @@ public enum Mixins implements IMixins {
         .addCommonMixins("thaumcraft.MixinItemWandCastingCelestweave")
         .setPhase(Phase.LATE)),
 
+    THAUMCRAFT_ARCANE_PATTERNS(
+        new MixinBuilder("Arcane pattern recipe validation").addCommonMixins("thaumcraft.MixinArcanePatternResearch")
+            .setPhase(Phase.LATE)
+            .addRequiredMod(ModList.ThaumicEnergistics)),
+
     THAUMCRAFT_CLIENT(
         new MixinBuilder("Thaumcraft client compatibility mixins").addClientMixins("thaumcraft.MixinTileJarRenderer")
             .setPhase(Phase.LATE)

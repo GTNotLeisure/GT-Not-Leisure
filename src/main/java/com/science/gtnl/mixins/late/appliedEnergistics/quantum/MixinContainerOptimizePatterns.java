@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.science.gtnl.common.crafting.quantum.ae2.QuantumCraftingJob;
 import com.science.gtnl.common.crafting.quantum.hooks.OptimizePatternsHooks;
 
@@ -19,6 +20,7 @@ import appeng.api.networking.crafting.ICraftingJob;
 import appeng.api.storage.data.IAEStack;
 import appeng.container.ContainerSubGui;
 import appeng.container.implementations.ContainerOptimizePatterns;
+import codechicken.nei.ItemStackSet;
 
 @Mixin(value = ContainerOptimizePatterns.class, remap = false)
 public abstract class MixinContainerOptimizePatterns extends ContainerSubGui {
@@ -54,5 +56,13 @@ public abstract class MixinContainerOptimizePatterns extends ContainerSubGui {
             .collectPatterns(quantumJob, this.patterns, getGrid(), grid -> collectReachableGrids(grid))) {
             OptimizePatternsHooks.sendPatterns(this.patterns, this.crafters);
         }
+    }
+
+    @ModifyExpressionValue(
+        method = "setResult",
+        at = @At(value = "NEW", target = "()Lcodechicken/nei/ItemStackSet;"),
+        require = 1)
+    private ItemStackSet gtnl$excludeArcanePatterns(ItemStackSet blacklist) {
+        return OptimizePatternsHooks.excludeArcanePatterns(blacklist);
     }
 }

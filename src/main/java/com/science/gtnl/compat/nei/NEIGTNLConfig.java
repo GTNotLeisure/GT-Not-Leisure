@@ -11,6 +11,7 @@ import com.science.gtnl.client.gui.portableWorkbench.GuiPortableBasicWorkbench;
 import com.science.gtnl.client.gui.portableWorkbench.GuiPortableFurnace;
 import com.science.gtnl.common.material.GTNLMaterials;
 import com.science.gtnl.common.material.GTNLRecipeMaps;
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
 import com.science.gtnl.utils.enums.GTNLItemList;
 
 import bartworks.system.material.Werkstoff;
@@ -48,7 +49,18 @@ public class NEIGTNLConfig implements IConfigureNEI {
         API.registerGuiOverlay(GuiPortableFurnace.class, "fuel");
         API.registerGuiOverlay(GuiDirePatternEncoder.class, "extreme");
 
-        API.registerGuiOverlayHandler(GuiDirePatternEncoder.class, new DirePatternOverlayHandler(), "extreme");
+        API.registerGuiOverlayHandler(GuiDirePatternEncoder.class, new DirePatternOverlayHandler(false), "extreme");
+        if (InfusionProviders.isAvailable()) {
+            var arcaneOverlay = new DirePatternOverlayHandler(true);
+            for (String id : new String[] { "thaumcraft.arcane.shaped", "thaumcraft.arcane.shapeless",
+                "thaumcraft.wands" }) {
+                API.registerGuiOverlay(GuiDirePatternEncoder.class, id, arcaneOverlay::positionStacks);
+                API.registerGuiOverlayHandler(GuiDirePatternEncoder.class, arcaneOverlay, id);
+                API.addRecipeCatalyst(GTNLItemList.DirePatternEncoder.get(1), id);
+            }
+        } else {
+            API.hideItem(GTNLItemList.ArcaneCraftPattern.get(1));
+        }
         API.registerGuiOverlayHandler(GuiPortableAdvancedWorkbench.class, new DefaultOverlayHandler(), "crafting");
         API.registerGuiOverlayHandler(GuiPortableBasicWorkbench.class, new DefaultOverlayHandler(), "crafting");
 

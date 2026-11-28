@@ -14,6 +14,7 @@ import com.science.gtnl.common.crafting.quantum.ae2.QuantumCraftingJob;
 import com.science.gtnl.common.crafting.quantum.ae2.QuantumPattern;
 import com.science.gtnl.common.crafting.quantum.api.crafting.IPatternDetails;
 import com.science.gtnl.common.crafting.quantum.crafting.CraftingPlan;
+import com.science.gtnl.loader.ItemLoader;
 
 import appeng.api.AEApi;
 import appeng.api.networking.IGrid;
@@ -28,6 +29,10 @@ import codechicken.nei.ItemStackSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 
 public class OptimizePatternsHooks {
+
+    public static ItemStackSet excludeArcanePatterns(ItemStackSet blacklist) {
+        return blacklist.with(ItemLoader.arcaneCraftPattern);
+    }
 
     // Returns false when there is no plan or grid, in which case nothing is sent.
     public static boolean collectPatterns(QuantumCraftingJob<?> job, Map<IAEStack<?>, Object> patterns, IGrid grid,
@@ -52,7 +57,7 @@ public class OptimizePatternsHooks {
     }
 
     private static ItemStackSet blacklistedPatterns(Set<IGrid> grids) {
-        final ItemStackSet blacklistedPatterns = new ItemStackSet();
+        final ItemStackSet blacklistedPatterns = excludeArcanePatterns(new ItemStackSet());
         final var supported = AEApi.instance()
             .registries()
             .interfaceTerminal()

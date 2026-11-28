@@ -4355,6 +4355,14 @@ item.gtnl.infinity_cell.stone=stone
 item.gtnl.infinity_cell.contents=Contains Item:
 
 item.gtnl.dire_craft_pattern.name=Dire Craft Pattern
+item.gtnl.arcane_craft_pattern.name=Arcane Crafting Pattern
+gtnl.dire_encoder.mode.arcane=Arcane craft
+gtnl.dire_encoder.requires_thaumic_energistics=Arcane crafting patterns require Thaumic Energistics.
+gtnl.dire_encoder.ingredients=Essentia ingredients
+gtnl.dire_encoder.write.on=Write essentia
+gtnl.dire_encoder.write.off=Omit essentia
+gtnl.dire_encoder.stale=Arcane recipe no longer matches. Re-encode it in a Dire Pattern Encoder.
+gtnl.dire_encoder.mode.dire=Dire Craft
 
 item.gtnl.wireless_upgrade_chip.name=Wireless Upgrade Chip
 item.gtnl.wireless_upgrade_chip.tooltip.0=Enables wireless grid mode for certain machines

@@ -1,9 +1,12 @@
 package com.science.gtnl.compat.thaumicenergistics;
 
+import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.tileentity.TileEntity;
 
 import appeng.api.config.Actionable;
+import appeng.api.networking.IGrid;
 import appeng.api.storage.IMEMonitor;
+import appeng.api.storage.data.IAEStack;
 import appeng.me.GridAccessException;
 import cpw.mods.fml.common.Optional;
 import gregtech.api.enums.Mods;
@@ -13,9 +16,11 @@ import thaumicenergistics.common.storage.AEEssentiaStackType;
 import thaumicenergistics.common.tiles.TileAdvancedInfusionProvider;
 import thaumicenergistics.common.tiles.TileEssentiaProvider;
 import thaumicenergistics.common.tiles.TileInfusionProvider;
+import thaumicenergistics.common.tiles.abstraction.TileProviderBase;
 
 public class InfusionProviders {
 
+    public static final String ESSENTIA_PROVIDER_NAME_KEY = "thaumicenergistics.block.essentia.provider.name";
     public static final String INFUSION_PROVIDER_NAME_KEY = "thaumicenergistics.block.infusion.provider.name";
     public static final String ADVANCED_INFUSION_PROVIDER_NAME_KEY = "thaumicenergistics.block.advanced.infusion.provider.name";
 
@@ -23,8 +28,50 @@ public class InfusionProviders {
         return Mods.ThaumicEnergistics.isModLoaded();
     }
 
+    @Optional.Method(modid = "thaumicenergistics")
+    public static IAEStack<?> nativeIngredient(Aspect aspect, long amount) {
+        return new AEEssentiaStack(aspect, amount);
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    public static IAEStack<?> loadIngredient(NBTTagCompound tag) {
+        return AEEssentiaStack.loadStackFromNBT(tag);
+    }
+
+    public static Aspect aspectOf(IAEStack<?> stack) {
+        return stack != null && isAvailable() ? nativeAspect(stack) : null;
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    private static Aspect nativeAspect(IAEStack<?> stack) {
+        return stack instanceof AEEssentiaStack essentia ? essentia.getAspect() : null;
+    }
+
     public static boolean isEssentiaProvider(TileEntity tile) {
         return tile != null && isAvailable() && essentiaProvider(tile);
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    public static IGrid activeEssentiaGrid(TileEntity tile) {
+        if (!(tile instanceof TileEssentiaProvider provider) || tile.isInvalid() || !provider.isActive()) return null;
+        try {
+            return provider.getProxy()
+                .getGrid();
+        } catch (GridAccessException ignored) {
+            return null;
+        }
+    }
+
+    @Optional.Method(modid = "thaumicenergistics")
+    public static long extractFromEssentiaProvider(TileEntity tile, Aspect aspect, long amount, boolean simulate) {
+        if (!(tile instanceof TileEssentiaProvider provider) || tile.isInvalid() || !provider.isActive()) return 0;
+        var monitor = essentiaMonitor(provider);
+        if (monitor == null) return 0;
+        var extracted = monitor.extractItems(
+            new AEEssentiaStack(aspect, amount),
+            simulate ? Actionable.SIMULATE : Actionable.MODULATE,
+            provider.getMachineSource());
+        return extracted == null ? 0 : extracted.getStackSize();
     }
 
     public static boolean isInfusionProvider(TileEntity tile) {
@@ -103,7 +150,7 @@ public class InfusionProviders {
 
     @Optional.Method(modid = "thaumicenergistics")
     @SuppressWarnings("unchecked")
-    private static IMEMonitor<AEEssentiaStack> essentiaMonitor(TileInfusionProvider provider) {
+    private static IMEMonitor<AEEssentiaStack> essentiaMonitor(TileProviderBase provider) {
         try {
             return (IMEMonitor<AEEssentiaStack>) provider.getProxy()
                 .getStorage()
