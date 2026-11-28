@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import net.minecraft.client.Minecraft;
@@ -46,6 +47,7 @@ import com.gtnllib.gui.widget.VerticalButtonBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.gui.ScreenThemes;
+import com.science.gtnl.common.packet.ProjectorActionPacket;
 import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
@@ -54,6 +56,7 @@ import com.science.gtnl.common.projector.ProjectorStructure;
 import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 import com.science.gtnl.config.ClientConfig;
 import com.science.gtnl.config.ConfigRegistry;
+import com.science.gtnl.config.MachineConfig;
 
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
@@ -67,7 +70,7 @@ public class ProjectorHud {
 
     public static final String LANG = "gtnl.projector.hud.", ELLIPSIS = "...";
     public static final int WIDTH = 150, PAD = 6, LINE = 12, FIELD = 14, SMALL = 24, AXIS = 8, GAP = 2, BUTTON = 16,
-        SHIFT_STEP = 10, HIDDEN_MOUSE = -10_000, WORLD_EDGE = 30_000_000, MAX_Y = 255,
+        SHIFT_STEP = 10, HELP_LINES = 6, HIDDEN_MOUSE = -10_000, WORLD_EDGE = 30_000_000, MAX_Y = 255,
         BODY = VerticalButtonBar.WIDTH - VerticalButtonBar.OVERLAP, INNER = WIDTH - PAD * 2,
         NAME = INNER - SMALL * 2 - GAP, COORDINATE = INNER - AXIS - SMALL * 2 - GAP * 3;
     public static final KeyBinding HOLD = new KeyBinding(
@@ -89,10 +92,8 @@ public class ProjectorHud {
     public static boolean shown() {
         Minecraft mc = Minecraft.getMinecraft();
         ProjectorPlan plan = ProjectorClient.plan;
-        if (mc.thePlayer == null || plan == null
-            || !plan.hasMachine()
-            || plan.state == ProjectorPlan.State.IDLE
-            || StructureAnimations.ownActive()) return false;
+        if (mc.thePlayer == null || plan == null || !plan.hasMachine() || plan.state == ProjectorPlan.State.IDLE)
+            return false;
         return !plan.isPlaced() || plan.dimension == mc.thePlayer.dimension;
     }
 
@@ -202,14 +203,26 @@ public class ProjectorHud {
                 .height(LINE - 2))
             .child(
                 buttons(
-                    new AE2Button(ProjectorHud::lockLabel, ProjectorHud::toggleLock).available(ProjectorHud::movable),
+                    explained(
+                        new AE2Button(ProjectorHud::lockLabel, ProjectorHud::toggleLock)
+                            .available(ProjectorHud::movable),
+                        null,
+                        ProjectorHud::moveBlocked),
                     new AE2Button(() -> StatCollector.translateToLocal(LANG + "full"), ProjectorClient::open)))
             .child(
                 buttons(
-                    new AE2Button(() -> StatCollector.translateToLocal("gtnl.projector.gui.build"), ProjectorHud::build)
-                        .available(ProjectorHud::canBuild),
+                    explained(
+                        new AE2Button(
+                            () -> StatCollector.translateToLocal("gtnl.projector.gui.build"),
+                            ProjectorHud::build).available(ProjectorHud::canBuild),
+                        null,
+                        ProjectorHud::buildBlocked),
                     new AE2Button(ProjectorHud::styleLabel, ProjectorHud::cycleStyle)
-                        .available(ProjectorHud::editable)));
+                        .available(ProjectorHud::editable)))
+            .child(
+                row(BUTTON).child(action(ProjectorActionPacket.UNDO, "undo"))
+                    .child(action(ProjectorActionPacket.DISMANTLE, "dismantle"))
+                    .child(action(ProjectorActionPacket.CANCEL, "cancel")));
         if (!interactive) content.child(
             IKey.dynamic(ProjectorHud::hint)
                 .asWidget()
@@ -232,6 +245,54 @@ public class ProjectorHud {
             .widthRel(1f)
             .height(height)
             .childPadding(GAP);
+    }
+
+    private static AE2Button action(int action, String key) {
+        AE2Button button = new AE2Button(
+            () -> StatCollector.translateToLocal(LANG + (ProjectorBuildRequest.armed(action) ? "confirm" : key)),
+            () -> ProjectorBuildRequest.act(action));
+        if (action != ProjectorActionPacket.CANCEL) button.available(ProjectorBuildRequest::canDismantle);
+        return explained(
+            button,
+            LANG + key + ".tooltip",
+            action == ProjectorActionPacket.CANCEL ? () -> null : ProjectorHud::dismantleBlocked).expanded()
+                .height(BUTTON);
+    }
+
+    // A greyed-out button says why it cannot be used right now.
+    private static AE2Button explained(AE2Button button, String description, Supplier<String> blocked) {
+        button.tooltipAutoUpdate(true)
+            .tooltipBuilder(tooltip -> {
+                if (description != null) tooltip.addLine(StatCollector.translateToLocal(description));
+                String reason = blocked.get();
+                if (reason != null) tooltip
+                    .addLine(EnumChatFormatting.RED + StatCollector.translateToLocal(LANG + "blocked." + reason));
+            });
+        return button;
+    }
+
+    private static String commonBlocked() {
+        ProjectorPlan plan = ProjectorClient.plan;
+        if (!MachineConfig.projectorBuildEnabled) return "disabled";
+        if (plan == null || !plan.isPlaced()) return "not_placed";
+        return StructureAnimations.ownActive() ? "running" : null;
+    }
+
+    private static String buildBlocked() {
+        String common = commonBlocked();
+        if (common != null) return common;
+        ProjectorCheck check = ProjectorClient.CHECK;
+        if (!check.isActive() || !check.scanned) return "checking";
+        return check.missing == 0 && check.wrong == 0 ? "complete" : null;
+    }
+
+    private static String dismantleBlocked() {
+        return commonBlocked();
+    }
+
+    private static String moveBlocked() {
+        ProjectorPlan plan = ProjectorClient.plan;
+        return plan != null && plan.state == ProjectorPlan.State.ANCHORED ? "anchored" : null;
     }
 
     private static Flow buttons(AE2Button first, AE2Button second) {
@@ -259,7 +320,7 @@ public class ProjectorHud {
             .follow(() -> stackCount(axis))
             .onChange(value -> setStack(axis, nextCount(axis, (int) value), stackGap(axis)));
         NumberEntryWidget gap = entry(entries).arrows(false)
-            .bounds(0, ProjectorPlan.MAX_STACK_GAP)
+            .bounds(-ProjectorPlan.MAX_STACK_GAP, ProjectorPlan.MAX_STACK_GAP)
             .follow(() -> stackGap(axis))
             .onChange(value -> setStack(axis, stackCount(axis), (int) value));
         return row(FIELD).child(
@@ -372,6 +433,10 @@ public class ProjectorHud {
                 () -> AE2Icon.CLOSE,
                 () -> StatCollector.translateToLocal(LANG + "stack_clear"),
                 ProjectorHud::clearStack)
+            .button(() -> AE2Icon.HELP, tooltip -> {
+                for (int line = 0; line < HELP_LINES; line++)
+                    tooltip.addLine(StatCollector.translateToLocal(LANG + "help." + line));
+            }, mouse -> false)
             // MUI2 refuses recipe viewer exclusion areas on screens drawn as overlays, which the floating panel is.
             .excludeAreaInRecipeViewer(interactive)
             .pos(0, 0);
@@ -504,10 +569,23 @@ public class ProjectorHud {
                     .toLowerCase(Locale.ROOT));
     }
 
+    // What to do next for the projection as it stands, and the key that brings up the mouse.
     private static String hint() {
         int code = HOLD.getKeyCode();
-        return code == Keyboard.KEY_NONE ? StatCollector.translateToLocal(LANG + "hint_unbound")
+        String key = code == Keyboard.KEY_NONE ? StatCollector.translateToLocal(LANG + "hint_unbound")
             : StatCollector.translateToLocalFormatted(LANG + "hint", GameSettings.getKeyDisplayString(code));
+        ProjectorPlan plan = ProjectorClient.plan;
+        if (plan == null) return key;
+        ProjectorCheck check = ProjectorClient.CHECK;
+        String step;
+        if (plan.state == ProjectorPlan.State.FOLLOW) step = "follow";
+        else if (plan.state == ProjectorPlan.State.ANCHORED) step = "anchored";
+        else if (!check.isActive() || !check.scanned) step = "checking";
+        else if (check.missing == 0 && check.wrong == 0) step = "complete";
+        else if (check.missing == 0) step = "blocked";
+        else step = "build";
+        return StatCollector
+            .translateToLocalFormatted(LANG + "next", StatCollector.translateToLocal(LANG + "next." + step), key);
     }
 
     public static class DragBar extends Widget<DragBar> implements Interactable {

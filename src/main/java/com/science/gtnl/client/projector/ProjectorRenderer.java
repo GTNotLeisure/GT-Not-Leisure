@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.entity.Entity;
 import net.minecraftforge.client.event.RenderWorldLastEvent;
+import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.lwjgl.BufferUtils;
@@ -31,6 +32,7 @@ import com.science.gtnl.common.projector.ProjectorStructure;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 @SideOnly(Side.CLIENT)
 @EventBusSubscriber(side = Side.CLIENT)
@@ -47,13 +49,22 @@ public class ProjectorRenderer {
     private static final int GHOST_BLOCKS = 200_000;
     private static final List<FxBlockMesh> GHOSTS = new ArrayList<>();
     private static final FloatBuffer MATRIX = BufferUtils.createFloatBuffer(16);
-    private static int checkRevision = -1;
+    private static int checkRevision = -1, wrongRevision = -1, wrongX, wrongY, wrongZ;
+    private static float[] wrongLines = new float[0];
 
     private ProjectorRenderer() {}
 
     public static void release() {
         for (FxBlockMesh mesh : GHOSTS) mesh.release();
         GHOSTS.clear();
+    }
+
+    // The ghost display lists hold texture coordinates of the old block atlas.
+    @SubscribeEvent
+    public static void texturesReloaded(TextureStitchEvent.Post event) {
+        if (event.map.getTextureType() != 0) return;
+        release();
+        checkRevision = -1;
     }
 
     @SubscribeEvent
@@ -158,8 +169,18 @@ public class ProjectorRenderer {
                     .show(missing);
             }
         }
+        // Parts in view compile first; the rest waits until the camera turns to them.
         long deadline = System.nanoTime() + COMPILE_NANOS;
-        for (FxBlockMesh mesh : GHOSTS) mesh.compile(Math.max(0, deadline - System.nanoTime()));
+        List<Predicate<FxBlockMesh.Section>> views = new ArrayList<>();
+        for (int copy = 0; copy * 3 < offsets.length; copy++)
+            views.add(sectionsInView(structure, offsets[copy * 3], offsets[copy * 3 + 1], offsets[copy * 3 + 2]));
+        for (int mesh = 0; mesh < GHOSTS.size(); mesh++) {
+            Predicate<FxBlockMesh.Section> ready = difference ? views.get(mesh)
+                : section -> views.stream()
+                    .anyMatch(view -> view.test(section));
+            GHOSTS.get(mesh)
+                .compile(Math.max(0, deadline - System.nanoTime()), ready);
+        }
         Minecraft.getMinecraft()
             .getTextureManager()
             .bindTexture(TextureMap.locationBlocksTexture);
@@ -210,16 +231,17 @@ public class ProjectorRenderer {
         int[] m = ProjectorOrientation.matrix(structure.canonical, ProjectorClient.facing);
         double baseX = ProjectorClient.x + dx + 0.5, baseY = ProjectorClient.y + dy + 0.5,
             baseZ = ProjectorClient.z + dz + 0.5;
+        Minecraft mc = Minecraft.getMinecraft();
+        Entity camera = mc.renderViewEntity;
+        double reach = mc.gameSettings.renderDistanceChunks * 16 + SECTION_RADIUS;
         return section -> {
             double sx = section.x + SECTION_CENTER - structure.originX - 0.5,
                 sy = section.y + SECTION_CENTER - structure.originY - 0.5,
                 sz = section.z + SECTION_CENTER - structure.originZ - 0.5;
-            return FxCamera.inView(
-                new Vec3d(
-                    baseX + m[0] * sx + m[3] * sy + m[6] * sz,
-                    baseY + m[1] * sx + m[4] * sy + m[7] * sz,
-                    baseZ + m[2] * sx + m[5] * sy + m[8] * sz),
-                SECTION_RADIUS);
+            double wx = baseX + m[0] * sx + m[3] * sy + m[6] * sz, wy = baseY + m[1] * sx + m[4] * sy + m[7] * sz,
+                wz = baseZ + m[2] * sx + m[5] * sy + m[8] * sz;
+            if (camera != null && camera.getDistanceSq(wx, wy, wz) > reach * reach) return false;
+            return FxCamera.inView(new Vec3d(wx, wy, wz), SECTION_RADIUS);
         };
     }
 
@@ -302,23 +324,24 @@ public class ProjectorRenderer {
         tessellator.draw();
     }
 
+    // Neighbouring wrong blocks share one outline, rebuilt only when the check changes.
     private static void drawWrong(ProjectorCheck check, int x, int y, int z) {
         if (!check.isActive() || check.wrong == 0) return;
-        Tessellator tessellator = Tessellator.instance;
+        if (check.revision != wrongRevision || x != wrongX || y != wrongY || z != wrongZ) {
+            wrongRevision = check.revision;
+            wrongX = x;
+            wrongY = y;
+            wrongZ = z;
+            LongOpenHashSet cells = new LongOpenHashSet();
+            for (int cell = 0; cell < check.status.length && cells.size() < MAX_WRONG_BOXES; cell++) {
+                if (check.status[cell] == ProjectorSite.WRONG) cells
+                    .add(FxVoxelOutline.pack(check.worldX[cell] - x, check.worldY[cell] - y, check.worldZ[cell] - z));
+            }
+            wrongLines = FxVoxelOutline.mergedLines(cells);
+        }
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glLineWidth(2f);
-        tessellator.startDrawing(GL11.GL_LINES);
-        tessellator.setColorRGBA_I(RED, 220);
-        int drawn = 0;
-        for (int cell = 0; cell < check.status.length && drawn < MAX_WRONG_BOXES; cell++) {
-            if (check.status[cell] != ProjectorSite.WRONG) continue;
-            drawn++;
-            double minX = check.worldX[cell] - x + INSET, minY = check.worldY[cell] - y + INSET,
-                minZ = check.worldZ[cell] - z + INSET;
-            double maxX = minX + 1 - 2 * INSET, maxY = minY + 1 - 2 * INSET, maxZ = minZ + 1 - 2 * INSET;
-            FxVoxelOutline.box(tessellator, minX, minY, minZ, maxX, maxY, maxZ);
-        }
-        tessellator.draw();
+        FxVoxelOutline.draw(Tessellator.instance, wrongLines, RED, 220);
     }
 
     private static void drawFocus(ProjectorCheck check, int x, int y, int z) {

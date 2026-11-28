@@ -15,6 +15,7 @@ import java.util.function.Predicate;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.StatCollector;
@@ -49,9 +50,11 @@ import com.gtnllib.gui.widget.VerticalButtonBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.common.gui.ScreenThemes;
 import com.science.gtnl.common.item.items.MultiblockProjector;
+import com.science.gtnl.common.packet.ProjectorQuotePacket;
 import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
+import com.science.gtnl.common.projector.ProjectorQuote;
 import com.science.gtnl.common.projector.ProjectorSimulation;
 import com.science.gtnl.common.projector.ProjectorSite;
 import com.science.gtnl.common.projector.ProjectorStructure;
@@ -74,7 +77,7 @@ public class ProjectorGui extends ModularPanel {
     private static final int WIDTH = MultiblockProjector.GUI_WIDTH, HEIGHT = MultiblockProjector.GUI_HEIGHT;
     private static final int BODY_LEFT = VerticalButtonBar.WIDTH - VerticalButtonBar.OVERLAP,
         BODY_RIGHT = AE2Theme.PAGE_TAB_SIZE - AE2Theme.PAGE_TAB_INSET, PAD = 8, TOP = 6, TABS_TOP = 22,
-        STATUS_INSET = 5, REFRESH_TICKS = 20, NOTICE_MILLIS = 3000, PLAIN_MUTED = 0xFF808080;
+        STATUS_INSET = 5, REFRESH_TICKS = 20, QUOTE_TICKS = 40, NOTICE_MILLIS = 3000, PLAIN_MUTED = 0xFF808080;
     private static final int CONTENT_WIDTH = WIDTH - BODY_LEFT - BODY_RIGHT - 2 * PAD,
         CONTENT_HEIGHT = HEIGHT - TOP - PAD, BODY_HEIGHT = CONTENT_HEIGHT - LINE - 4;
     public static final int RIGHT_WIDTH = 176, PAGE_HEIGHT = BODY_HEIGHT - LINE - BUTTON - 8;
@@ -96,7 +99,8 @@ public class ProjectorGui extends ModularPanel {
     private final ProjectorMachineTab machines;
     private Int2IntOpenHashMap have = new Int2IntOpenHashMap();
     private final Int2IntOpenHashMap siteNeeded = new Int2IntOpenHashMap();
-    private int siteRevision = -1, sitePlaced, siteMissing, siteBlocked;
+    private long clearArmedAt;
+    private int siteRevision = -1, sitePlaced, siteMissing, siteBlocked, focusKind = -1;
     private ProjectorStructure shown;
     private int page, ticks;
     private final FadingNotice notice = new FadingNotice().duration(NOTICE_MILLIS);
@@ -133,7 +137,8 @@ public class ProjectorGui extends ModularPanel {
         }
         preview = new ProjectorPreviewWidget(this::structure).selection(this::selectedCell, this::select)
             .markers(() -> ClientConfig.projectorHatchOutlines, working)
-            .facing(() -> working.hasMachine() ? working.facing : null);
+            .facing(() -> working.hasMachine() ? working.facing : null)
+            .focusKind(() -> page == MATERIALS ? focusKind : -1);
         if (working.machine == lastLayerMachine) preview.restoreLayer(lastLayer);
         hatches = new ProjectorHatchPage(this::structure, working, this::selectedCell, this::select);
         child(
@@ -266,9 +271,11 @@ public class ProjectorGui extends ModularPanel {
                             this::cycleBuildStyle).width(RIGHT_WIDTH / 6)
                                 .height(BUTTON))
                     .child(
-                        new AE2Button(() -> StatCollector.translateToLocal(LANG + "clear"), this::clearPlan)
-                            .width(RIGHT_WIDTH / 4)
-                            .height(BUTTON)));
+                        new AE2Button(
+                            () -> StatCollector
+                                .translateToLocal(clearArmed() ? "gtnl.projector.hud.confirm" : LANG + "clear"),
+                            this::clearPlan).width(RIGHT_WIDTH / 4)
+                                .height(BUTTON)));
     }
 
     private void buildTabs() {
@@ -357,6 +364,36 @@ public class ProjectorGui extends ModularPanel {
     public void onUpdate() {
         super.onUpdate();
         if (++ticks % REFRESH_TICKS == 0) refreshInventory(Minecraft.getMinecraft().thePlayer);
+        if (page == MATERIALS && ticks % QUOTE_TICKS == 1) requestQuote();
+    }
+
+    private void requestQuote() {
+        ProjectorStructure structure = structure();
+        if (structure == null || structure.materials.isEmpty()) return;
+        boolean onSite = countSite(structure);
+        int size = Math.min(structure.materials.size(), ProjectorQuote.MAX_KINDS);
+        int[] items = new int[size], damages = new int[size], counts = new int[size];
+        for (int i = 0; i < size; i++) {
+            Material material = structure.materials.get(i);
+            ItemStack stack = material.stack();
+            items[i] = Item.getIdFromItem(stack.getItem());
+            damages[i] = stack.getItemDamage();
+            counts[i] = (int) Math.min(Integer.MAX_VALUE, needed(material, onSite));
+        }
+        ScienceNotLeisure.network.sendToServer(new ProjectorQuotePacket(items, damages, counts));
+    }
+
+    private long needed(Material material, boolean onSite) {
+        ItemStack stack = material.stack();
+        return onSite ? siteNeeded.get(Choice.idOf(stack.getItem(), stack.getItemDamage()))
+            : (long) material.count() * working.copies();
+    }
+
+    // The server's answer counts everything the build can take, such as a linked AE terminal; until it arrives the
+    // player's own inventory stands in.
+    private long available(int kind) {
+        int quoted = ProjectorClient.quoted(kind);
+        return quoted >= 0 ? quoted : have.get(kind);
     }
 
     private void closed() {
@@ -442,12 +479,22 @@ public class ProjectorGui extends ModularPanel {
         displayChosen = true;
     }
 
+    // Clearing throws the whole plan away, so it needs a second click within a few seconds.
     private void clearPlan() {
+        if (!clearArmed()) {
+            clearArmedAt = Minecraft.getSystemTime();
+            return;
+        }
+        clearArmedAt = 0;
         working.clear();
         hasSelection = false;
         machines.showMachine();
         ProjectorClient.send(location, working);
         stored.readFromNBT(working.writeToNBT());
+    }
+
+    private boolean clearArmed() {
+        return Minecraft.getSystemTime() - clearArmedAt < ProjectorBuildRequest.CONFIRM_MILLIS;
     }
 
     private void toggleSeeThrough() {
@@ -508,18 +555,17 @@ public class ProjectorGui extends ModularPanel {
         for (Material material : structure.materials) {
             ItemStack stack = material.stack();
             int kind = Choice.idOf(stack.getItem(), stack.getItemDamage());
-            int owned = have.get(kind);
-            long needed = onSite ? siteNeeded.get(kind) : (long) material.count() * copies;
+            long needed = needed(material, onSite);
+            long owned = available(kind);
             rows.add(
-                Row.colored(
+                Row.item(
                     stack,
                     stack.getDisplayName(),
                     Math.min(owned, needed) + "/" + needed,
-                    owned >= needed ? IconRowList.GOOD : IconRowList.BAD));
+                    kind == focusKind,
+                    () -> focusKind = focusKind == kind ? -1 : kind)
+                    .withDetailColor(owned >= needed ? IconRowList.GOOD : IconRowList.BAD));
         }
-        for (Object line : Minecraft.getMinecraft().fontRenderer
-            .listFormattedStringToWidth(StatCollector.translateToLocal(LANG + "materials_ae_note"), wellWidth - 8))
-            rows.add(Row.colored(null, (String) line, "", IconRowList.HEADER));
         return rows;
     }
 
@@ -535,7 +581,7 @@ public class ProjectorGui extends ModularPanel {
         siteNeeded.clear();
         sitePlaced = siteMissing = siteBlocked = 0;
         for (int index = 0; index < check.status.length; index++) {
-            if (!check.site.isBlock(index)) continue;
+            if (!check.site.isBlock(index) || check.site.isShadowed(index)) continue;
             ItemStack item = structure.items[check.site.local(index)];
             if (item == null) continue;
             switch (check.status[index]) {

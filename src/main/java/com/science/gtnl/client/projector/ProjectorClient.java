@@ -23,6 +23,7 @@ import net.minecraftforge.event.world.WorldEvent;
 import com.gtnewhorizon.gtnhlib.compat.BaublesCompat;
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
 import com.gtnewhorizon.gtnhlib.util.AboveHotbarHUD;
+import com.gtnewhorizon.structurelib.alignment.IAlignment;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnewhorizon.structurelib.event.BlockChangeNotifier;
 import com.science.gtnl.ScienceNotLeisure;
@@ -30,6 +31,7 @@ import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.item.items.MultiblockProjector;
 import com.science.gtnl.common.packet.OpenProjectorPacket;
 import com.science.gtnl.common.packet.ProjectorPlanPacket;
+import com.science.gtnl.common.packet.ProjectorReadPacket;
 import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
@@ -43,6 +45,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.relauncher.Side;
 import cpw.mods.fml.relauncher.SideOnly;
+import gregtech.api.interfaces.tileentity.IGregTechTileEntity;
 import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
 
 @SideOnly(Side.CLIENT)
@@ -52,7 +55,7 @@ public class ProjectorClient {
     public static final String LANG = "gtnl.projector.";
     public static final int REACH = 128, SEGMENT = 64, FLOAT_WARNING = 3, COMPLETE_TICKS = 40, HUD_TICKS = 10,
         BLOCK_PREVIEW_LIMIT = 20_000;
-    private static final int CLICK_GAP = 6, MAX_IN_FLIGHT = 16, SPOT_TICKS = 40, SETTLE_TICKS = 5;
+    private static final int CLICK_GAP = 6, MAX_IN_FLIGHT = 16, SPOT_TICKS = 40, SETTLE_TICKS = 5, QUOTE_TICKS = 100;
     private static final ArrayDeque<NBTTagCompound> inFlight = new ArrayDeque<>();
 
     public static int location = Integer.MIN_VALUE;
@@ -68,6 +71,8 @@ public class ProjectorClient {
     public static int focusColor;
     public static final ProjectorCheck CHECK = new ProjectorCheck();
     public static final ProjectorGround GROUND = new ProjectorGround();
+    private static final Int2IntOpenHashMap QUOTE = new Int2IntOpenHashMap();
+    private static long quoteTick = Long.MIN_VALUE / 2;
     private static NBTTagCompound planTag;
     private static boolean listening;
     private static long lastClick = -CLICK_GAP, ticks, spotTick;
@@ -261,7 +266,40 @@ public class ProjectorClient {
         if (repeated) return;
         findActive(player);
         if (location != 0 || plan == null) return;
+        if (sneaking && alignToController(player)) return;
         act(player, sneaking);
+    }
+
+    // Sneak-right-clicking a built controller marks it: the projection takes that machine, place and facing, locked,
+    // so the machine can be checked, finished, undone or dismantled from there.
+    private static boolean alignToController(EntityPlayer player) {
+        MovingObjectPosition hit = Minecraft.getMinecraft().objectMouseOver;
+        if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) return false;
+        if (!(player.worldObj.getTileEntity(hit.blockX, hit.blockY, hit.blockZ) instanceof IGregTechTileEntity tile))
+            return false;
+        int id = tile.getMetaTileID();
+        if (!ProjectorMachines.isSupported(id)) return false;
+        ExtendedFacing facing = tile.getMetaTileEntity() instanceof IAlignment alignment ? alignment.getExtendedFacing()
+            : ProjectorOrientation
+                .withFront(initialFacing(id), tile.getFrontFacing(), ProjectorMachines.validFacings(id));
+        ProjectorPlan next = plan.copy();
+        next.selectMachine(id);
+        next.facing = facing;
+        next.dimension = player.dimension;
+        next.x = hit.blockX;
+        next.y = hit.blockY;
+        next.z = hit.blockZ;
+        next.state = ProjectorPlan.State.LOCKED;
+        send(next);
+        ScienceNotLeisure.network.sendToServer(new ProjectorReadPacket(location, hit.blockX, hit.blockY, hit.blockZ));
+        ItemStack stack = ProjectorMachines.stackOf(id);
+        AboveHotbarHUD.renderTextAboveHotbar(
+            EnumChatFormatting.WHITE + StatCollector
+                .translateToLocalFormatted(LANG + "aligned", stack == null ? "?" : stack.getDisplayName()),
+            60,
+            true,
+            true);
+        return true;
     }
 
     public static void lockKey(boolean sneaking) {
@@ -417,16 +455,13 @@ public class ProjectorClient {
             completeTicks = 0;
             return;
         }
-        if (++completeTicks < COMPLETE_TICKS) return;
-        completeTicks = 0;
-        ProjectorPlan next = plan.copy();
-        next.state = ProjectorPlan.State.IDLE;
+        // The projection stays once complete, so the build can still be undone or the machine dismantled.
+        if (++completeTicks != COMPLETE_TICKS) return;
         AboveHotbarHUD.renderTextAboveHotbar(
             EnumChatFormatting.GREEN + StatCollector.translateToLocal(LANG + "complete"),
             60,
             true,
             true);
-        send(next);
     }
 
     private static void showStatus() {
@@ -478,6 +513,17 @@ public class ProjectorClient {
             }
         }
         return stacks;
+    }
+
+    public static void quoted(int[] kinds, int[] available) {
+        QUOTE.clear();
+        for (int i = 0; i < kinds.length; i++) if (kinds[i] >= 0) QUOTE.put(kinds[i], available[i]);
+        quoteTick = ticks;
+    }
+
+    // What the server last said the build could take of each material, or -1 when that answer is too old.
+    public static int quoted(int kind) {
+        return ticks - quoteTick > QUOTE_TICKS || !QUOTE.containsKey(kind) ? -1 : QUOTE.get(kind);
     }
 
     public static Int2IntOpenHashMap inventory(EntityPlayer player) {

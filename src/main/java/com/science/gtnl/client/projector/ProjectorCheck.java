@@ -180,6 +180,7 @@ public class ProjectorCheck {
         worldY = site.worldY;
         worldZ = site.worldZ;
         for (int cell = 0; cell < total; cell++) {
+            if (site.isShadowed(cell)) continue;
             if (site.isBlock(cell) && target.machines[site.local(cell)] > 0) machineCells.add(cell);
             byPosition.put(CoordinatePacker.pack(worldX[cell], worldY[cell], worldZ[cell]), cell);
             byChunk

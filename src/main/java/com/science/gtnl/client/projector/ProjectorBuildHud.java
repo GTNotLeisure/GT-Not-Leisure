@@ -83,7 +83,8 @@ public class ProjectorBuildHud {
     }
 
     private static String label(StructureAnimationTask task) {
-        return StatCollector
-            .translateToLocalFormatted(ProjectorBuilder.LANG + "building", Math.round(task.buildProgress() * 100));
+        return StatCollector.translateToLocalFormatted(
+            ProjectorBuilder.LANG + (task.reversed ? "dismantle_progress" : "building"),
+            Math.round(task.buildProgress() * 100));
     }
 }
