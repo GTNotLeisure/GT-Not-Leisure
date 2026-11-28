@@ -102,6 +102,11 @@ public class StructureRiseAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (lockedTick > now()) lockedTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         if (lockedTick >= 0) return;
         double p = linearProgress(age);
@@ -159,6 +164,7 @@ public class StructureRiseAnimation extends StructureMeshTask {
     }
 
     private void ventSteam(World world, boolean burst) {
+        if (muted()) return;
         if (world == null) return;
         int count = particles(burst ? Math.max(16, Math.min(48, (start.sizeX() + start.sizeZ()) * 2)) : 6);
         for (int i = 0; i < count; i++) {
@@ -181,6 +187,7 @@ public class StructureRiseAnimation extends StructureMeshTask {
     }
 
     private void spawnDebris(World world) {
+        if (muted()) return;
         if (world == null) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         int count = particles(Math.max(4, Math.min(18, (start.sizeX() + start.sizeZ()) / 2)));

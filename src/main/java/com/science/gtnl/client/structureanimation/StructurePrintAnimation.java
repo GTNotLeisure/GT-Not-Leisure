@@ -91,6 +91,11 @@ public class StructurePrintAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (finishedTick > now()) finishedTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         if (!started && age >= 1) {
             started = true;
@@ -111,6 +116,7 @@ public class StructurePrintAnimation extends StructureMeshTask {
     }
 
     private void spawnWeldingArcs(double y) {
+        if (muted()) return;
         int arcs = Math.max(1, Math.min(4, particles((int) Math.max(2, radius / 4))));
         for (int i = 0; i < arcs; i++) {
             Vec3d edge = randomPerimeterPoint(y);
@@ -123,6 +129,7 @@ public class StructurePrintAnimation extends StructureMeshTask {
     }
 
     private void spawnSparks(double y) {
+        if (muted()) return;
         int count = Math.max(2, Math.min(10, particles((int) Math.max(3, radius))));
         for (int i = 0; i < count; i++) {
             Vec3d origin = randomPerimeterPoint(y);

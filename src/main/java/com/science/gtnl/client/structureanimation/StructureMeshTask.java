@@ -49,6 +49,7 @@ public abstract class StructureMeshTask extends StructureAnimationTask {
     public final int[] wx, wy, wz, code;
     public int[] placeOrder;
     public int placedInCopy;
+    public boolean forwarded;
     public ProjectorSimulationWorld copy;
     public ProjectorSimulation.Actor actor;
 
@@ -109,6 +110,12 @@ public abstract class StructureMeshTask extends StructureAnimationTask {
     /** Whether this section of the copy has reached its final place, so it may give way to the real blocks. */
     protected abstract boolean settled(long section);
 
+    /**
+     * Played backwards, forgets the moments the fast-forward remembered once the clock has run back before them, so
+     * the timeline shows them as not yet happened.
+     */
+    protected void rewind() {}
+
     /** Whether effects that must finish before the task goes away are still running. */
     protected abstract boolean busy();
 
@@ -124,15 +131,24 @@ public abstract class StructureMeshTask extends StructureAnimationTask {
 
     @Override
     public boolean finished() {
+        if (reversed) return reverseDone();
         boolean allHanded = handed.size() >= sectionLast.size();
         return doneTick >= 0 && (allHanded || now() - doneTick > HANDOFF_FALLBACK + HANDOFF_REBUILD) && !busy();
     }
 
+    // Played backwards, the timeline first runs forwards once without effects, so every moment the styles remember
+    // (an impact, a lock) is set before the clock turns round.
     @Override
     protected void tick(Minecraft minecraft) {
+        if (reversed && !forwarded) {
+            forwarded = true;
+            for (forwarding = 0; forwarding <= length(); forwarding++) animate(minecraft, forwarding);
+            forwarding = -1;
+        }
+        if (reversed) rewind();
         buildCopy();
-        animate(minecraft, now() - startTick);
-        handoff(minecraft.theWorld);
+        animate(minecraft, age(0));
+        if (!reversed) handoff(minecraft.theWorld);
     }
 
     // Skipped cells never get a real block, so their sections hand over without waiting for them.
@@ -268,14 +284,14 @@ public abstract class StructureMeshTask extends StructureAnimationTask {
 
     public void sound(double x, double y, double z, String name, float volume, float pitch) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.theWorld == null) return;
+        if (minecraft.theWorld == null || muted()) return;
         float reach = (float) Math.max(1, radius / 16);
         minecraft.theWorld.playSound(x, y, z, name, volume * reach, pitch, false);
     }
 
     public void shake(FxCameraShake.Source source, float strength, float rumble) {
         Minecraft minecraft = Minecraft.getMinecraft();
-        if (minecraft.thePlayer == null || !ClientConfig.structureLandingShake) return;
+        if (minecraft.thePlayer == null || !ClientConfig.structureLandingShake || muted()) return;
         double dx = gap(minecraft.thePlayer.posX, start.originX(), start.originX() + start.sizeX());
         double dy = gap(minecraft.thePlayer.posY, start.originY(), start.originY() + start.sizeY());
         double dz = gap(minecraft.thePlayer.posZ, start.originZ(), start.originZ() + start.sizeZ());

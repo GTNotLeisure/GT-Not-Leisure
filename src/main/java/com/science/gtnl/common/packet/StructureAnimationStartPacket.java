@@ -18,7 +18,7 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
     public record Start(int job, int dimension, int originX, int originY, int originZ, int sizeX, int sizeY, int sizeZ,
         byte[] kinds, int[] items, int[] damages, int[] frontCells, byte[] fronts, int controllerX, int controllerY,
         int controllerZ, int facing, StructureAnimationStyle style, int cells, int placingTick, boolean own,
-        int elapsed) {
+        int elapsed, boolean reversed) {
 
         // The same build for another receiver: whether it is theirs, and how many ticks ago it started.
         public Start as(boolean own, int elapsed) {
@@ -44,7 +44,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
                 cells,
                 placingTick,
                 own,
-                elapsed);
+                elapsed,
+                reversed);
         }
     }
 
@@ -97,6 +98,7 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
             throw new IllegalArgumentException("Invalid projector build length");
         boolean own = buf.readBoolean();
         int elapsed = Math.max(0, buf.readInt());
+        boolean reversed = buf.readBoolean();
         int extraLength = buf.readShort();
         if (style < 0 || style >= StructureAnimationStyle.values().length
             || extraLength < 0
@@ -126,7 +128,8 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
             cells,
             placingTick,
             own,
-            elapsed);
+            elapsed,
+            reversed);
     }
 
     @Override
@@ -162,6 +165,7 @@ public class StructureAnimationStartPacket extends ClientboundPacket {
         buf.writeInt(start.placingTick());
         buf.writeBoolean(start.own());
         buf.writeInt(start.elapsed());
+        buf.writeBoolean(start.reversed());
         buf.writeShort(extra.length);
         buf.writeBytes(extra);
     }

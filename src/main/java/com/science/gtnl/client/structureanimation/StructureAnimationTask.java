@@ -15,30 +15,54 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public abstract class StructureAnimationTask {
 
-    public static final int TIMEOUT_TICKS = 300;
+    public static final int TIMEOUT_TICKS = 300, REVERSE_LEAD = 20;
 
     public final Start start;
     public final long startTick;
-    public long placingTick = -1, doneTick = -1, lastPacketTick;
+    public final boolean reversed;
+    public long placingTick = -1, doneTick = -1, lastPacketTick, forwarding = -1;
     public int processed, built;
     public boolean aborted;
 
+    // A dismantle plays its style backwards: after a short lead that lets the meshes get ready, its clock runs from the
+    // end of the build animation back to the start.
     protected StructureAnimationTask(Start start) {
         this.start = start;
-        startTick = StructureAnimations.clientTicks() - start.elapsed();
+        reversed = start.reversed();
+        startTick = StructureAnimations.clientTicks() - (reversed ? 0 : start.elapsed());
         lastPacketTick = StructureAnimations.clientTicks();
     }
 
     public long now() {
-        return StructureAnimations.clientTicks();
+        if (!reversed) return StructureAnimations.clientTicks();
+        if (forwarding >= 0) return startTick + forwarding;
+        return startTick + Math.max(0, length() - Math.max(0, reverseElapsed()));
+    }
+
+    public int length() {
+        return start.placingTick();
+    }
+
+    public long reverseElapsed() {
+        return StructureAnimations.clientTicks() - startTick - REVERSE_LEAD;
     }
 
     public double age(float partial) {
-        return now() - startTick + partial;
+        if (!reversed || forwarding >= 0) return now() - startTick + (reversed ? 0 : partial);
+        return Math.max(0, Math.min(length(), length() - (reverseElapsed() + partial)));
+    }
+
+    // Sounds, particles and shakes cannot play backwards, so a dismantle leaves them out.
+    public boolean muted() {
+        return reversed;
+    }
+
+    public boolean reverseDone() {
+        return doneTick >= 0 && reverseElapsed() >= length();
     }
 
     public void state(int state, int processed) {
-        lastPacketTick = now();
+        lastPacketTick = StructureAnimations.clientTicks();
         switch (state) {
             case StructureAnimationStatePacket.PLACING -> {
                 if (placingTick < 0) placingTick = now();
@@ -56,7 +80,9 @@ public abstract class StructureAnimationTask {
     }
 
     public float animationProgress() {
-        int length = start.placingTick();
+        int length = length();
+        if (reversed) return length <= 0 ? 1
+            : Math.max(0, Math.min(1, (float) (reverseElapsed() + REVERSE_LEAD) / (length + REVERSE_LEAD)));
         return length <= 0 || placingTick >= 0 ? 1 : Math.min(1, (float) (now() - startTick) / length);
     }
 
@@ -69,8 +95,9 @@ public abstract class StructureAnimationTask {
 
     public void drop(int[] boxCells) {}
 
+    // Once the server reported the end no more packets come, while a backwards animation may still have long to play.
     public boolean timedOut() {
-        return now() - lastPacketTick > TIMEOUT_TICKS;
+        return doneTick < 0 && StructureAnimations.clientTicks() - lastPacketTick > TIMEOUT_TICKS;
     }
 
     /** Whether the task must be dropped at once. */

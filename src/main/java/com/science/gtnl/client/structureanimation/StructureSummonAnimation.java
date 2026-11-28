@@ -116,6 +116,11 @@ public class StructureSummonAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (impactTick > now()) impactTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         if (!opened && age >= StructureAnimationStyle.SUMMON_DELAY) {
             opened = true;
@@ -142,6 +147,7 @@ public class StructureSummonAnimation extends StructureMeshTask {
 
     // While the machine comes down: sparks swirl along the circle's rim and sink, and pale motes slide down its sides.
     private void sparks(double age) {
+        if (muted()) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         int count = particles((int) Math.max(8, Math.min(24, Math.round(radius * 3))));
         double drop = fall(age);
@@ -193,6 +199,7 @@ public class StructureSummonAnimation extends StructureMeshTask {
     // A ring of slow, wide smoke rolling outward from the base; each wave starts a little further out and slower.
     // Built directly so the 16-block particle range of spawnParticle does not hide it from players watching from afar.
     private void dust(World world, int wave) {
+        if (muted()) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         double grow = Math.sqrt(Math.max(1, radius / 8));
         int count = particles(Math.max(24, Math.min(MAX_DUST_PER_WAVE, (start.sizeX() + start.sizeZ()) * 6)));

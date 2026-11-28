@@ -95,6 +95,11 @@ public class StructureOrbitalAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (impactTick > now()) impactTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         double p = dropProgress(age);
         if (impactTick < 0 && age < beaconTicks && placingTick < 0) {
@@ -119,10 +124,15 @@ public class StructureOrbitalAnimation extends StructureMeshTask {
             sound(centerX, start.originY(), centerZ, "random.explode", 1.8F, 0.55F);
             sound(centerX, start.originY(), centerZ, "random.anvil_land", 1.3F, 0.5F);
             shake(SHAKE, (float) Math.min(SHAKE_MAX, SHAKE_MIN + radius * SHAKE_PER_BLOCK), 0.55F);
-            double waveR = Math.max(3, Math.min(32, radius * 2.3 + 4));
-            FxShockwaveRenderer.spawn(new Vec3d(centerX, start.originY() + 0.12, centerZ), waveR, 22, FIRE_COLOR);
-            FxShockwaveRenderer
-                .spawn(new Vec3d(centerX, start.originY() + 0.2, centerZ), Math.min(32, waveR * 0.72), 16, GOLD_COLOR);
+            if (!muted()) {
+                double waveR = Math.max(3, Math.min(32, radius * 2.3 + 4));
+                FxShockwaveRenderer.spawn(new Vec3d(centerX, start.originY() + 0.12, centerZ), waveR, 22, FIRE_COLOR);
+                FxShockwaveRenderer.spawn(
+                    new Vec3d(centerX, start.originY() + 0.2, centerZ),
+                    Math.min(32, waveR * 0.72),
+                    16,
+                    GOLD_COLOR);
+            }
         }
         if (impactTick < 0 && p > 0) spawnEntryParticles(minecraft, currentDropY(age), p >= BRAKE_START);
         if (impactTick >= 0) for (int wave = 0; wave < DUST_WAVES.length; wave++)
@@ -130,6 +140,7 @@ public class StructureOrbitalAnimation extends StructureMeshTask {
     }
 
     private void spawnBeaconSparks() {
+        if (muted()) return;
         Vec3d center = new Vec3d(centerX, start.originY() + 0.15, centerZ);
         for (int i = 0; i < 3; i++) {
             double ang = RANDOM.nextDouble() * Math.PI * 2;
@@ -142,6 +153,7 @@ public class StructureOrbitalAnimation extends StructureMeshTask {
     }
 
     private void spawnEntryParticles(Minecraft minecraft, double dropY, boolean braking) {
+        if (muted()) return;
         if (minecraft.theWorld == null) return;
         float size = (float) Math.max(0.8, Math.min(2.8, radius * 0.25));
         int flames = particles(Math.max(6, Math.min(20, (int) (radius * 2))));
@@ -183,6 +195,7 @@ public class StructureOrbitalAnimation extends StructureMeshTask {
     }
 
     private void spawnDust(World world, int wave) {
+        if (muted()) return;
         if (world == null) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         double grow = Math.sqrt(Math.max(1, radius / 7));

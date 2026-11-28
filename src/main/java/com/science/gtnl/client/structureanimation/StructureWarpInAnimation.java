@@ -141,6 +141,11 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (snappedTick > now()) snappedTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         if (snappedTick >= 0) return;
         lightning.prune(age);
@@ -194,6 +199,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnTearLightning(double age) {
+        if (muted()) return;
         double reach = Math.max(2.4, holeWorldRadius * 1.48);
         double floorY = start.originY() + 0.04;
         for (int i = 0; i < 3; i++) {
@@ -220,6 +226,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnWormholeLightning(double age) {
+        if (muted()) return;
         double u = (age - TEAR_TICKS) / Math.max(1, WORMHOLE_TICKS);
         if (u > 0.72) return;
         double rimR = holeWorldRadius * (1.03 + 0.03 * Math.sin(age * 0.45));
@@ -280,6 +287,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnMaterializeLightning(double age, double mat) {
+        if (muted()) return;
         int tick = (int) age;
         if (tick % 2 != 0) return;
         double floorY = start.originY() + 0.04;
@@ -335,6 +343,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnInwardSparks(double intensity) {
+        if (muted()) return;
         int count = Math.max(2, Math.min(10, particles((int) (4 + holeWorldRadius * 1.4))));
         for (int i = 0; i < count; i++) {
             double theta = RANDOM.nextDouble() * Math.PI * 2;
@@ -364,6 +373,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnEnergySparks(double mat) {
+        if (muted()) return;
         int count = Math.max(2, Math.min(12, particles((int) (4 + radius * 1.5))));
         for (int i = 0; i < count; i++) {
             double ang = RANDOM.nextDouble() * Math.PI * 2;
@@ -392,6 +402,7 @@ public class StructureWarpInAnimation extends StructureMeshTask {
     }
 
     private void spawnShockwaveSparks() {
+        if (muted()) return;
         int count = Math.max(12, Math.min(42, particles((int) (14 + radius * 4.5))));
         for (int i = 0; i < count; i++) {
             double ang = RANDOM.nextDouble() * Math.PI * 2;

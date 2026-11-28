@@ -74,7 +74,7 @@ public class StructureRevealAnimation extends StructureAnimationTask {
         super.state(state, processed);
         float now = seconds();
         boolean done = state == StructureAnimationStatePacket.DONE;
-        if (done || state == StructureAnimationStatePacket.PROGRESS) {
+        if (!reversed && (done || state == StructureAnimationStatePacket.PROGRESS)) {
             progressTimes.add(now);
             progressValues.add(done ? Integer.MAX_VALUE : processed);
         }
@@ -90,7 +90,7 @@ public class StructureRevealAnimation extends StructureAnimationTask {
 
     @Override
     public boolean finished() {
-        return faded;
+        return reversed ? reverseDone() : faded;
     }
 
     @Override

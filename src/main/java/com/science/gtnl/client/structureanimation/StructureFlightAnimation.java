@@ -373,7 +373,8 @@ public class StructureFlightAnimation extends StructureMeshTask {
 
     private void launch(Band band, double age) {
         if (band.launchAt >= 0 || band.skipped || age < band.launch) return;
-        if (band.compiled && placingTick < 0 && band.launch + band.arrival - age >= MIN_LEFT) {
+        // A backwards run fast-forwards before any mesh is compiled; every band still has its flight then.
+        if (reversed || band.compiled && placingTick < 0 && band.launch + band.arrival - age >= MIN_LEFT) {
             band.launchAt = age;
             return;
         }
@@ -451,6 +452,7 @@ public class StructureFlightAnimation extends StructureMeshTask {
     }
 
     private void startLoops(Minecraft minecraft, Band band) {
+        if (muted()) return;
         int playing = 0;
         for (Band other : bands) if (other.jet != null && !other.jet.isDonePlaying()) playing++;
         if (playing >= MAX_LOOP_BANDS) return;
@@ -476,6 +478,7 @@ public class StructureFlightAnimation extends StructureMeshTask {
 
     private void spawn(Minecraft minecraft, FxJetParticle.Kind kind, Vec3d at, double vx, double vy, double vz,
         float size) {
+        if (muted()) return;
         minecraft.effectRenderer
             .addEffect(new FxJetParticle(minecraft.theWorld, kind, at.x(), at.y(), at.z(), vx, vy, vz, size));
     }
@@ -601,6 +604,7 @@ public class StructureFlightAnimation extends StructureMeshTask {
     }
 
     private void play(Vec3d at, String name, float volume, float pitch) {
+        if (muted()) return;
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.theWorld == null) return;
         minecraft.theWorld.playSound(at.x(), at.y(), at.z(), SOUND + name, volume * reach(at), pitch, false);

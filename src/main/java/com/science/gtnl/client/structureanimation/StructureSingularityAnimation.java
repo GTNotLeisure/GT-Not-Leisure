@@ -76,6 +76,12 @@ public class StructureSingularityAnimation extends StructureMeshTask {
     }
 
     @Override
+    protected void rewind() {
+        if (burstTick > now()) burstTick = -1;
+        if (settledTick > now()) settledTick = -1;
+    }
+
+    @Override
     protected void animate(Minecraft minecraft, double age) {
         if (!charged && age >= 1) {
             charged = true;
@@ -97,6 +103,7 @@ public class StructureSingularityAnimation extends StructureMeshTask {
     }
 
     private void spawnInwardMotes() {
+        if (muted()) return;
         int count = Math.max(3, Math.min(14, particles((int) Math.max(4, radius * 1.5))));
         double span = Math.max(2.5, Math.min(18, radius * 1.5));
         for (int i = 0; i < count; i++) {
@@ -118,6 +125,7 @@ public class StructureSingularityAnimation extends StructureMeshTask {
     }
 
     private void spawnBurstEffects() {
+        if (muted()) return;
         Vec3d center = new Vec3d(centerX, centerY, centerZ);
         double outer = Math.max(2.5, Math.min(32, radius * 2.1 + 3));
         double inner = Math.max(1.8, Math.min(32, radius * 1.4 + 2));
