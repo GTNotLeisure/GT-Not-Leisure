@@ -78,8 +78,7 @@ public class StructureRevealAnimation extends StructureAnimationTask {
             progressTimes.add(now);
             progressValues.add(done ? Integer.MAX_VALUE : processed);
         }
-        if (state != StructureAnimationStatePacket.PLACING && state != StructureAnimationStatePacket.PROGRESS)
-            endAt = now;
+        if (state == StructureAnimationStatePacket.DONE || state == StructureAnimationStatePacket.ABORTED) endAt = now;
     }
 
     // An aborted or stalled build fades out rather than vanishing.

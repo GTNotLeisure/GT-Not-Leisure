@@ -5,6 +5,8 @@ import static com.science.gtnl.common.projector.ProjectorSite.MISSING;
 import static com.science.gtnl.common.projector.ProjectorSite.UNLOADED;
 import static com.science.gtnl.common.projector.ProjectorSite.WRONG;
 
+import java.util.Arrays;
+
 import net.minecraft.util.MathHelper;
 import net.minecraft.util.Vec3;
 import net.minecraft.world.ChunkCoordIntPair;
@@ -65,12 +67,14 @@ public class ProjectorCheck {
         scanned = false;
     }
 
-    public void update(World current, ProjectorStructure target, ExtendedFacing targetFacing, int x, int y, int z) {
+    public void update(World current, ProjectorStructure target, ExtendedFacing targetFacing, int x, int y, int z,
+        int[] offsets) {
         if (target != structure || targetFacing != facing
             || current != world
             || x != originX
             || y != originY
-            || z != originZ) rebuild(current, target, targetFacing, x, y, z);
+            || z != originZ
+            || !Arrays.equals(offsets, site.offsets)) rebuild(current, target, targetFacing, x, y, z, offsets);
         if (!dirty.isEmpty()) {
             LongIterator iterator = dirty.iterator();
             while (iterator.hasNext()) {
@@ -99,9 +103,14 @@ public class ProjectorCheck {
         return scanned && status.length > 0 && missing == 0 && wrong == 0 && unloaded == 0;
     }
 
-    public int cellAt(int x, int y, int z) {
-        int cell = byPosition.get(CoordinatePacker.pack(x, y, z));
-        return structure != null && cell < structure.size ? cell : -1;
+    // Indices count every copy; the structure cell of one is site.local(index).
+    public int indexAt(int x, int y, int z) {
+        int index = byPosition.get(CoordinatePacker.pack(x, y, z));
+        return structure != null && index >= 0 && site.isBlock(index) ? index : -1;
+    }
+
+    public int copies() {
+        return site == null ? 1 : site.copies();
     }
 
     // The block the ray starts in is skipped, as the player may stand inside the projection.
@@ -132,8 +141,8 @@ public class ProjectorCheck {
                 nextZ += deltaZ;
             }
             if (distance > length) return -1;
-            int cell = cellAt(x, y, z);
-            if (cell >= 0) return cell;
+            int index = indexAt(x, y, z);
+            if (index >= 0) return index;
         }
     }
 
@@ -155,7 +164,8 @@ public class ProjectorCheck {
         }
     }
 
-    private void rebuild(World current, ProjectorStructure target, ExtendedFacing targetFacing, int x, int y, int z) {
+    private void rebuild(World current, ProjectorStructure target, ExtendedFacing targetFacing, int x, int y, int z,
+        int[] offsets) {
         clear();
         world = current;
         structure = target;
@@ -163,14 +173,14 @@ public class ProjectorCheck {
         originX = x;
         originY = y;
         originZ = z;
-        site = new ProjectorSite(target, targetFacing, x, y, z);
+        site = new ProjectorSite(target, targetFacing, x, y, z, offsets);
         int total = site.total();
         status = new byte[total];
         worldX = site.worldX;
         worldY = site.worldY;
         worldZ = site.worldZ;
         for (int cell = 0; cell < total; cell++) {
-            if (cell < target.size && target.machines[cell] > 0) machineCells.add(cell);
+            if (site.isBlock(cell) && target.machines[site.local(cell)] > 0) machineCells.add(cell);
             byPosition.put(CoordinatePacker.pack(worldX[cell], worldY[cell], worldZ[cell]), cell);
             byChunk
                 .computeIfAbsent(

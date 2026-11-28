@@ -79,15 +79,11 @@ public class ProjectorBuildHud {
     }
 
     private static double fraction(StructureAnimationTask task) {
-        if (task.animating()) return task.animationProgress();
-        int cells = task.start.cells();
-        return cells == 0 ? 1 : (double) task.placed() / cells;
+        return task.buildProgress();
     }
 
     private static String label(StructureAnimationTask task) {
-        if (task.animating()) return StatCollector
-            .translateToLocalFormatted(ProjectorBuilder.LANG + "animating", Math.round(task.animationProgress() * 100));
         return StatCollector
-            .translateToLocalFormatted(ProjectorBuilder.LANG + "progress", task.placed(), task.start.cells());
+            .translateToLocalFormatted(ProjectorBuilder.LANG + "building", Math.round(task.buildProgress() * 100));
     }
 }

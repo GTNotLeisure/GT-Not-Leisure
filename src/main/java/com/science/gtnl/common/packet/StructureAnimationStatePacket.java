@@ -11,7 +11,9 @@ import io.netty.buffer.ByteBuf;
 
 public class StructureAnimationStatePacket extends ClientboundPacket {
 
-    public static final int PLACING = 0, PROGRESS = 1, DONE = 2, ABORTED = 3;
+    // PROGRESS counts cells whose blocks the players can see; BUILT counts cells the server has handled, even while
+    // the animation still hides them.
+    public static final int PLACING = 0, PROGRESS = 1, DONE = 2, ABORTED = 3, BUILT = 4;
     private static final int[] NONE = new int[0];
     private int job, state, processed;
     private int[] skipped = NONE;

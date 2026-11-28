@@ -53,6 +53,7 @@ import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
 import com.science.gtnl.common.projector.ProjectorSimulation;
+import com.science.gtnl.common.projector.ProjectorSite;
 import com.science.gtnl.common.projector.ProjectorStructure;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 import com.science.gtnl.common.projector.ProjectorStructure.Material;
@@ -94,6 +95,8 @@ public class ProjectorGui extends ModularPanel {
     private final ProjectorPreviewWidget preview;
     private final ProjectorMachineTab machines;
     private Int2IntOpenHashMap have = new Int2IntOpenHashMap();
+    private final Int2IntOpenHashMap siteNeeded = new Int2IntOpenHashMap();
+    private int siteRevision = -1, sitePlaced, siteMissing, siteBlocked;
     private ProjectorStructure shown;
     private int page, ticks;
     private final FadingNotice notice = new FadingNotice().duration(NOTICE_MILLIS);
@@ -487,24 +490,67 @@ public class ProjectorGui extends ModularPanel {
         List<Row> rows = new ArrayList<>();
         ProjectorStructure structure = structure();
         if (structure == null) return rows;
+        int copies = working.copies();
+        boolean onSite = countSite(structure);
         rows.add(
             Row.header(
-                StatCollector
-                    .translateToLocalFormatted(LANG + "materials_total", structure.materials.size(), structure.size)));
+                onSite
+                    ? StatCollector.translateToLocalFormatted(
+                        LANG + "materials_site",
+                        structure.materials.size(),
+                        sitePlaced,
+                        sitePlaced + siteMissing + siteBlocked,
+                        siteBlocked)
+                    : StatCollector.translateToLocalFormatted(
+                        LANG + "materials_total",
+                        structure.materials.size(),
+                        (long) structure.size * copies)));
         for (Material material : structure.materials) {
             ItemStack stack = material.stack();
-            int owned = have.get(Choice.idOf(stack.getItem(), stack.getItemDamage()));
+            int kind = Choice.idOf(stack.getItem(), stack.getItemDamage());
+            int owned = have.get(kind);
+            long needed = onSite ? siteNeeded.get(kind) : (long) material.count() * copies;
             rows.add(
                 Row.colored(
                     stack,
                     stack.getDisplayName(),
-                    Math.min(owned, material.count()) + "/" + material.count(),
-                    owned >= material.count() ? IconRowList.GOOD : IconRowList.BAD));
+                    Math.min(owned, needed) + "/" + needed,
+                    owned >= needed ? IconRowList.GOOD : IconRowList.BAD));
         }
         for (Object line : Minecraft.getMinecraft().fontRenderer
             .listFormattedStringToWidth(StatCollector.translateToLocal(LANG + "materials_ae_note"), wellWidth - 8))
             rows.add(Row.colored(null, (String) line, "", IconRowList.HEADER));
         return rows;
+    }
+
+    // Once the edited plan is the one placed in the world, rows count only what is still to be placed there.
+    private boolean countSite(ProjectorStructure structure) {
+        ProjectorCheck check = ProjectorClient.CHECK;
+        if (!check.isActive() || check.structure != structure
+            || !check.scanned
+            || check.copies() != working.copies()
+            || !working.isPlaced()) return false;
+        if (check.revision == siteRevision) return true;
+        siteRevision = check.revision;
+        siteNeeded.clear();
+        sitePlaced = siteMissing = siteBlocked = 0;
+        for (int index = 0; index < check.status.length; index++) {
+            if (!check.site.isBlock(index)) continue;
+            ItemStack item = structure.items[check.site.local(index)];
+            if (item == null) continue;
+            switch (check.status[index]) {
+                case ProjectorSite.CORRECT -> sitePlaced++;
+                case ProjectorSite.WRONG -> {
+                    siteBlocked++;
+                    siteNeeded.addTo(Choice.idOf(item.getItem(), item.getItemDamage()), 1);
+                }
+                default -> {
+                    siteMissing++;
+                    siteNeeded.addTo(Choice.idOf(item.getItem(), item.getItemDamage()), 1);
+                }
+            }
+        }
+        return true;
     }
 
     private int selectedCell() {

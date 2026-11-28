@@ -7,9 +7,9 @@ import java.util.Objects;
 import java.util.function.UnaryOperator;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.ScaledResolution;
-import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.settings.GameSettings;
 import net.minecraft.client.settings.KeyBinding;
 import net.minecraft.item.ItemStack;
@@ -34,6 +34,7 @@ import com.cleanroommc.modularui.widget.Widget;
 import com.cleanroommc.modularui.widget.sizer.Area;
 import com.cleanroommc.modularui.widget.sizer.StandardResizer;
 import com.cleanroommc.modularui.widgets.TextWidget;
+import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnewhorizon.gtnhlib.eventbus.EventBusSubscriber;
 import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.gtnllib.gui.theme.ae2.AE2Icon;
@@ -45,9 +46,11 @@ import com.gtnllib.gui.widget.VerticalButtonBar;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.gui.ScreenThemes;
+import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
+import com.science.gtnl.common.projector.ProjectorStructure;
 import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 import com.science.gtnl.config.ClientConfig;
 import com.science.gtnl.config.ConfigRegistry;
@@ -62,11 +65,11 @@ import cpw.mods.fml.relauncher.SideOnly;
 @EventBusSubscriber(side = Side.CLIENT)
 public class ProjectorHud {
 
-    public static final String LANG = "gtnl.projector.hud.";
-    public static final int WIDTH = 150, PAD = 6, LINE = 12, ROW = 16, FIELD = 14, NUMBER = 92, BUTTON = 16,
-        HIDDEN_MOUSE = -10_000, WORLD_EDGE = 30_000_000, MAX_Y = 255, TOOLBAR_BUTTONS = 6,
-        BODY = VerticalButtonBar.WIDTH - VerticalButtonBar.OVERLAP,
-        TOOLBAR_HEIGHT = TOOLBAR_BUTTONS * VerticalButtonBar.PITCH + 6;
+    public static final String LANG = "gtnl.projector.hud.", ELLIPSIS = "...";
+    public static final int WIDTH = 150, PAD = 6, LINE = 12, FIELD = 14, SMALL = 24, AXIS = 8, GAP = 2, BUTTON = 16,
+        SHIFT_STEP = 10, HIDDEN_MOUSE = -10_000, WORLD_EDGE = 30_000_000, MAX_Y = 255,
+        BODY = VerticalButtonBar.WIDTH - VerticalButtonBar.OVERLAP, INNER = WIDTH - PAD * 2,
+        NAME = INNER - SMALL * 2 - GAP, COORDINATE = INNER - AXIS - SMALL * 2 - GAP * 3;
     public static final KeyBinding HOLD = new KeyBinding(
         "key.gtnl.projector_hud",
         Keyboard.KEY_LMENU,
@@ -75,7 +78,7 @@ public class ProjectorHud {
     private static ModularScreen floating;
     private static String floatingTheme;
     private static int floatingWidth, floatingHeight;
-    private static boolean wasHeld;
+    private static boolean wasHeld, moved;
 
     private ProjectorHud() {}
 
@@ -132,6 +135,8 @@ public class ProjectorHud {
         }
         floating.getContext()
             .updateState(HIDDEN_MOUSE, HIDDEN_MOUSE, partialTicks);
+        // A screen leaves lighting, depth and blending set for the GUI that normally follows it, not for the HUD.
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
         GL11.glPushMatrix();
         try {
             GL11.glColor4f(1, 1, 1, 1);
@@ -139,13 +144,7 @@ public class ProjectorHud {
             floating.drawForeground();
         } finally {
             GL11.glPopMatrix();
-            // The screen leaves item lighting on for the GUI that normally follows it; the HUD after it must not get
-            // it.
-            RenderHelper.disableStandardItemLighting();
-            GL11.glDisable(GL11.GL_LIGHTING);
-            GL11.glEnable(GL11.GL_BLEND);
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
-            GL11.glColor4f(1, 1, 1, 1);
+            GL11.glPopAttrib();
         }
     }
 
@@ -160,87 +159,186 @@ public class ProjectorHud {
     }
 
     private static ModularPanel panel(boolean interactive, List<NumberEntryWidget> entries) {
-        int inner = WIDTH - PAD * 2, left = BODY + PAD;
         int muted = AE2Look.ofTheme(ScreenThemes.projector())
             .listMuted();
-        int y = PAD;
         ModularPanel panel = new ModularPanel(interactive ? "projector_hud" : "projector_hud_floating");
         panel.background(AE2PanelPainter.panelBackground(panel, BODY, 0))
-            .disableThemeBackground(true);
-        panel.child(toolbar(interactive));
-        DragBar drag = new DragBar().pos(BODY, 0)
-            .size(WIDTH, PAD + LINE + 2);
-        if (interactive) drag.addTooltipLine(StatCollector.translateToLocal(LANG + "drag"));
-        panel.child(drag);
-        panel.child(
-            IKey.dynamic(ProjectorHud::machineName)
-                .asWidget()
-                .pos(left, y)
-                .size(inner, LINE));
-        panel.child(
-            IKey.dynamic(ProjectorHud::stateLabel)
-                .asWidget()
-                .alignment(Alignment.CenterRight)
-                .pos(left, y)
-                .size(inner, LINE));
-        y += LINE + 4;
-        panel.child(header(LANG + "position", muted, left, y, inner));
-        y += LINE;
+            .disableThemeBackground(true)
+            .width(BODY + WIDTH)
+            .coverChildrenHeight();
+        Flow content = Flow.column()
+            .crossAxisAlignment(Alignment.CrossAxis.START)
+            .pos(BODY, 0)
+            .width(WIDTH)
+            .coverChildrenHeight()
+            .padding(PAD)
+            .childPadding(GAP)
+            .child(
+                row(LINE).child(
+                    IKey.dynamic(ProjectorHud::machineName)
+                        .asWidget()
+                        .size(NAME, LINE))
+                    .child(
+                        IKey.dynamic(ProjectorHud::stateLabel)
+                            .asWidget()
+                            .alignment(Alignment.CenterRight)
+                            .size(SMALL * 2, LINE)))
+            .child(
+                row(LINE).child(label(LANG + "position", muted).size(AXIS + GAP + COORDINATE, LINE))
+                    .child(
+                        label(LANG + "stack_count", muted).alignment(Alignment.Center)
+                            .size(SMALL, LINE))
+                    .child(
+                        label(LANG + "stack_gap", muted).alignment(Alignment.Center)
+                            .size(SMALL, LINE)));
         String[] axes = { "X", "Y", "Z" };
-        for (int axis = 0; axis < 3; axis++) {
-            int index = axis;
-            panel.child(
-                IKey.str(axes[axis])
-                    .asWidget()
-                    .pos(left, y + 3)
-                    .size(inner - NUMBER, LINE));
-            NumberEntryWidget entry = new NumberEntryWidget().wheel(true)
-                .bounds(index == 1 ? 0 : -WORLD_EDGE, index == 1 ? MAX_Y : WORLD_EDGE)
-                .textAlignment(Alignment.Center)
-                .follow(() -> coordinate(index))
-                .onChange(value -> move(index, (int) value));
-            entry.available(ProjectorHud::movable);
-            entries.add(entry);
-            panel.child(
-                entry.pos(left + inner - NUMBER, y)
-                    .size(NUMBER, FIELD));
-            y += ROW;
-        }
-        y += 2;
-        int half = (inner - 2) / 2;
-        panel.child(
-            new AE2Button(ProjectorHud::lockLabel, ProjectorHud::toggleLock).available(ProjectorHud::movable)
-                .pos(left, y)
-                .size(half, BUTTON));
-        panel.child(
-            new AE2Button(() -> StatCollector.translateToLocal(LANG + "full"), ProjectorClient::open)
-                .pos(left + half + 2, y)
-                .size(inner - half - 2, BUTTON));
-        y += BUTTON + 2;
-        panel.child(
-            new AE2Button(() -> StatCollector.translateToLocal("gtnl.projector.gui.build"), ProjectorHud::build)
-                .available(ProjectorHud::canBuild)
-                .pos(left, y)
-                .size(half, BUTTON));
-        panel.child(
-            new AE2Button(ProjectorHud::styleLabel, ProjectorHud::cycleStyle).available(ProjectorHud::editable)
-                .pos(left + half + 2, y)
-                .size(inner - half - 2, BUTTON));
-        y += BUTTON;
-        if (!interactive) {
-            y += 2;
-            panel.child(
-                IKey.dynamic(ProjectorHud::hint)
-                    .asWidget()
-                    .color(muted)
-                    .alignment(Alignment.Center)
-                    .pos(left, y)
-                    .size(inner, LINE - 2));
-            y += LINE - 2;
-        }
-        panel.size(BODY + WIDTH, Math.max(y + PAD, TOOLBAR_HEIGHT));
+        for (int axis = 0; axis < 3; axis++) content.child(axisRow(axis, axes[axis], entries));
+        content.child(
+            IKey.dynamic(ProjectorHud::stackSummary)
+                .asWidget()
+                .color(muted)
+                .alignment(Alignment.Center)
+                .widthRel(1f)
+                .height(LINE - 2))
+            .child(
+                buttons(
+                    new AE2Button(ProjectorHud::lockLabel, ProjectorHud::toggleLock).available(ProjectorHud::movable),
+                    new AE2Button(() -> StatCollector.translateToLocal(LANG + "full"), ProjectorClient::open)))
+            .child(
+                buttons(
+                    new AE2Button(() -> StatCollector.translateToLocal("gtnl.projector.gui.build"), ProjectorHud::build)
+                        .available(ProjectorHud::canBuild),
+                    new AE2Button(ProjectorHud::styleLabel, ProjectorHud::cycleStyle)
+                        .available(ProjectorHud::editable)));
+        if (!interactive) content.child(
+            IKey.dynamic(ProjectorHud::hint)
+                .asWidget()
+                .color(muted)
+                .alignment(Alignment.Center)
+                .widthRel(1f)
+                .height(LINE - 2));
+        DragBar drag = new DragBar().pos(BODY, 0)
+            .size(WIDTH, PAD + LINE);
+        if (interactive) drag.addTooltipLine(StatCollector.translateToLocal(LANG + "drag"));
+        panel.child(toolbar(interactive))
+            .child(content)
+            .child(drag);
         place(panel);
         return panel;
+    }
+
+    private static Flow row(int height) {
+        return Flow.row()
+            .widthRel(1f)
+            .height(height)
+            .childPadding(GAP);
+    }
+
+    private static Flow buttons(AE2Button first, AE2Button second) {
+        return row(BUTTON).child(
+            first.expanded()
+                .height(BUTTON))
+            .child(
+                second.expanded()
+                    .height(BUTTON));
+    }
+
+    private static TextWidget<?> label(String key, int color) {
+        return IKey.lang(key)
+            .asWidget()
+            .color(color);
+    }
+
+    private static Flow axisRow(int axis, String name, List<NumberEntryWidget> entries) {
+        NumberEntryWidget position = entry(entries).bounds(axis == 1 ? 0 : -WORLD_EDGE, axis == 1 ? MAX_Y : WORLD_EDGE)
+            .fineStep(() -> positionStep(axis))
+            .follow(() -> coordinate(axis))
+            .onChange(value -> move(axis, (int) value));
+        NumberEntryWidget count = entry(entries).arrows(false)
+            .bounds(-ProjectorPlan.MAX_STACK, ProjectorPlan.MAX_STACK)
+            .follow(() -> stackCount(axis))
+            .onChange(value -> setStack(axis, nextCount(axis, (int) value), stackGap(axis)));
+        NumberEntryWidget gap = entry(entries).arrows(false)
+            .bounds(0, ProjectorPlan.MAX_STACK_GAP)
+            .follow(() -> stackGap(axis))
+            .onChange(value -> setStack(axis, stackCount(axis), (int) value));
+        return row(FIELD).child(
+            IKey.str(name)
+                .asWidget()
+                .size(AXIS, FIELD))
+            .child(position.size(COORDINATE, FIELD))
+            .child(count.size(SMALL, FIELD))
+            .child(gap.size(SMALL, FIELD));
+    }
+
+    private static NumberEntryWidget entry(List<NumberEntryWidget> entries) {
+        NumberEntryWidget entry = new NumberEntryWidget().wheel(true)
+            .textAlignment(Alignment.Center);
+        entry.available(ProjectorHud::movable);
+        entries.add(entry);
+        return entry;
+    }
+
+    private static long positionStep(int axis) {
+        ProjectorStructure structure = ProjectorClient.structure;
+        if (GuiScreen.isCtrlKeyDown() && structure != null) {
+            int[] bounds = structure.worldBounds(ProjectorClient.facing);
+            return bounds[axis + 3] - bounds[axis] + 1;
+        }
+        return GuiScreen.isShiftKeyDown() ? SHIFT_STEP : 1;
+    }
+
+    private static int stackCount(int axis) {
+        ProjectorPlan plan = ProjectorClient.plan;
+        return plan == null ? 1 : plan.stackCount[axis];
+    }
+
+    private static int stackGap(int axis) {
+        ProjectorPlan plan = ProjectorClient.plan;
+        return plan == null ? 0 : plan.stackGap[axis];
+    }
+
+    // 1 and -1 both mean a single copy, so one step down from 1 goes straight to two copies the other way.
+    private static int nextCount(int axis, int value) {
+        if (value != 0 && value != -1) return value;
+        return value == 0 && stackCount(axis) == 1 ? -2 : 1;
+    }
+
+    private static void setStack(int axis, int count, int gap) {
+        if (!movable()) return;
+        ProjectorPlan check = ProjectorClient.plan.copy();
+        if (!check.setStack(axis, count, gap)) {
+            ProjectorInput.hint(LANG + "stack_limit");
+            return;
+        }
+        ProjectorStructure structure = ProjectorClient.structure;
+        if (structure != null) {
+            int[] single = structure.worldBounds(ProjectorClient.facing);
+            if (!ProjectorBuilder.fits(structure, single, check.stackOffsets(single))) {
+                ProjectorInput.hint(LANG + "stack_too_big");
+                return;
+            }
+        }
+        ProjectorInput.edit(copy -> copy.setStack(axis, count, gap));
+    }
+
+    private static void clearStack() {
+        if (movable() && ProjectorClient.plan.isStacked()) ProjectorInput.edit(ProjectorPlan::clearStack);
+    }
+
+    private static String stackSummary() {
+        ProjectorPlan plan = ProjectorClient.plan;
+        ProjectorStructure structure = ProjectorClient.structure;
+        if (plan == null || structure == null) return "";
+        if (plan.isStacked() && ProjectorClient.offsets.length == 3)
+            return EnumChatFormatting.RED + StatCollector.translateToLocal(LANG + "stack_shrunk");
+        int[] bounds = structure.worldBounds(ProjectorClient.facing);
+        return StatCollector.translateToLocalFormatted(
+            LANG + "stack_summary",
+            plan.copies(),
+            bounds[3] - bounds[0] + 1,
+            bounds[4] - bounds[1] + 1,
+            bounds[5] - bounds[2] + 1);
     }
 
     private static VerticalButtonBar toolbar(boolean interactive) {
@@ -270,6 +368,10 @@ public class ProjectorHud {
                 () -> StatCollector.translateToLocal("gtnl.projector.gui.ground_snap"),
                 () -> ProjectorClient.plan != null && ProjectorClient.plan.groundSnap,
                 ProjectorHud::toggleGround)
+            .button(
+                () -> AE2Icon.CLOSE,
+                () -> StatCollector.translateToLocal(LANG + "stack_clear"),
+                ProjectorHud::clearStack)
             // MUI2 refuses recipe viewer exclusion areas on screens drawn as overlays, which the floating panel is.
             .excludeAreaInRecipeViewer(interactive)
             .pos(0, 0);
@@ -280,14 +382,6 @@ public class ProjectorHud {
         panel.resizer(StandardResizer::resetPosition)
             .leftRelAnchor(x, x)
             .topRelAnchor(y, y);
-    }
-
-    private static TextWidget<?> header(String key, int color, int x, int y, int width) {
-        return IKey.lang(key)
-            .asWidget()
-            .color(color)
-            .pos(x, y)
-            .size(width, LINE);
     }
 
     private static boolean editable() {
@@ -392,7 +486,11 @@ public class ProjectorHud {
     private static String machineName() {
         ProjectorPlan plan = ProjectorClient.plan;
         ItemStack stack = plan == null || !plan.hasMachine() ? null : ProjectorMachines.stackOf(plan.machine);
-        return stack == null ? "" : stack.getDisplayName();
+        if (stack == null) return "";
+        FontRenderer font = Minecraft.getMinecraft().fontRenderer;
+        String name = stack.getDisplayName();
+        if (font.getStringWidth(name) <= NAME) return name;
+        return font.trimStringToWidth(name, NAME - font.getStringWidth(ELLIPSIS)) + ELLIPSIS;
     }
 
     private static String stateLabel() {
@@ -441,14 +539,14 @@ public class ProjectorHud {
                 screen.height - panel.getArea().height);
             place(panel);
             panel.scheduleResize();
+            moved = true;
         }
 
         @Override
         public boolean onMouseRelease(int mouseButton) {
             if (!dragging) return false;
             dragging = false;
-            ConfigRegistry.save(ClientConfig.class);
-            floating = null;
+            savePosition();
             return true;
         }
 
@@ -469,9 +567,12 @@ public class ProjectorHud {
             pausesGame(false);
         }
 
+        // MUI2 only tells the widget under the mouse about a release, so a drag that ends off the title bar is saved
+        // here.
         @Override
         public void onUpdate() {
             super.onUpdate();
+            if (moved && !Mouse.isButtonDown(0)) savePosition();
             if (!shown()) {
                 close();
                 return;
@@ -480,5 +581,18 @@ public class ProjectorHud {
             for (NumberEntryWidget entry : entries) if (entry.isEditing()) return;
             close();
         }
+
+        @Override
+        public void onClose() {
+            super.onClose();
+            savePosition();
+        }
+    }
+
+    private static void savePosition() {
+        if (!moved) return;
+        moved = false;
+        ConfigRegistry.save(ClientConfig.class);
+        floating = null;
     }
 }

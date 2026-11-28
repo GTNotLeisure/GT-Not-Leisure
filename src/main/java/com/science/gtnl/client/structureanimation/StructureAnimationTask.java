@@ -20,7 +20,7 @@ public abstract class StructureAnimationTask {
     public final Start start;
     public final long startTick;
     public long placingTick = -1, doneTick = -1, lastPacketTick;
-    public int processed;
+    public int processed, built;
     public boolean aborted;
 
     protected StructureAnimationTask(Start start) {
@@ -44,8 +44,10 @@ public abstract class StructureAnimationTask {
                 if (placingTick < 0) placingTick = now();
             }
             case StructureAnimationStatePacket.PROGRESS -> this.processed = Math.max(this.processed, processed);
+            case StructureAnimationStatePacket.BUILT -> built = Math.max(built, processed);
             case StructureAnimationStatePacket.DONE -> {
                 this.processed = Integer.MAX_VALUE;
+                built = Integer.MAX_VALUE;
                 doneTick = now();
                 if (placingTick < 0) placingTick = now();
             }
@@ -53,17 +55,16 @@ public abstract class StructureAnimationTask {
         }
     }
 
-    public boolean animating() {
-        return placingTick < 0 && animationProgress() < 1;
-    }
-
     public float animationProgress() {
         int length = start.placingTick();
-        return length <= 0 ? 1 : Math.min(1, (float) (now() - startTick) / length);
+        return length <= 0 || placingTick >= 0 ? 1 : Math.min(1, (float) (now() - startTick) / length);
     }
 
-    public int placed() {
-        return Math.min(processed, start.cells());
+    // The slower of the animation and the server, so the bar neither runs ahead of what is shown nor of the build.
+    public float buildProgress() {
+        int cells = start.cells();
+        float server = cells <= 0 ? 1 : Math.min(1, (float) built / cells);
+        return Math.min(animationProgress(), server);
     }
 
     public void drop(int[] boxCells) {}

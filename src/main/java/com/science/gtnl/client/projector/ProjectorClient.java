@@ -2,6 +2,7 @@ package com.science.gtnl.client.projector;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -29,6 +30,7 @@ import com.science.gtnl.client.structureanimation.StructureAnimations;
 import com.science.gtnl.common.item.items.MultiblockProjector;
 import com.science.gtnl.common.packet.OpenProjectorPacket;
 import com.science.gtnl.common.packet.ProjectorPlanPacket;
+import com.science.gtnl.common.projector.ProjectorBuilder;
 import com.science.gtnl.common.projector.ProjectorMachines;
 import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
@@ -50,7 +52,7 @@ public class ProjectorClient {
     public static final String LANG = "gtnl.projector.";
     public static final int REACH = 128, SEGMENT = 64, FLOAT_WARNING = 3, COMPLETE_TICKS = 40, HUD_TICKS = 10,
         BLOCK_PREVIEW_LIMIT = 20_000;
-    private static final int CLICK_GAP = 6, MAX_IN_FLIGHT = 16, SPOT_TICKS = 40;
+    private static final int CLICK_GAP = 6, MAX_IN_FLIGHT = 16, SPOT_TICKS = 40, SETTLE_TICKS = 5;
     private static final ArrayDeque<NBTTagCompound> inFlight = new ArrayDeque<>();
 
     public static int location = Integer.MIN_VALUE;
@@ -58,8 +60,9 @@ public class ProjectorClient {
     public static ProjectorStructure structure;
     public static ExtendedFacing facing = ExtendedFacing.DEFAULT;
     public static int x, y, z;
+    public static int[] offsets = new int[3];
     public static boolean visible, placed, followed, unloadedGround, tooHigh, tooLow;
-    public static int floating;
+    public static int floating, settledTicks;
     public static int completeTicks;
     public static int[] focus = new int[0];
     public static int focusColor;
@@ -112,10 +115,15 @@ public class ProjectorClient {
             return;
         }
         structure = ProjectorStructures.get(plan.settings());
+        int lastX = x, lastY = y, lastZ = z;
+        ExtendedFacing lastFacing = facing;
         updatePlacement(mc);
-        if (structure != null && placed && visible) {
-            CHECK.update(mc.theWorld, structure, facing, x, y, z);
-            updateCompletion();
+        boolean still = x == lastX && y == lastY && z == lastZ && facing == lastFacing;
+        settledTicks = still ? settledTicks + 1 : 0;
+        // A following projection is only checked once it stops, as every move would rebuild the whole check.
+        if (structure != null && visible && (placed || settledTicks >= SETTLE_TICKS)) {
+            CHECK.update(mc.theWorld, structure, facing, x, y, z, offsets);
+            if (placed) updateCompletion();
         } else {
             CHECK.clear();
         }
@@ -323,16 +331,22 @@ public class ProjectorClient {
         tooHigh = tooLow = unloadedGround = false;
         floating = 0;
         placed = plan.isPlaced();
+        facing = placed ? plan.facing : followFacing(plan.facing, player);
+        int[] single = structure == null ? new int[6] : structure.worldBounds(facing);
+        int[] next = plan.stackOffsets(single);
+        if (structure != null && !ProjectorBuilder.fits(structure, single, next)) next = new int[3];
+        if (!Arrays.equals(next, offsets)) offsets = next;
         if (placed) {
             followed = false;
-            facing = plan.facing;
             x = plan.x;
             y = plan.y;
             z = plan.z;
+            int[] all = ProjectorPlan.stackedBounds(single, offsets);
+            tooHigh = y + all[4] > 255;
+            tooLow = y + all[1] < 0;
             visible = true;
             return;
         }
-        facing = followFacing(plan.facing, player);
         MovingObjectPosition hit = trace(mc.theWorld, player);
         if (hit == null || hit.typeOfHit != MovingObjectPosition.MovingObjectType.BLOCK) {
             visible = followed;
@@ -349,8 +363,9 @@ public class ProjectorClient {
             z = hit.blockZ + side.offsetZ - pivotZ;
             y = hit.blockY + side.offsetY + plan.verticalOffset;
         }
-        tooHigh = y + bounds[4] > 255;
-        tooLow = y + bounds[1] < 0;
+        int[] all = ProjectorPlan.stackedBounds(bounds, offsets);
+        tooHigh = y + all[4] > 255;
+        tooLow = y + all[1] < 0;
         followed = visible = true;
     }
 
@@ -434,6 +449,11 @@ public class ProjectorClient {
                 LANG + "joined",
                 text,
                 StatCollector.translateToLocal(LANG + "unloaded_ground"));
+            if (CHECK.scanned && CHECK.wrong > 0) text = StatCollector.translateToLocalFormatted(
+                LANG + "joined",
+                text,
+                EnumChatFormatting.RED + StatCollector.translateToLocalFormatted(LANG + "overlaps", CHECK.wrong)
+                    + EnumChatFormatting.WHITE);
         } else if (!CHECK.scanned) {
             text = StatCollector.translateToLocal(LANG + "checking");
         } else if (CHECK.isComplete()) {

@@ -1,6 +1,8 @@
 package com.science.gtnl.client.projector;
 
 import java.nio.FloatBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 import net.minecraft.client.Minecraft;
@@ -39,18 +41,19 @@ public class ProjectorRenderer {
     private static final int YELLOW = 0xFFD200, BLACK = 0x202020, RED = 0xE02020, GREEN = 0x30E040, CYAN = 0x40D8FF;
     private static final int MAX_WRONG_BOXES = 4096, FOCUS_ALPHA_MIN = 110, FOCUS_ALPHA_RANGE = 145;
     private static final double PULSE_MILLIS = 160;
-    private static final float GHOST_ALPHA = 0.45f;
+    private static final float GHOST_ALPHA = 0.45f, GHOST_OFFSET = 2f;
     private static final long COMPILE_NANOS = 4_000_000L;
     private static final int CONSTANT_ALPHA = 0x8003, ONE_MINUS_CONSTANT_ALPHA = 0x8004;
-    private static final FxBlockMesh GHOSTS = new FxBlockMesh();
+    private static final int GHOST_BLOCKS = 200_000;
+    private static final List<FxBlockMesh> GHOSTS = new ArrayList<>();
     private static final FloatBuffer MATRIX = BufferUtils.createFloatBuffer(16);
-    private static boolean[] missing = new boolean[0];
     private static int checkRevision = -1;
 
     private ProjectorRenderer() {}
 
     public static void release() {
-        GHOSTS.release();
+        for (FxBlockMesh mesh : GHOSTS) mesh.release();
+        GHOSTS.clear();
     }
 
     @SubscribeEvent
@@ -68,6 +71,7 @@ public class ProjectorRenderer {
         ProjectorCheck check = ProjectorClient.CHECK;
         int x = ProjectorClient.x, y = ProjectorClient.y, z = ProjectorClient.z;
         int[] bounds = structure == null ? new int[6] : structure.worldBounds(ProjectorClient.facing);
+        int[] offsets = ProjectorClient.offsets;
         GL11.glPushMatrix();
         GL11.glPushAttrib(
             GL11.GL_ENABLE_BIT | GL11.GL_LINE_BIT
@@ -80,7 +84,8 @@ public class ProjectorRenderer {
                 drawGhosts(
                     structure,
                     plan.display == ProjectorPlan.Display.DIFFERENCE && ProjectorClient.placed,
-                    check);
+                    check,
+                    offsets);
             }
             GL11.glDisable(GL11.GL_TEXTURE_2D);
             GL11.glDisable(GL11.GL_LIGHTING);
@@ -96,19 +101,24 @@ public class ProjectorRenderer {
                 GL11.glDepthMask(false);
                 GL11.glLineWidth(hidden ? 2f : 3f);
                 int alpha = hidden ? 90 : 255;
-                drawHazardBox(
-                    bounds[0] - INSET,
-                    bounds[1] - INSET,
-                    bounds[2] - INSET,
-                    bounds[3] + 1 + INSET,
-                    bounds[4] + 1 + INSET,
-                    bounds[5] + 1 + INSET,
-                    accent,
-                    alpha);
-                drawBox(0.1, 0.1, 0.1, 0.9, 0.9, 0.9, CYAN, alpha);
-                drawArrow(ProjectorClient.facing.getDirection(), CYAN, alpha);
+                for (int copy = 0; copy < offsets.length; copy += 3) {
+                    GL11.glPushMatrix();
+                    GL11.glTranslated(offsets[copy], offsets[copy + 1], offsets[copy + 2]);
+                    drawHazardBox(
+                        bounds[0] - INSET,
+                        bounds[1] - INSET,
+                        bounds[2] - INSET,
+                        bounds[3] + 1 + INSET,
+                        bounds[4] + 1 + INSET,
+                        bounds[5] + 1 + INSET,
+                        accent,
+                        alpha);
+                    drawBox(0.1, 0.1, 0.1, 0.9, 0.9, 0.9, CYAN, alpha);
+                    drawArrow(ProjectorClient.facing.getDirection(), CYAN, alpha);
+                    GL11.glPopMatrix();
+                }
             }
-            if (ProjectorClient.placed && plan.display != ProjectorPlan.Display.BOX) drawWrong(check, x, y, z);
+            if (plan.display != ProjectorPlan.Display.BOX) drawWrong(check, x, y, z);
             if (ProjectorClient.placed) drawFocus(check, x, y, z);
         } finally {
             GL11.glPopAttrib();
@@ -116,27 +126,45 @@ public class ProjectorRenderer {
         }
     }
 
-    private static void drawGhosts(ProjectorStructure structure, boolean difference, ProjectorCheck check) {
+    // Showing only the missing blocks needs a mesh per copy, as each copy misses different blocks; with every block
+    // shown one mesh serves all copies.
+    private static void drawGhosts(ProjectorStructure structure, boolean difference, ProjectorCheck check,
+        int[] offsets) {
+        int copies = offsets.length / 3;
+        int meshes = difference ? Math.min(copies, Math.max(1, GHOST_BLOCKS / structure.size)) : 1;
+        if (GHOSTS.size() < meshes) checkRevision = -1;
+        while (GHOSTS.size() < meshes) GHOSTS.add(new FxBlockMesh());
+        while (GHOSTS.size() > meshes) GHOSTS.remove(GHOSTS.size() - 1)
+            .release();
         int[][] positions = structure.simulationPositions();
-        if (GHOSTS.prepare(structure, structure.world, positions[0], positions[1], positions[2])) checkRevision = -1;
-        if (!difference) {
-            GHOSTS.show(null);
-            checkRevision = -1;
-        } else if (check.revision != checkRevision && check.structure == structure) {
-            checkRevision = check.revision;
-            if (missing.length != structure.size) missing = new boolean[structure.size];
-            for (int cell = 0; cell < structure.size; cell++) {
-                byte state = check.status[cell];
-                missing[cell] = state == ProjectorSite.MISSING || state == ProjectorSite.UNKNOWN;
-            }
-            GHOSTS.show(missing);
+        for (FxBlockMesh mesh : GHOSTS) {
+            if (mesh.prepare(structure, structure.world, positions[0], positions[1], positions[2])) checkRevision = -1;
         }
-        GHOSTS.compile(COMPILE_NANOS);
+        boolean current = check.structure == structure && check.copies() == copies;
+        if (!difference) {
+            GHOSTS.get(0)
+                .show(null);
+            checkRevision = -1;
+        } else if (check.revision != checkRevision && current) {
+            checkRevision = check.revision;
+            for (int copy = 0; copy < meshes; copy++) {
+                boolean[] missing = new boolean[structure.size];
+                int first = copy * check.site.perCopy;
+                for (int cell = 0; cell < structure.size; cell++) {
+                    byte state = check.status[first + cell];
+                    missing[cell] = state == ProjectorSite.MISSING || state == ProjectorSite.UNKNOWN;
+                }
+                GHOSTS.get(copy)
+                    .show(missing);
+            }
+        }
+        long deadline = System.nanoTime() + COMPILE_NANOS;
+        for (FxBlockMesh mesh : GHOSTS) mesh.compile(Math.max(0, deadline - System.nanoTime()));
         Minecraft.getMinecraft()
             .getTextureManager()
             .bindTexture(TextureMap.locationBlocksTexture);
-        GL11.glPushMatrix();
-        boolean mirrored = applyFacing(structure, ProjectorClient.facing);
+        boolean mirrored = ProjectorOrientation
+            .mirrors(ProjectorOrientation.matrix(structure.canonical, ProjectorClient.facing));
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glDisable(GL11.GL_LIGHTING);
         GL11.glEnable(GL11.GL_ALPHA_TEST);
@@ -146,25 +174,42 @@ public class ProjectorRenderer {
         GL11.glEnable(GL11.GL_DEPTH_TEST);
         GL11.glDepthFunc(GL11.GL_LEQUAL);
         GL11.glColor4f(1f, 1f, 1f, 1f);
-        Predicate<FxBlockMesh.Section> inView = sectionsInView(structure);
+        // Pushed slightly back, so a real block in the same place covers its ghost instead of flickering with it.
+        GL11.glEnable(GL11.GL_POLYGON_OFFSET_FILL);
+        GL11.glPolygonOffset(GHOST_OFFSET, GHOST_OFFSET);
         // Depth first, so only the nearest face of the translucent ghost is coloured.
         GL11.glColorMask(false, false, false, false);
         GL11.glDepthMask(true);
-        GHOSTS.draw(inView);
+        drawCopies(structure, difference, offsets);
         GL11.glColorMask(true, true, true, true);
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
         GL14.glBlendColor(1f, 1f, 1f, GHOST_ALPHA);
         GL11.glBlendFunc(CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA);
-        GHOSTS.draw(inView);
+        drawCopies(structure, difference, offsets);
         GL11.glDepthMask(true);
         GL11.glFrontFace(GL11.GL_CCW);
-        GL11.glPopMatrix();
+        GL11.glPolygonOffset(0, 0);
+        GL11.glDisable(GL11.GL_POLYGON_OFFSET_FILL);
     }
 
-    private static Predicate<FxBlockMesh.Section> sectionsInView(ProjectorStructure structure) {
+    private static void drawCopies(ProjectorStructure structure, boolean difference, int[] offsets) {
+        for (int copy = 0; copy * 3 < offsets.length; copy++) {
+            FxBlockMesh mesh = difference ? copy < GHOSTS.size() ? GHOSTS.get(copy) : null : GHOSTS.get(0);
+            if (mesh == null) break;
+            int dx = offsets[copy * 3], dy = offsets[copy * 3 + 1], dz = offsets[copy * 3 + 2];
+            GL11.glPushMatrix();
+            GL11.glTranslatef(dx, dy, dz);
+            applyFacing(structure, ProjectorClient.facing);
+            mesh.draw(sectionsInView(structure, dx, dy, dz));
+            GL11.glPopMatrix();
+        }
+    }
+
+    private static Predicate<FxBlockMesh.Section> sectionsInView(ProjectorStructure structure, int dx, int dy, int dz) {
         int[] m = ProjectorOrientation.matrix(structure.canonical, ProjectorClient.facing);
-        double baseX = ProjectorClient.x + 0.5, baseY = ProjectorClient.y + 0.5, baseZ = ProjectorClient.z + 0.5;
+        double baseX = ProjectorClient.x + dx + 0.5, baseY = ProjectorClient.y + dy + 0.5,
+            baseZ = ProjectorClient.z + dz + 0.5;
         return section -> {
             double sx = section.x + SECTION_CENTER - structure.originX - 0.5,
                 sy = section.y + SECTION_CENTER - structure.originY - 0.5,
@@ -285,13 +330,23 @@ public class ProjectorRenderer {
         GL11.glLineWidth(3f);
         tessellator.startDrawing(GL11.GL_LINES);
         tessellator.setColorRGBA_I(ProjectorClient.focusColor, (int) (FOCUS_ALPHA_MIN + FOCUS_ALPHA_RANGE * pulse));
-        for (int i = 0; i < cells.length && i < MAX_WRONG_BOXES; i++) {
-            int cell = cells[i];
-            if (cell >= check.worldX.length) continue;
-            double minX = check.worldX[cell] - x - INSET, minY = check.worldY[cell] - y - INSET,
-                minZ = check.worldZ[cell] - z - INSET;
-            FxVoxelOutline
-                .box(tessellator, minX, minY, minZ, minX + 1 + 2 * INSET, minY + 1 + 2 * INSET, minZ + 1 + 2 * INSET);
+        int drawn = 0;
+        for (int first = 0; first < check.worldX.length && drawn < MAX_WRONG_BOXES; first += check.site.perCopy) {
+            for (int i = 0; i < cells.length && drawn < MAX_WRONG_BOXES; i++) {
+                int cell = first + cells[i];
+                if (cells[i] >= check.site.perCopy || cell >= check.worldX.length) continue;
+                drawn++;
+                double minX = check.worldX[cell] - x - INSET, minY = check.worldY[cell] - y - INSET,
+                    minZ = check.worldZ[cell] - z - INSET;
+                FxVoxelOutline.box(
+                    tessellator,
+                    minX,
+                    minY,
+                    minZ,
+                    minX + 1 + 2 * INSET,
+                    minY + 1 + 2 * INSET,
+                    minZ + 1 + 2 * INSET);
+            }
         }
         tessellator.draw();
     }

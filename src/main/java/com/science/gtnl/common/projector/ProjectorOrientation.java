@@ -1,5 +1,6 @@
 package com.science.gtnl.common.projector;
 
+import java.util.Arrays;
 import java.util.function.Predicate;
 
 import net.minecraftforge.common.util.ForgeDirection;
@@ -39,7 +40,46 @@ public class ProjectorOrientation {
                 axis[2] = x;
             }
         }
-        return find(target, facing, valid);
+        ExtendedFacing exact = find(target, null, valid);
+        if (exact != null) return exact;
+        ForgeDirection front = facing.getDirection();
+        int frontX = front.offsetX, frontZ = front.offsetZ;
+        for (int i = 0; i < turns; i++) {
+            int x = frontX;
+            frontX = -frontZ;
+            frontZ = x;
+        }
+        for (ForgeDirection direction : ForgeDirection.VALID_DIRECTIONS) {
+            if (direction.offsetX == frontX && direction.offsetY == front.offsetY && direction.offsetZ == frontZ)
+                front = direction;
+        }
+        return closestWithFront(target, front, facing, valid);
+    }
+
+    // Some machines allow a front but not every roll around it; turning then keeps the front and takes the allowed
+    // roll whose axes match the wanted ones best, without mirroring.
+    private static ExtendedFacing closestWithFront(int[][] target, ForgeDirection front, ExtendedFacing fallback,
+        Predicate<ExtendedFacing> valid) {
+        ExtendedFacing best = fallback;
+        int bestScore = -1;
+        boolean wantMirrored = determinant(target) < 0;
+        for (ExtendedFacing candidate : ExtendedFacing.getAllWith(front)) {
+            if (!valid.test(candidate)) continue;
+            int[][] axes = basis(candidate);
+            if (determinant(axes) < 0 != wantMirrored) continue;
+            int score = 0;
+            for (int i = 0; i < 3; i++) if (Arrays.equals(axes[i], target[i])) score++;
+            if (score > bestScore) {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+        return best;
+    }
+
+    private static int determinant(int[][] m) {
+        return m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+            + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
     }
 
     public static ExtendedFacing mirror(ExtendedFacing facing, Predicate<ExtendedFacing> valid) {

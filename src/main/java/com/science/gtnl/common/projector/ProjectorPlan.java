@@ -19,7 +19,7 @@ public class ProjectorPlan {
     public static final String TAG = "Plan";
     public static final int MAX_MASTER = 64, MAX_CHANNELS = 32, MAX_CHANNEL_NAME = 64, MAX_CHANNEL_VALUE = 1024,
         MAX_OVERRIDES = 1024, MAX_HATCH_TIER = 14, DEFAULT_HATCH_TIER = 1, MAX_OFFSET = 64, MAX_CHOICES = 256,
-        MAX_CHOICE_KEY = 256;
+        MAX_CHOICE_KEY = 256, MAX_STACK = 16, MAX_STACK_GAP = 64, MAX_COPIES = 64;
     public static final int CASING = 0;
     public static final String AIR = "air";
 
@@ -53,6 +53,9 @@ public class ProjectorPlan {
     public int verticalOffset;
     public Display display = Display.DIFFERENCE;
     public StructureAnimationStyle buildStyle = StructureAnimationStyle.REVEAL;
+    // Copies along world X, Y and Z; a negative count stacks towards the negative side, and -1 means the same as 1.
+    public final int[] stackCount = { 1, 1, 1 };
+    public final int[] stackGap = new int[3];
     private Settings settings;
 
     public boolean hasMachine() {
@@ -93,6 +96,7 @@ public class ProjectorPlan {
         overrides.clear();
         choices.clear();
         cellChoices.clear();
+        clearStack();
     }
 
     public static String blockKey(ItemStack stack) {
@@ -113,6 +117,71 @@ public class ProjectorPlan {
     public void setChannel(String channel, int value) {
         if (value == 0) channels.remove(channel);
         else channels.put(channel, value);
+    }
+
+    public static int copiesOf(int count) {
+        return Math.max(1, Math.abs(count));
+    }
+
+    public static int copies(int[] counts) {
+        return copiesOf(counts[0]) * copiesOf(counts[1]) * copiesOf(counts[2]);
+    }
+
+    public int copies() {
+        return copies(stackCount);
+    }
+
+    public boolean isStacked() {
+        return copies() > 1;
+    }
+
+    public boolean setStack(int axis, int count, int gap) {
+        int[] counts = stackCount.clone();
+        counts[axis] = clamp(count, -MAX_STACK, MAX_STACK);
+        if (Math.abs(counts[axis]) <= 1) counts[axis] = 1;
+        if (copies(counts) > MAX_COPIES) return false;
+        stackCount[axis] = counts[axis];
+        stackGap[axis] = clamp(gap, 0, MAX_STACK_GAP);
+        return true;
+    }
+
+    public void clearStack() {
+        for (int axis = 0; axis < 3; axis++) {
+            stackCount[axis] = 1;
+            stackGap[axis] = 0;
+        }
+    }
+
+    // World offsets of every copy, three per copy, the first copy at no offset. The bounds are those of one copy.
+    public int[] stackOffsets(int[] bounds) {
+        int nx = copiesOf(stackCount[0]), ny = copiesOf(stackCount[1]), nz = copiesOf(stackCount[2]);
+        int[] step = new int[3];
+        for (int axis = 0; axis < 3; axis++)
+            step[axis] = Integer.signum(stackCount[axis]) * (bounds[axis + 3] - bounds[axis] + 1 + stackGap[axis]);
+        int[] offsets = new int[nx * ny * nz * 3];
+        int i = 0;
+        for (int iy = 0; iy < ny; iy++) {
+            for (int iz = 0; iz < nz; iz++) {
+                for (int ix = 0; ix < nx; ix++) {
+                    offsets[i++] = ix * step[0];
+                    offsets[i++] = iy * step[1];
+                    offsets[i++] = iz * step[2];
+                }
+            }
+        }
+        return offsets;
+    }
+
+    public static int[] stackedBounds(int[] bounds, int[] offsets) {
+        int[] all = { Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MIN_VALUE, Integer.MIN_VALUE,
+            Integer.MIN_VALUE };
+        for (int i = 0; i < offsets.length; i += 3) {
+            for (int axis = 0; axis < 3; axis++) {
+                all[axis] = Math.min(all[axis], bounds[axis] + offsets[i + axis]);
+                all[axis + 3] = Math.max(all[axis + 3], bounds[axis + 3] + offsets[i + axis]);
+            }
+        }
+        return all;
     }
 
     public void clear() {
@@ -205,6 +274,8 @@ public class ProjectorPlan {
         tag.setInteger("Offset", verticalOffset);
         tag.setString("Display", display.name());
         tag.setString("BuildStyle", buildStyle.name());
+        tag.setIntArray("StackCount", stackCount.clone());
+        tag.setIntArray("StackGap", stackGap.clone());
         return tag;
     }
 
@@ -255,6 +326,14 @@ public class ProjectorPlan {
         verticalOffset = clamp(tag.getInteger("Offset"), -MAX_OFFSET, MAX_OFFSET);
         display = parse(Display.class, tag.getString("Display"), Display.DIFFERENCE);
         buildStyle = parse(StructureAnimationStyle.class, tag.getString("BuildStyle"), StructureAnimationStyle.REVEAL);
+        clearStack();
+        int[] counts = tag.getIntArray("StackCount"), gaps = tag.getIntArray("StackGap");
+        for (int axis = 0; axis < 3; axis++) {
+            if (!setStack(axis, axis < counts.length ? counts[axis] : 1, axis < gaps.length ? gaps[axis] : 0)) {
+                clearStack();
+                break;
+            }
+        }
     }
 
     private static <E extends Enum<E>> E parse(Class<E> type, String name, E fallback) {

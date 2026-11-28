@@ -21,20 +21,25 @@ public class ProjectorSite {
     public final ProjectorStructure structure;
     public final ExtendedFacing facing;
     public final int originX, originY, originZ;
+    public final int[] offsets;
+    public final int perCopy;
     public final int[] worldX, worldY, worldZ;
 
-    public ProjectorSite(ProjectorStructure structure, ExtendedFacing facing, int x, int y, int z) {
+    // Cells of copy n follow those of copy n - 1, each copy laid out like a single structure.
+    public ProjectorSite(ProjectorStructure structure, ExtendedFacing facing, int x, int y, int z, int[] offsets) {
         this.structure = structure;
         this.facing = facing;
+        this.offsets = offsets;
         originX = x;
         originY = y;
         originZ = z;
-        int total = structure.size + structure.emptyCells.length;
+        perCopy = structure.size + structure.emptyCells.length;
+        int total = perCopy * copies();
         worldX = new int[total];
         worldY = new int[total];
         worldZ = new int[total];
         int[] offset = new int[3];
-        for (int cell = 0; cell < total; cell++) {
+        for (int cell = 0; cell < perCopy; cell++) {
             if (cell < structure.size) {
                 facing.getWorldOffset(new int[] { structure.a[cell], structure.b[cell], structure.c[cell] }, offset);
             } else {
@@ -44,9 +49,12 @@ public class ProjectorSite {
                         ProjectorPlan.unpackC(packed) },
                     offset);
             }
-            worldX[cell] = x + offset[0];
-            worldY[cell] = y + offset[1];
-            worldZ[cell] = z + offset[2];
+            for (int copy = 0; copy < copies(); copy++) {
+                int index = copy * perCopy + cell;
+                worldX[index] = x + offsets[copy * 3] + offset[0];
+                worldY[index] = y + offsets[copy * 3 + 1] + offset[1];
+                worldZ[index] = z + offsets[copy * 3 + 2] + offset[2];
+            }
         }
     }
 
@@ -54,9 +62,29 @@ public class ProjectorSite {
         return worldX.length;
     }
 
+    public int copies() {
+        return offsets.length / 3;
+    }
+
+    public int local(int cell) {
+        return cell % perCopy;
+    }
+
+    public boolean isBlock(int cell) {
+        return local(cell) < structure.size;
+    }
+
+    public boolean isController(int x, int y, int z) {
+        for (int copy = 0; copy < copies(); copy++) {
+            if (x == originX + offsets[copy * 3] && y == originY + offsets[copy * 3 + 1]
+                && z == originZ + offsets[copy * 3 + 2]) return true;
+        }
+        return false;
+    }
+
     // Chunks the server has not loaded count as unloaded instead of being loaded from disk for the check.
-    public byte compute(World world, int cell) {
-        int x = worldX[cell], y = worldY[cell], z = worldZ[cell];
+    public byte compute(World world, int index) {
+        int x = worldX[index], y = worldY[index], z = worldZ[index], cell = local(index);
         if (y < 0 || y > 255
             || !world.getChunkProvider()
                 .chunkExists(x >> 4, z >> 4))
@@ -98,8 +126,8 @@ public class ProjectorSite {
 
     // The simulation built the structure facing the canonical way; turn each machine's front the same way the
     // projection is turned.
-    public byte frontOf(int cell) {
-        int simulated = structure.frontOf(cell);
+    public byte frontOf(int index) {
+        int simulated = structure.frontOf(local(index));
         if (simulated < 0) return -1;
         ForgeDirection front = ForgeDirection.getOrientation(simulated);
         int[] relative = new int[3], world = new int[3];

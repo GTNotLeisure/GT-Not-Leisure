@@ -45,23 +45,14 @@ public class ProjectorInput {
     public static final String CATEGORY = "key.categories.gtnl";
     private static final KeyBinding ROTATE = new KeyBinding("key.gtnl.projector_rotate", Keyboard.KEY_R, CATEGORY);
     private static final KeyBinding DISPLAY = new KeyBinding("key.gtnl.projector_display", Keyboard.KEY_N, CATEGORY);
-    private static final KeyBinding FORWARD = new KeyBinding("key.gtnl.projector_forward", Keyboard.KEY_UP, CATEGORY);
-    private static final KeyBinding BACK = new KeyBinding("key.gtnl.projector_back", Keyboard.KEY_DOWN, CATEGORY);
-    private static final KeyBinding LEFT = new KeyBinding("key.gtnl.projector_left", Keyboard.KEY_LEFT, CATEGORY);
-    private static final KeyBinding RIGHT = new KeyBinding("key.gtnl.projector_right", Keyboard.KEY_RIGHT, CATEGORY);
     private static final KeyBinding OPEN = new KeyBinding("key.gtnl.projector_open", Keyboard.KEY_NONE, CATEGORY);
     private static final KeyBinding LOCK = new KeyBinding("key.gtnl.projector_lock", Keyboard.KEY_NONE, CATEGORY);
-    private static final int[][] HORIZONTAL = { { 0, 1 }, { -1, 0 }, { 0, -1 }, { 1, 0 } };
 
     private ProjectorInput() {}
 
     public static void register() {
         ClientRegistry.registerKeyBinding(ROTATE);
         ClientRegistry.registerKeyBinding(DISPLAY);
-        ClientRegistry.registerKeyBinding(FORWARD);
-        ClientRegistry.registerKeyBinding(BACK);
-        ClientRegistry.registerKeyBinding(LEFT);
-        ClientRegistry.registerKeyBinding(RIGHT);
         ClientRegistry.registerKeyBinding(OPEN);
         ClientRegistry.registerKeyBinding(LOCK);
         ProjectorHud.register();
@@ -73,7 +64,6 @@ public class ProjectorInput {
         Minecraft mc = Minecraft.getMinecraft();
         boolean rotate = ROTATE.isPressed(), display = DISPLAY.isPressed(), open = OPEN.isPressed(),
             lock = LOCK.isPressed();
-        int forward = presses(FORWARD) - presses(BACK), right = presses(RIGHT) - presses(LEFT);
         if (mc.currentScreen != null || mc.thePlayer == null) return;
         KeyBinding pickBlock = mc.gameSettings.keyBindPickBlock;
         if (pickBlock.getKeyCode() > 0 && Keyboard.getEventKeyState()
@@ -90,22 +80,6 @@ public class ProjectorInput {
             else turn(facing -> ProjectorOrientation.rotateY(facing, 1, ProjectorClient.validFacings()));
         }
         if (display) cycleDisplay(plan);
-        if (forward != 0 || right != 0) nudge(mc.thePlayer, plan, forward, right);
-    }
-
-    @SubscribeEvent
-    public static void wheel(MouseEvent event) {
-        Minecraft mc = Minecraft.getMinecraft();
-        ProjectorPlan plan = ProjectorClient.plan;
-        if (event.dwheel == 0 || mc.currentScreen != null
-            || mc.thePlayer == null
-            || !isAltDown()
-            || plan == null
-            || !plan.hasMachine()) return;
-        if (plan.state != ProjectorPlan.State.FOLLOW && plan.state != ProjectorPlan.State.LOCKED) return;
-        if (plan.isPlaced() && plan.dimension != mc.thePlayer.dimension) return;
-        event.setCanceled(true);
-        raise(plan, event.dwheel > 0 ? 1 : -1);
     }
 
     @SubscribeEvent
@@ -124,11 +98,12 @@ public class ProjectorInput {
         MovingObjectPosition hit = ProjectorClient.trace(mc.theWorld, player);
         boolean onBlock = hit != null && hit.typeOfHit == MovingObjectPosition.MovingObjectType.BLOCK;
         ProjectorCheck check = ProjectorClient.CHECK;
-        int hitCell = onBlock ? check.cellAt(hit.blockX, hit.blockY, hit.blockZ) : -1;
+        int hitIndex = onBlock ? check.indexAt(hit.blockX, hit.blockY, hit.blockZ) : -1;
         Vec3 eye = ProjectorClient.eye(player);
         int ghost = check
             .firstCellAlong(eye, player.getLook(1.0f), onBlock ? eye.distanceTo(hit.hitVec) : ProjectorClient.REACH);
-        if (ghost >= 0 && ghost != hitCell) return openSpot(check.structure, ghost, null, true);
+        if (ghost >= 0 && ghost != hitIndex) return openSpot(check.structure, check.site.local(ghost), null, true);
+        int hitCell = hitIndex < 0 ? -1 : check.site.local(hitIndex);
         // A worn projector leaves real blocks to vanilla pick block, which builders use to take blocks.
         if (!onBlock || ProjectorClient.location != 0 && !player.isSneaking()) return false;
         ItemStack clicked = pickedStack(mc.theWorld, player, hit);
@@ -183,10 +158,6 @@ public class ProjectorInput {
         return count;
     }
 
-    public static boolean isAltDown() {
-        return Keyboard.isKeyDown(Keyboard.KEY_LMENU) || Keyboard.isKeyDown(Keyboard.KEY_RMENU);
-    }
-
     private static boolean isShiftDown() {
         return Keyboard.isKeyDown(Keyboard.KEY_LSHIFT) || Keyboard.isKeyDown(Keyboard.KEY_RSHIFT);
     }
@@ -235,34 +206,7 @@ public class ProjectorInput {
         hint(ProjectorClient.LANG + "display." + next.name());
     }
 
-    private static void nudge(EntityPlayer player, ProjectorPlan plan, int forward, int right) {
-        if (plan.state != ProjectorPlan.State.LOCKED) return;
-        if (isAltDown()) {
-            raise(plan, forward);
-            return;
-        }
-        int quadrant = ProjectorClient.quadrant(player);
-        int[] ahead = HORIZONTAL[quadrant], side = HORIZONTAL[(quadrant + 1) % 4];
-        int dx = ahead[0] * forward + side[0] * right, dz = ahead[1] * forward + side[1] * right;
-        edit(copy -> {
-            copy.x += dx;
-            copy.z += dz;
-        });
-    }
-
-    public static void raise(ProjectorPlan plan, int step) {
-        if (step == 0) return;
-        if (plan.state == ProjectorPlan.State.LOCKED) {
-            edit(copy -> copy.y = Math.max(0, Math.min(255, copy.y + step)));
-        } else {
-            int min = plan.groundSnap ? 0 : -ProjectorPlan.MAX_OFFSET;
-            edit(
-                copy -> copy.verticalOffset = Math
-                    .max(min, Math.min(ProjectorPlan.MAX_OFFSET, copy.verticalOffset + step)));
-        }
-    }
-
-    private static void hint(String key) {
+    public static void hint(String key) {
         say(StatCollector.translateToLocal(key));
     }
 
