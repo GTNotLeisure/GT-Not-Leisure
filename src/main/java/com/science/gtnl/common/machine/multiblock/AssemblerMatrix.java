@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableSet;
 import com.gtnewhorizon.gtnhlib.util.ItemUtil;
 import com.gtnewhorizon.gtnhlib.util.numberformatting.NumberFormatUtil;
 import com.gtnewhorizon.structurelib.structure.IStructureDefinition;
+import com.gtnewhorizon.structurelib.structure.IStructureElement;
+import com.gtnewhorizon.structurelib.structure.IStructureElementNoPlacement;
 import com.gtnewhorizon.structurelib.structure.ISurvivalBuildEnvironment;
 import com.gtnewhorizon.structurelib.structure.StructureDefinition;
 import com.gtnewhorizon.structurelib.structure.StructureUtility;
@@ -38,11 +40,16 @@ import com.gtnllib.utils.GameUtils;
 import com.gtnllib.utils.MathUtils;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.api.casing.GTNLCasings;
+import com.science.gtnl.api.mixinHelper.LargeInventoryCrafting;
 import com.science.gtnl.common.gui.modularui.multiblock.AssemblerMatrixGui;
 import com.science.gtnl.common.machine.multiMachineBase.MultiMachineBase;
 import com.science.gtnl.common.machine.tooltip.GTNLMultiblockTooltipBuilder;
+import com.science.gtnl.common.machine.tooltip.StructureTooltipHooks;
+import com.science.gtnl.common.recipe.thaumcraft.ArcaneEssentiaPayment;
 import com.science.gtnl.compat.ae2things.AE2ThingsCompat;
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
 import com.science.gtnl.loader.BlockLoader;
+import com.science.gtnl.utils.ArcaneCraftingPatternDetails;
 import com.science.gtnl.utils.StructureUtils;
 import com.science.gtnl.utils.enums.GTNLItemList;
 import com.science.gtnl.utils.machine.MachineUtils;
@@ -103,11 +110,16 @@ import gregtech.api.util.shutdown.ShutDownReason;
 import gregtech.common.gui.modularui.multiblock.base.MTEMultiBlockBaseGui;
 import gregtech.common.misc.WirelessNetworkManager;
 import gregtech.common.tileentities.machines.RecipeCheckReason;
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongMaps;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import it.unimi.dsi.fastutil.objects.ReferenceLinkedOpenHashSet;
 import lombok.Getter;
 import lombok.Setter;
 import mcp.mobius.waila.api.IWailaConfigHandler;
 import mcp.mobius.waila.api.IWailaDataAccessor;
+import thaumcraft.api.aspects.Aspect;
 
 @IMetaTileEntity.SkipGenerateDescription
 @IMetaTileEntity.SkipGenerateName
@@ -156,13 +168,17 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
     private final CombinationPatternsIInventory inventory = new CombinationPatternsIInventory();
     private final AssemblerMatrixPatternState patternState = new AssemblerMatrixPatternState();
     private final AssemblerMatrixTasks tasks = new AssemblerMatrixTasks();
+    private final Object2LongMap<Aspect> essentiaCredit = new Object2LongOpenHashMap<>();
+    private final ReferenceLinkedOpenHashSet<TileEntity> essentiaProviders = new ReferenceLinkedOpenHashSet<>();
 
     // Resolve container items returned after an input is consumed.
     public static ItemStack resolveContainerItem(ItemStack stack) {
         final var item = stack.getItem();
         if (item == null) return null;
-        if (!item.hasContainerItem(stack)) return null;
-        final ItemStack containerItem = item.getContainerItem(stack.copy());
+        ItemStack single = stack.copy();
+        single.stackSize = 1;
+        if (!item.hasContainerItem(single)) return null;
+        final ItemStack containerItem = item.getContainerItem(single);
         if (containerItem != null && containerItem.isItemStackDamageable()
             && containerItem.getItemDamage() > containerItem.getMaxDamage()) {
             return null;
@@ -376,6 +392,14 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
         String uuid = GameUtils.ensureUUID(aNBT);
 
         tasks.writeToNBT(storeRoot);
+        NBTTagCompound paid = new NBTTagCompound();
+        for (var entry : Object2LongMaps.fastIterable(essentiaCredit)) {
+            paid.setLong(
+                entry.getKey()
+                    .getTag(),
+                entry.getLongValue());
+        }
+        storeRoot.setTag("EssentiaCredit", paid);
 
         NBTTagCompound invTag = new NBTTagCompound();
         inventory.saveNBTData(invTag);
@@ -438,6 +462,12 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
 
         if (storeRoot != null) {
             tasks.readFromNBT(storeRoot, AEItemStack::loadItemStackFromNBT);
+            essentiaCredit.clear();
+            NBTTagCompound paid = storeRoot.getCompoundTag("EssentiaCredit");
+            for (String key : paid.func_150296_c()) {
+                Aspect aspect = Aspect.getAspect(key);
+                if (aspect != null && paid.getLong(key) > 0) essentiaCredit.put(aspect, paid.getLong(key));
+            }
 
             if (storeRoot.hasKey("INVENTORY")) {
                 inventory.loadNBTData(storeRoot.getCompoundTag("INVENTORY"));
@@ -524,6 +554,7 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
         mMaxSlots = 0;
         patternState.clearPatternData();
         wirelessMode = false;
+        essentiaProviders.clear();
     }
 
     @Override
@@ -574,6 +605,27 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
 
     @Override
     public IStructureDefinition<AssemblerMatrix> getStructureDefinition() {
+        IStructureElement<AssemblerMatrix> provider = new IStructureElementNoPlacement<>() {
+
+            @Override
+            public boolean check(AssemblerMatrix machine, World world, int x, int y, int z) {
+                return machine.addEssentiaProvider(world.getTileEntity(x, y, z));
+            }
+
+            @Override
+            public boolean couldBeValid(AssemblerMatrix machine, World world, int x, int y, int z, ItemStack trigger) {
+                return InfusionProviders.isEssentiaProvider(world.getTileEntity(x, y, z));
+            }
+
+            @Override
+            public boolean spawnHint(AssemblerMatrix machine, World world, int x, int y, int z, ItemStack trigger) {
+                return GTNLCasings.AssemblerMatrixWall.asElement()
+                    .spawnHint(machine, world, x, y, z, trigger);
+            }
+        };
+        if (InfusionProviders.isAvailable()) {
+            provider = StructureTooltipHooks.describeAsHatch(provider, InfusionProviders.ESSENTIA_PROVIDER_NAME_KEY);
+        }
         return StructureDefinition.<AssemblerMatrix>builder()
             .addShape(STRUCTURE_PIECE_MAIN, StructureUtility.transpose(shape))
             .addElement(
@@ -589,8 +641,10 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
                     .buildAndChain(BlockLoader.metaCasing02, 4))
             .addElement(
                 'B',
-                StructureUtility
-                    .ofChain(GTStructureUtility.chainAllGlasses(), GTNLCasings.AssemblerMatrixWall.asElement()))
+                StructureUtility.ofChain(
+                    GTStructureUtility.chainAllGlasses(),
+                    GTNLCasings.AssemblerMatrixWall.asElement(),
+                    provider))
             .addElement(
                 'C',
                 StructureUtility.ofChain(
@@ -917,9 +971,43 @@ public class AssemblerMatrix extends MultiMachineBase<AssemblerMatrix>
     public boolean pushPattern(ICraftingPatternDetails patternDetails, InventoryCrafting table) {
         AssemblerMatrixPatternState.AcceptedBatch batch = patternState.prepareBatch(patternDetails, table);
         if (batch == null) return false;
+        if (patternDetails instanceof ArcaneCraftingPatternDetails arcane) {
+            long crafts = ((LargeInventoryCrafting) table).getAssemblerSize();
+            if (isBusy() || !arcane.hasExpectedDelivery(table, crafts)) return false;
+            if (!arcane.isNetworkSupplied() && !arcane.getEssentia()
+                .isEmpty()
+                && !ArcaneEssentiaPayment.pay(arcane.getEssentia(), essentiaCredit, essentiaSource(), crafts)) {
+                if (!essentiaCredit.isEmpty()) getBaseMetaTileEntity().markDirty();
+                return false;
+            }
+        }
+        AssemblerMatrixPatternState.normalizeAcceptedTable(table);
         tasks.accept(batch.containerReturns(), batch.outputs());
+        getBaseMetaTileEntity().markDirty();
         scheduleRecipeCheck(RecipeCheckReason.IMMEDIATE);
         return true;
+    }
+
+    public long affordableArcaneCrafts(ArcaneCraftingPatternDetails pattern, long requested) {
+        if (isBusy()) return 0;
+        if (pattern.isNetworkSupplied() || pattern.getEssentia()
+            .isEmpty()) return requested;
+        return ArcaneEssentiaPayment.affordable(pattern.getEssentia(), essentiaCredit, essentiaSource(), requested);
+    }
+
+    private boolean addEssentiaProvider(TileEntity tile) {
+        if (!InfusionProviders.isEssentiaProvider(tile) || tile.isInvalid()) return false;
+        essentiaProviders.add(tile);
+        return true;
+    }
+
+    private ArcaneEssentiaPayment.Source<Aspect> essentiaSource() {
+        if (!InfusionProviders.isAvailable()) return (aspect, amount, simulate) -> 0;
+        return ArcaneEssentiaPayment.combine(
+            essentiaProviders,
+            InfusionProviders::activeEssentiaGrid,
+            tile -> (aspect, amount, simulate) -> InfusionProviders
+                .extractFromEssentiaProvider(tile, aspect, amount, simulate));
     }
 
     @Override

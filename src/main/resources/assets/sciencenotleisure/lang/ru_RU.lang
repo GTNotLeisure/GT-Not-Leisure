@@ -3996,6 +3996,14 @@ item.gtnl.infinity_cell.stone=камень
 item.gtnl.infinity_cell.contents=Содержит товар:
 
 item.gtnl.dire_craft_pattern.name=Выкройка ужасного ремесла
+item.gtnl.arcane_craft_pattern.name=Шаблон магического крафта
+gtnl.dire_encoder.mode.arcane=Магия ужасного
+gtnl.dire_encoder.requires_thaumic_energistics=Для этого шаблона требуется Thaumic Energistics.
+gtnl.dire_encoder.ingredients=Аспекты
+gtnl.dire_encoder.write.on=Запись включена
+gtnl.dire_encoder.write.off=Запись выключена
+gtnl.dire_encoder.stale=Магический рецепт изменился. Закодируйте шаблон заново.
+gtnl.dire_encoder.mode.dire=Экстр. ужасного
 
 item.gtnl.wireless_upgrade_chip.name=Чип беспроводного обновления
 item.gtnl.wireless_upgrade_chip.tooltip.0=Включает режим беспроводной сети для определенных машин

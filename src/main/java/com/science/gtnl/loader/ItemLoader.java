@@ -22,6 +22,7 @@ import com.science.gtnl.common.item.GTNLItemRecord;
 import com.science.gtnl.common.item.ItemInfinityCell;
 import com.science.gtnl.common.item.ItemInfinityItem;
 import com.science.gtnl.common.item.MetaItemAdder;
+import com.science.gtnl.common.item.items.ArcaneCraftPattern;
 import com.science.gtnl.common.item.items.CircuitIntegratedPlus;
 import com.science.gtnl.common.item.items.DebugItem;
 import com.science.gtnl.common.item.items.DireCraftPattern;
@@ -208,6 +209,9 @@ public class ItemLoader {
         .register();
     public static DireCraftPattern direCraftPattern = ITEMS.item("dire_craft_pattern", new DireCraftPattern())
         .bind(GTNLItemList.DireCraftPattern::set)
+        .register();
+    public static ArcaneCraftPattern arcaneCraftPattern = ITEMS.item("arcane_craft_pattern", new ArcaneCraftPattern())
+        .bind(GTNLItemList.ArcaneCraftPattern::set)
         .register();
 
     public static WirelessUpgradeChip wirelessUpgradeChip = ITEMS

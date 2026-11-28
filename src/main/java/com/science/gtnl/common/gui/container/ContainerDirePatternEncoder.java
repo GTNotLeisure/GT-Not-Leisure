@@ -1,42 +1,66 @@
 package com.science.gtnl.common.gui.container;
 
-import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
-import net.minecraft.inventory.ICrafting;
+import net.minecraft.inventory.InventoryBasic;
 import net.minecraft.inventory.InventoryCrafting;
-import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
 import com.gtnllib.utils.GameUtils;
 import com.science.gtnl.common.block.blocks.tile.TileEntityDirePatternEncoder;
+import com.science.gtnl.common.item.items.ArcaneCraftPattern;
 import com.science.gtnl.common.item.items.DireCraftPattern;
+import com.science.gtnl.common.recipe.thaumcraft.ArcanePatternRecipes;
 import com.science.gtnl.compat.avaritia.DireCrafting;
 import com.science.gtnl.utils.enums.GTNLItemList;
 
 import appeng.container.AEBaseContainer;
-import appeng.container.slot.IOptionalSlotHost;
-import appeng.container.slot.OptionalSlotFake;
+import appeng.container.ContainerNull;
+import appeng.container.slot.SlotFake;
 import appeng.container.slot.SlotFakeCraftingMatrix;
-import appeng.container.slot.SlotPatternOutputs;
+import appeng.container.slot.SlotInaccessible;
 import appeng.container.slot.SlotRestrictedInput;
+import appeng.container.sync.SyncCodecs;
+import appeng.container.sync.handlers.BooleanSyncHandler;
+import appeng.container.sync.handlers.ObjectSyncHandler;
 import appeng.util.Platform;
+import cpw.mods.fml.common.network.ByteBufUtils;
 
-public class ContainerDirePatternEncoder extends AEBaseContainer implements IOptionalSlotHost {
+public class ContainerDirePatternEncoder extends AEBaseContainer {
 
     public static final NBTTagCompound empty = new NBTTagCompound();
 
     private final TileEntityDirePatternEncoder te;
+    private final BooleanSyncHandler arcaneSupported;
+    private final BooleanSyncHandler arcaneMode;
+    private final BooleanSyncHandler writeEssentia;
+    private final ObjectSyncHandler<NBTTagCompound> aspects;
+    private int previewRevision = -1;
 
     private final SlotFakeCraftingMatrix[] craftingSlots = new SlotFakeCraftingMatrix[81];
-    private final OptionalSlotFake outputSlot;
+    private final SlotInaccessible outputSlot;
     private final SlotRestrictedInput patternSlotIN;
     private final SlotRestrictedInput patternSlotOUT;
 
     public ContainerDirePatternEncoder(InventoryPlayer player, TileEntityDirePatternEncoder anchor) {
         super(player, anchor);
         te = anchor;
+        arcaneSupported = syncRegistrar().booleanS2C("arcaneSupported");
+        arcaneSupported.setLocalValue(te.isArcaneSupported());
+        arcaneMode = syncRegistrar().booleanS2C("arcaneMode");
+        arcaneMode.setLocalValue(te.isArcaneMode());
+        writeEssentia = syncRegistrar().booleanS2C("writeEssentia");
+        writeEssentia.setLocalValue(te.writesEssentia());
+        aspects = syncRegistrar().objectS2C(
+            "arcaneIngredients",
+            SyncCodecs.of(
+                "aspectAmounts",
+                ByteBufUtils::writeTag,
+                ByteBufUtils::readTag,
+                tag -> (NBTTagCompound) tag.copy(),
+                NBTTagCompound::equals),
+            new NBTTagCompound());
 
         var recipe = te.getRecipe();
         var pattern = te.getPattern();
@@ -46,6 +70,11 @@ public class ContainerDirePatternEncoder extends AEBaseContainer implements IOpt
                 this.addSlotToContainer(
                     this.craftingSlots[x
                         + y * 9] = new SlotFakeCraftingMatrix(recipe, x + y * 9, 12 + x * 18, 8 + y * 18) {
+
+                            @Override
+                            public boolean isEnabled() {
+                                return !isArcaneMode() || isArcaneSlot(getSlotIndex());
+                            }
 
                             @Override
                             public void putStack(ItemStack is) {
@@ -61,8 +90,7 @@ public class ContainerDirePatternEncoder extends AEBaseContainer implements IOpt
             }
         }
 
-        this.addSlotToContainer(outputSlot = new SlotPatternOutputs(recipe, this, 81, 210, 80, 0, 0, 1));
-        outputSlot.setRenderDisabled(false);
+        this.addSlotToContainer(outputSlot = new SlotInaccessible(new InventoryBasic("preview", false, 1), 0, 210, 80));
 
         this.addSlotToContainer(
             this.patternSlotIN = new SlotRestrictedInput(
@@ -83,47 +111,63 @@ public class ContainerDirePatternEncoder extends AEBaseContainer implements IOpt
 
                 @Override
                 public boolean isItemValid(final ItemStack i) {
-                    if (i != null) {
-                        return i.getItem() instanceof DireCraftPattern;
-                    }
-                    return false;
+                    return i != null && i.getItem() instanceof DireCraftPattern
+                        && (!(i.getItem() instanceof ArcaneCraftPattern) || supportsArcaneMode());
                 }
             });
 
+        this.patternSlotOUT.setStackLimit(1);
         this.bindPlayerInventory(player, 31, 174);
     }
 
-    @Override
-    public void putStackInSlot(final int par1, final ItemStack par2ItemStack) {
-        super.putStackInSlot(par1, par2ItemStack);
-        this.getAndUpdateOutput();
+    public boolean supportsArcaneMode() {
+        return te.isArcaneSupported() && arcaneSupported.get();
+    }
+
+    public boolean isArcaneMode() {
+        return supportsArcaneMode() && arcaneMode.get();
+    }
+
+    public void setArcaneMode(boolean value) {
+        te.setArcaneMode(value);
+        arcaneMode.set(te.isArcaneMode());
     }
 
     @Override
-    public void putStacksInSlots(final ItemStack[] par1ArrayOfItemStack) {
-        super.putStacksInSlots(par1ArrayOfItemStack);
-        this.getAndUpdateOutput();
-    }
-
-    @Override
-    public void onSlotChange(final Slot s) {
-        if (!Platform.isServer()) return;
-        if (s == this.patternSlotOUT) {
-            for (final ICrafting crafter : this.crafters) {
-
-                for (final Slot g : this.inventorySlots) {
-                    if (g instanceof OptionalSlotFake || g instanceof SlotFakeCraftingMatrix) {
-                        crafter.sendSlotContents(this, g.slotNumber, g.getStack());
-                    }
-                }
-                ((EntityPlayerMP) crafter).isChangingQuantityOnly = false;
+    public void detectAndSendChanges() {
+        if (Platform.isServer()) {
+            arcaneMode.set(te.isArcaneMode());
+            writeEssentia.set(te.writesEssentia());
+            if (previewRevision != te.getRecipeRevision()) {
+                previewRevision = te.getRecipeRevision();
+                var match = te.isArcaneMode() ? findArcane(null) : null;
+                outputSlot.putStack(te.isArcaneMode() ? (match == null ? null : match.output()) : findDire());
+                aspects.set(te.writesEssentia() && match != null ? match.costs() : new NBTTagCompound());
             }
-            this.detectAndSendChanges();
         }
+        super.detectAndSendChanges();
     }
 
-    private ItemStack getAndUpdateOutput() {
-        final InventoryCrafting ic = new InventoryCrafting(this, 9, 9);
+    @Override
+    public SlotFake getValidDestinationFakeSlot(ItemStack stack) {
+        for (var slot : craftingSlots) {
+            if (!slot.isEnabled()) continue;
+            if (slot.getStack() == null) return slot;
+            if (Platform.isSameItemPrecise(slot.getStack(), stack)) return null;
+        }
+        return null;
+    }
+
+    private ArcanePatternRecipes.Match findArcane(NBTTagCompound encoded) {
+        return ArcanePatternRecipes.match(
+            getPlayerInv().player,
+            i -> te.getRecipe()
+                .getStackInSlot(arcaneSlot(i)),
+            encoded);
+    }
+
+    private ItemStack findDire() {
+        final InventoryCrafting ic = new InventoryCrafting(new ContainerNull(), 9, 9);
 
         for (int x = 0; x < 81; x++) {
             ic.setInventorySlotContents(
@@ -132,78 +176,82 @@ public class ContainerDirePatternEncoder extends AEBaseContainer implements IOpt
                     .getStackInSlot(x));
         }
 
-        final ItemStack is = DireCrafting.output(ic, te.getWorldObj());
-        this.outputSlot.putStack(is);
-        return is;
+        return DireCrafting.output(ic, te.getWorldObj());
+    }
+
+    public static int arcaneSlot(int index) {
+        return 30 + index / 3 * 9 + index % 3;
+    }
+
+    public static boolean isArcaneSlot(int slot) {
+        return slot / 9 >= 3 && slot / 9 <= 5 && slot % 9 >= 3 && slot % 9 <= 5;
+    }
+
+    public NBTTagCompound getAspectAmounts() {
+        return aspects.get();
+    }
+
+    public boolean writesEssentia() {
+        return writeEssentia.get();
+    }
+
+    public void setWriteEssentia(boolean write) {
+        te.setWriteEssentia(write);
+        detectAndSendChanges();
     }
 
     public void encode(boolean isShift) {
-        ItemStack output = this.patternSlotOUT.getStack();
-
-        var out = this.getAndUpdateOutput();
-        if (out == null) return;
-
-        if (output == null) {
-            output = this.patternSlotIN.getStack();
-
-            if (output == null) return;
-
-            --output.stackSize;
-            if (output.stackSize == 0) {
-                this.patternSlotIN.putStack(null);
-            }
-
-            output = GTNLItemList.DireCraftPattern.get(1);
-            if (!isShift) this.patternSlotOUT.putStack(output);
-        } else if (!this.isPattern(output)) return;
-
         final NBTTagCompound encodedValue = new NBTTagCompound();
+        boolean arcane = te.isArcaneMode();
+        var match = arcane ? findArcane(encodedValue) : null;
+        ItemStack out = arcane ? (match == null ? null : match.output()) : findDire();
+        if (out == null || out.stackSize <= 0) return;
+        ItemStack old = patternSlotOUT.getStack();
+        if (old != null && (!patternSlotOUT.isItemValid(old) || old.stackSize != 1)) return;
 
-        final NBTTagList tagIn = new NBTTagList();
         final NBTTagCompound tagOut = Platform.writeItemStackToNBT(out, new NBTTagCompound());
 
-        for (final SlotFakeCraftingMatrix i : craftingSlots) {
-            tagIn.appendTag(
-                i.getStack() != null ? Platform.writeItemStackToNBT(i.getStack(), new NBTTagCompound()) : empty);
+        final NBTTagList tagIn = new NBTTagList();
+        for (int i = 0; i < (arcane ? 9 : 81); i++) {
+            ItemStack ingredient = te.getRecipe()
+                .getStackInSlot(arcane ? arcaneSlot(i) : i);
+            tagIn
+                .appendTag(ingredient != null ? Platform.writeItemStackToNBT(ingredient, new NBTTagCompound()) : empty);
         }
-
-        encodedValue.setTag("in", tagIn);
+        if (match != null) match.finishPattern(encodedValue, tagIn, te.writesEssentia());
+        else encodedValue.setTag("in", tagIn);
         encodedValue.setTag("out", tagOut);
         encodedValue.setBoolean("crafting", true);
         encodedValue.setString("author", this.getPlayerInv().player.getCommandSenderName());
 
+        ItemStack output = (arcane ? GTNLItemList.ArcaneCraftPattern : GTNLItemList.DireCraftPattern).get(1);
         output.setTagCompound(encodedValue);
-
-        if (isShift) GameUtils.placeItemBackInInventory(this.getPlayerInv().player, output);
+        if (old == null) {
+            if (patternSlotIN.getStack() == null || !patternSlotIN.isItemValid(patternSlotIN.getStack())) return;
+            patternSlotIN.decrStackSize(1);
+        }
+        te.storeEncodedPattern(isShift ? null : output);
+        patternSlotOUT.onSlotChanged();
+        if (isShift) GameUtils.placeItemBackInInventory(getPlayerInv().player, output);
     }
 
     public void clear() {
-        for (var i = 0; i < te.getRecipe()
-            .getSizeInventory(); ++i) {
+        boolean arcane = te.isArcaneMode();
+        for (int i = 0; i < (arcane ? 9 : 81); i++) {
             te.getRecipe()
-                .setInventorySlotContents(i, null);
+                .setInventorySlotContents(arcane ? arcaneSlot(i) : i, null);
         }
     }
 
-    public void writeNEINBT(NBTTagCompound tag) {
+    public void writeNEINBT(NBTTagCompound tag, boolean arcane) {
+        if (tag == null || arcane && !supportsArcaneMode()) return;
+        setArcaneMode(arcane);
         clear();
-        for (var s : tag.func_150296_c()) {
-            te.getRecipe()
-                .setInventorySlotContents(Integer.parseInt(s), ItemStack.loadItemStackFromNBT(tag.getCompoundTag(s)));
+        for (int i = 0; i < (arcane ? 9 : 81); i++) {
+            int slot = arcane ? arcaneSlot(i) : i;
+            ItemStack stack = ItemStack.loadItemStackFromNBT(tag.getCompoundTag(Integer.toString(slot)));
+            if (stack != null) craftingSlots[slot].putStack(stack);
         }
     }
 
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    private boolean isPattern(final ItemStack output) {
-        if (output == null) {
-            return false;
-        }
-
-        return output.getItem() instanceof DireCraftPattern;
-    }
-
-    @Override
-    public boolean isSlotEnabled(int idx) {
-        return true;
-    }
 }

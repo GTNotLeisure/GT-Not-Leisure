@@ -1,5 +1,6 @@
 package com.science.gtnl.mixins.late.appliedEnergistics;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -52,8 +53,9 @@ public abstract class MixinCraftingCPUCluster {
         @Local(name = "craftingEntry") Map.Entry<ICraftingPatternDetails, ?> craftingEntry,
         @Share("gtnl$batchDispatch") LocalRef<Context> contextRef) {
         List<ICraftingMedium> media = original.call(cache, key);
-        contextRef.set(BatchDispatchHooks.beginDispatch(key, media, craftingEntry.getValue()));
-        return media;
+        Context context = BatchDispatchHooks.beginDispatch(key, media, craftingEntry.getValue());
+        contextRef.set(context);
+        return context.hasDispatchCapacity() ? media : Collections.emptyList();
     }
 
     /**

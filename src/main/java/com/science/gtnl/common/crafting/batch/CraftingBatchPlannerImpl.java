@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.ToLongFunction;
 
+import com.science.gtnl.compat.thaumicenergistics.InfusionProviders;
+
 import appeng.api.storage.data.IAEItemStack;
 import appeng.api.storage.data.IAEStack;
 import appeng.crafting.MECraftingInventory;
@@ -55,7 +57,7 @@ public class CraftingBatchPlannerImpl implements CraftingBatchPlanner {
         Objects.requireNonNull(availability, "availability");
         Objects.requireNonNull(energySimulation, "energySimulation");
 
-        if (!hasValidItemStacks(expandedInputs) || !hasValidItemStacks(condensedOutputs)) {
+        if (!hasValidInputs(expandedInputs) || !hasValidItemStacks(condensedOutputs)) {
             return new BatchPlan(1, LimitingFactor.STACK_CONTRACT);
         }
 
@@ -210,9 +212,10 @@ public class CraftingBatchPlannerImpl implements CraftingBatchPlanner {
         return new SessionConsumption<>(Collections.unmodifiableList(allocations), consumedCrafts);
     }
 
-    private static boolean hasValidItemStacks(Iterable<IAEStack<?>> stacks) {
+    private static boolean hasValidInputs(Iterable<IAEStack<?>> stacks) {
         for (IAEStack<?> stack : stacks) {
-            if (stack != null && (!(stack instanceof IAEItemStack) || stack.getStackSize() <= 0)) return false;
+            if (stack != null && (stack.getStackSize() <= 0
+                || !(stack instanceof IAEItemStack) && InfusionProviders.aspectOf(stack) == null)) return false;
         }
         return true;
     }

@@ -60,6 +60,7 @@ dependencies {
     runtimeOnlyNonPublishable('com.github.GTNewHorizons:BetterBuildersWands:0.13.12-GTNH:dev') { transitive = false }
     runtimeOnlyNonPublishable(rfg.deobf("curse.maven:spark-361579:4271867"))
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:AspectRecipeIndex:1.1.6:dev")
+    runtimeOnlyNonPublishable("com.github.GTNewHorizons:ThaumicEnergistics:1.8.0-GTNH:dev")
     runtimeOnlyNonPublishable("com.github.GTNewHorizons:DuraDisplay:1.4.7:dev")
 
     // jvmDowngrader
