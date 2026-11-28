@@ -15,9 +15,9 @@ import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.gtnllib.gui.layout.Layout;
 import com.gtnllib.gui.layout.LayoutMath;
 import com.gtnllib.gui.layout.Size;
+import com.gtnllib.gui.theme.LayoutTheme;
 import com.gtnllib.gui.widget.CloseButton;
 import com.gtnllib.gui.widget.Divider;
-import com.gtnllib.gui.widget.LayoutTheme;
 import com.gtnllib.gui.widget.SlideSwitch;
 import com.gtnllib.gui.widget.StepSlider;
 import com.science.gtnl.ScienceNotLeisure;
@@ -115,7 +115,7 @@ public class EquipmentSoundScreen extends ModularScreen {
             Arrays.asList(Size.fixed(arrangement.labelWidth), Size.fixed(SLIDER_WIDTH)),
             Arrays.asList(
                 new SlideSwitch().value(() -> channel.enabled)
-                    .liveWhen(audible)
+                    .glowWhen(audible)
                     .label(IKey.dynamic(() -> EquipmentGui.tr(lang)))
                     .onMousePressed(button -> {
                         if (button != 0) return false;
@@ -123,11 +123,12 @@ public class EquipmentSoundScreen extends ModularScreen {
                         EquipmentSoundConfig.save();
                         return true;
                     }),
-                new StepSlider().value(() -> channel.volume, value -> channel.volume = (float) value)
+                new StepSlider().wheel(true)
+                    .value(() -> channel.volume, value -> channel.volume = (float) value)
                     .range(0, 1, STEPS)
                     .milestones(MILESTONE_EVERY)
                     .format(value -> Math.round(value * 100) + "%")
-                    .activeWhen(() -> channel.enabled && audible.getAsBoolean())
+                    .available(() -> channel.enabled && audible.getAsBoolean())
                     .tagWidth(TAG_WIDTH)
 
                     .onRelease(EquipmentSoundConfig::save)));

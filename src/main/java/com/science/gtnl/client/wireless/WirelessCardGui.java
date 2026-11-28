@@ -44,8 +44,6 @@ import com.cleanroommc.modularui.api.IPanelHandler;
 import com.cleanroommc.modularui.api.UpOrDown;
 import com.cleanroommc.modularui.api.drawable.IDrawable;
 import com.cleanroommc.modularui.api.drawable.IKey;
-import com.cleanroommc.modularui.api.widget.IGuiAction;
-import com.cleanroommc.modularui.api.widget.Interactable;
 import com.cleanroommc.modularui.core.mixins.early.minecraft.GuiScreenAccessor;
 import com.cleanroommc.modularui.drawable.GuiDraw;
 import com.cleanroommc.modularui.screen.ModularPanel;
@@ -57,20 +55,24 @@ import com.cleanroommc.modularui.utils.Platform;
 import com.cleanroommc.modularui.value.IntValue;
 import com.cleanroommc.modularui.value.StringValue;
 import com.cleanroommc.modularui.widget.Widget;
-import com.cleanroommc.modularui.widget.scroll.ScrollArea;
 import com.cleanroommc.modularui.widgets.ButtonWidget;
 import com.cleanroommc.modularui.widgets.TextWidget;
 import com.cleanroommc.modularui.widgets.layout.Flow;
 import com.cleanroommc.modularui.widgets.menu.MenuPanel;
 import com.cleanroommc.modularui.widgets.textfield.TextFieldWidget;
 import com.gtnllib.gui.theme.AE2Theme;
-import com.gtnllib.gui.theme.AE2Theme.ButtonText;
-import com.gtnllib.gui.theme.AE2Theme.Colors;
-import com.gtnllib.gui.theme.AE2Theme.Variant;
-import com.gtnllib.gui.widget.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2ButtonDrawable;
+import com.gtnllib.gui.theme.ae2.AE2ButtonPainter;
+import com.gtnllib.gui.theme.ae2.AE2CheckboxPainter;
+import com.gtnllib.gui.theme.ae2.AE2Colors;
+import com.gtnllib.gui.theme.ae2.AE2Legacy;
+import com.gtnllib.gui.theme.ae2.AE2Look;
+import com.gtnllib.gui.theme.ae2.AE2Variant;
+import com.gtnllib.gui.theme.ae2.ButtonText;
 import com.gtnllib.gui.widget.CycleDropdown;
 import com.gtnllib.gui.widget.FadingNotice;
-import com.gtnllib.gui.widget.HandleScrollData;
+import com.gtnllib.gui.widget.Scrollbar;
+import com.gtnllib.utils.ColorMath;
 import com.science.gtnl.ScienceNotLeisure;
 import com.science.gtnl.client.wireless.WirelessCardClientView.DeviceView;
 import com.science.gtnl.common.gui.ScreenThemes;
@@ -99,7 +101,7 @@ public class WirelessCardGui extends ModularPanel {
     private static final int SUCCESS_COLOR = 0x55FF55, FAILURE_COLOR = 0xFF5555, PLAIN_HIGHLIGHT = 0x60FFFFFF,
         PLAIN_HIGHLIGHT_TOP = 0x80FFFFFF, PLAIN_HIGHLIGHT_SHADOW = 0x40000000;
     private static final int TREE_ORIGIN = 8, ARROW_DOWN = 49, ARROW_RIGHT = 50;
-    private static final int SCROLL_GAP = 7, SCROLL_OVERHANG = 2;
+    private static final int SCROLL_GAP = 7, SCROLL_OVERHANG = 2, SCROLL_BORDER = 1;
     private static final int EDGE = 10, CONTROL_GAP = 4, CONTROL_HEIGHT = 14, FOOTER_BOTTOM = 7, FOOTER_TEXT_Y = 7,
         HEADER_TOP = 6, HEADER_GAP = 3, LIST_GAP = 4, TITLE_HEIGHT = 10, CARD_HEIGHT = 34, CARD_PAD = 4,
         CARD_TITLE_Y = 4, CARD_BAR_Y = 16, CARD_SUB_Y = 24, BAR_HEIGHT = 4, DIVIDER_WIDTH = 8, DIVIDER_INSET = 3,
@@ -126,17 +128,19 @@ public class WirelessCardGui extends ModularPanel {
     public final FontRenderer fontRendererObj = mc.fontRenderer;
     public final WirelessCardContainer container;
     public final String themeId = ScreenThemes.wirelessCard();
-    public final @Nullable Variant variant = AE2Theme.variant(themeId);
+    public final @Nullable AE2Variant variant = AE2Theme.variant(themeId);
     public final boolean ae2 = variant != null;
     public final Palette palette = variant != null ? Palette.ae2(variant) : Palette.standard();
-    // Rows on AE2's light-blue selection keep the light palette's dark text, also on the dark skin.
-    private final boolean blueHighlight = variant != null && variant.highlight == AE2Theme.HIGHLIGHT;
-    public final Palette highlightPalette = blueHighlight ? Palette.ae2(Variant.LIGHT) : palette;
+    // Rows on a light selection fill keep the light palette's dark text, also on a dark skin.
+    private final boolean lightSelection = variant != null
+        && ColorMath.contrast(variant.highlight, 0) > ColorMath.contrast(variant.highlight, 0xFFFFFF);
+    public final Palette highlightPalette = lightSelection ? Palette.ae2(AE2Variant.LIGHT) : palette;
     public final int highlight = variant == null ? PLAIN_HIGHLIGHT : variant.highlight,
         highlightTop = variant == null ? PLAIN_HIGHLIGHT_TOP : variant.highlightTop,
         highlightShadow = variant == null ? PLAIN_HIGHLIGHT_SHADOW : variant.highlightShadow,
-        highlightTree = blueHighlight ? variant.highlightShadow : highlightPalette.tree;
-    private final int scrollWidth = AE2Theme.scrollbarWidth(variant), scrollSpace = scrollWidth + SCROLL_GAP;
+        highlightTree = lightSelection ? variant.highlightShadow : highlightPalette.tree;
+    private final int scrollWidth = AE2Look.of(variant)
+        .scrollbarWidth(), scrollSpace = scrollWidth + SCROLL_GAP;
     public final List<WirelessCardButton> buttons = new ObjectArrayList<>();
     public final TextFieldWidget search;
     private final List<ButtonWidget<?>> chips = new ObjectArrayList<>();
@@ -146,7 +150,10 @@ public class WirelessCardGui extends ModularPanel {
     private final IPanelHandler devicePanel;
     private DeviceView devicesView, reopenDevices;
     private WirelessCardRenameDialog.Target renameTarget;
-    private final ListScrollbar scrollbar = new ListScrollbar();
+    private final Scrollbar scrollbar = new Scrollbar(
+        () -> view().getInteger("scroll"),
+        () -> view().getInteger("maxScroll"),
+        this::scrollTo);
     private WirelessCardLayout layout = WirelessCardLayout.forScreen(0, 0);
     private String searchText = "", layoutKey = "";
     public int xSize = layout.width(), ySize = layout.height(), visibleRows = layout.rows();
@@ -231,8 +238,8 @@ public class WirelessCardGui extends ModularPanel {
                 .child(
                     new FooterInfo().expanded()
                         .height(AE2Theme.BUTTON_HEIGHT))
-                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.SWITCH_HEIGHT))
-                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.SWITCH_HEIGHT))
+                .child(button(TOGGLE_GROUPING).size(mergeWidth(), AE2Theme.CHECKBOX_HEIGHT))
+                .child(button(TOGGLE_AUTO).size(autoWidth(), AE2Theme.CHECKBOX_HEIGHT))
                 .child(visualisation.size(layout.visualisationWidth(), AE2Theme.BUTTON_HEIGHT))
                 .child(button(REFRESH).size(AE2Theme.BUTTON_HEIGHT, AE2Theme.BUTTON_HEIGHT)));
         child(notice);
@@ -415,7 +422,8 @@ public class WirelessCardGui extends ModularPanel {
         boolean available = chipAvailable(index);
         AE2ButtonDrawable.State state = AE2ButtonDrawable.State
             .of(chip, available, clientView().state() == CHIP_STATES[index]);
-        ButtonText style = AE2Theme.buttonText(context, state, height);
+        ButtonText style = AE2Look.of(chip)
+            .buttonText(state, height);
         String count = Integer.toString(chipCount(index));
         int countWidth = fontRendererObj.getStringWidth(count), textY = y + style.y();
         String label = fontRendererObj
@@ -430,8 +438,8 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private CycleDropdown<Integer> choice(String name, Supplier<String> label, IntFunction<String> option) {
-        CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class);
-        IDrawable background = AE2Theme.button(choice, () -> true, () -> false);
+        CycleDropdown<Integer> choice = new CycleDropdown<>(name, Integer.class).wheel(true);
+        IDrawable background = AE2ButtonPainter.button(choice, () -> true, () -> false);
         return choice.optionToWidget(
             (value, selected) -> selected ? IDrawable.EMPTY.asWidget()
                 .size(0, 0) : optionWidget(option.apply(value)))
@@ -453,7 +461,8 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private void drawChoice(String label, Widget<?> choice, GuiContext context, int x, int y, int width, int height) {
-        ButtonText style = AE2Theme.buttonText(context, AE2ButtonDrawable.State.of(choice, true, false), height);
+        ButtonText style = AE2Look.of(choice)
+            .buttonText(AE2ButtonDrawable.State.of(choice, true, false), height);
         int textY = y + style.y();
         drawText(
             fontRendererObj.trimStringToWidth(label, Math.max(0, width - 16)),
@@ -461,9 +470,6 @@ public class WirelessCardGui extends ModularPanel {
             textY,
             style.color(),
             style.shadow());
-        int arrowX = x + width - 10, arrowY = textY + 2;
-        for (int row = 0; row < 3; row++)
-            GuiDraw.drawRect(arrowX + row, arrowY + row, 5 - row * 2, 1, 0xFF000000 | style.color());
     }
 
     private String dimensionLabel() {
@@ -543,7 +549,6 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     public ModularScreen screen() {
-        AE2Theme.useMenuTheme(themeId, ScienceNotLeisure.MODID, NAME, DIMENSION_MENU, VISUALISATION_MENU);
         return new ModularScreen(ScienceNotLeisure.MODID, this) {
 
             @Override
@@ -605,8 +610,8 @@ public class WirelessCardGui extends ModularPanel {
 
     private void layoutControls() {
         int rowWidth = xSize - scrollSpace;
-        scrollbar.pos(xSize - 10 - scrollWidth, ROW_TOP - SCROLL_OVERHANG)
-            .size(scrollWidth, visibleRows * ROW_HEIGHT + SCROLL_OVERHANG);
+        scrollbar.pos(xSize - 10 - scrollWidth, ROW_TOP - SCROLL_OVERHANG - SCROLL_BORDER)
+            .size(scrollWidth, visibleRows * ROW_HEIGHT + SCROLL_OVERHANG + 2 * SCROLL_BORDER);
         for (var control : buttons) {
             int id = control.id;
             var button = control.widget;
@@ -643,11 +648,11 @@ public class WirelessCardGui extends ModularPanel {
     }
 
     private int autoWidth() {
-        return AE2Theme.switchWidth(tr("auto_connect"));
+        return AE2CheckboxPainter.checkboxWidth(tr("auto_connect"));
     }
 
     private int mergeWidth() {
-        return AE2Theme.switchWidth(tr("merge_types"));
+        return AE2CheckboxPainter.checkboxWidth(tr("merge_types"));
     }
 
     private String layoutKey() {
@@ -897,7 +902,12 @@ public class WirelessCardGui extends ModularPanel {
 
     void drawArrow(boolean expanded, int x, int y) {
         GL11.glColor4f(1, 1, 1, 1);
-        AE2Theme.drawLegacyState(variant, expanded ? ARROW_DOWN : ARROW_RIGHT, x, y, WirelessCardTreeRows.ARROW_SIZE);
+        AE2Legacy.drawLegacyState(
+            AE2Look.of(variant),
+            expanded ? ARROW_DOWN : ARROW_RIGHT,
+            x,
+            y,
+            WirelessCardTreeRows.ARROW_SIZE);
         Platform.setupDrawFont();
     }
 
@@ -1134,74 +1144,6 @@ public class WirelessCardGui extends ModularPanel {
         }
     }
 
-    private class ListScrollbar extends Widget<ListScrollbar> implements Interactable {
-
-        private final ScrollArea area = new ScrollArea();
-        private final HandleScrollData scroll = new HandleScrollData(variant);
-        private int dragMouseY, dragOffset;
-
-        private ListScrollbar() {
-            area.setScrollDataY(scroll);
-            listenGuiAction((IGuiAction.MouseReleased) button -> {
-                area.mouseReleased(0, 0);
-                return false;
-            });
-        }
-
-        @Override
-        public ScrollArea getArea() {
-            return area;
-        }
-
-        @Override
-        public boolean canHover() {
-            return true;
-        }
-
-        private void sync() {
-            scroll.setScrollSize(view().getInteger("rowCount") * ROW_HEIGHT + SCROLL_OVERHANG);
-            scroll.scrollTo(area, view().getInteger("scroll") * ROW_HEIGHT);
-        }
-
-        @Override
-        public void draw(ModularGuiContext context, WidgetThemeEntry<?> theme) {
-            sync();
-            scroll.drawTrack(area);
-        }
-
-        @Override
-        public Result onMousePressed(int button) {
-            if (button != 0 || !layoutReady()) return Result.STOP;
-            sync();
-            int x = getContext().getAbsMouseX() - area.x, y = getContext().getAbsMouseY() - area.y;
-            if (!area.mouseClicked(x, y)) return Result.STOP;
-            int length = scroll.getScrollBarLength(area), start = scroll.getScrollBarStart(area, length, false);
-            if (y < start || y > start + length) scrollTo(rows(y - length / 2));
-            // Row math anchored to the press: the thumb's integer position loses rows on long lists.
-            dragMouseY = getContext().getAbsMouseY();
-            dragOffset = view().getInteger("scroll");
-            return Result.SUCCESS;
-        }
-
-        @Override
-        public void onMouseDrag(int button, long timeSinceClick) {
-            if (button != 0 || !layoutReady() || !scroll.isDragging()) return;
-            sync();
-            if (scroll.isScrollBarActive(area)) scrollTo(dragOffset + rows(getContext().getAbsMouseY() - dragMouseY));
-        }
-
-        private int rows(int pixels) {
-            int travel = scroll.getFullVisibleSize(area) - scroll.getScrollBarLength(area);
-            return travel <= 0 ? 0 : Math.round((float) pixels * view().getInteger("maxScroll") / travel);
-        }
-
-        @Override
-        public boolean onMouseRelease(int button) {
-            area.mouseReleased(0, 0);
-            return true;
-        }
-    }
-
     public static class Palette {
 
         public final int text, name, hint, suffix, track, link, good, bad, warning, line, tree, nest, nestAlpha;
@@ -1238,10 +1180,10 @@ public class WirelessCardGui extends ModularPanel {
             return state.equals("online") ? good : state.equals("missing") ? bad : suffix;
         }
 
-        public static Palette ae2(Variant variant) {
-            Colors colors = variant.colors;
+        public static Palette ae2(AE2Variant variant) {
+            AE2Colors colors = variant.colors;
             // The dark theme's line color is near black, so nested rows lighten there instead of darkening.
-            boolean dark = variant != Variant.LIGHT;
+            boolean dark = variant.dark;
             return new Palette(
                 colors.text(),
                 colors.text(),
