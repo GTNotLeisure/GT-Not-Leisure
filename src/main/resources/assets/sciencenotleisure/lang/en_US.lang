@@ -982,6 +982,17 @@ gtnl.bee_breeder.chance=Mutation chance: %.1f%%
 gtnl.bee_breeder.required_voltage=Required voltage: %s
 gtnl.bee_breeder.low_voltage=Insufficient voltage
 
+gtnl.machine.beam_combiner.name=Beam Combiner
+gtnl.machine.beam_combiner.recipe_type=Beam Combiner
+gtnl.gui.beam_combiner.inputs=Active inputs: %s / 4
+gtnl.gui.beam_combiner.particle=Output particle: %s
+gtnl.gui.beam_combiner.no_beam=None
+gtnl.gui.beam_combiner.rate=Output rate: %s particles/s
+gtnl.gui.beam_combiner.energy=Output energy: %.3f keV
+gtnl.gui.beam_combiner.focus=Output focus: %.2f
+gtnl.gui.beam_combiner.buffered_types=Buffered particle types: %s
+gtnl.gui.beam_combiner.buffered_particles=Buffered particles: %s
+
 gtnl.machine.large_crop_breeder.name=Large Crop Breeder
 gtnl.machine.large_crop_breeder.recipe_type=Crop Breeder
 gtnl.crop_breeder.run=Run

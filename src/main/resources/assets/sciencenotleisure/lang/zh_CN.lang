@@ -982,6 +982,17 @@ gtnl.bee_breeder.chance=杂交成功率：%.1f%%
 gtnl.bee_breeder.required_voltage=需要电压：%s
 gtnl.bee_breeder.low_voltage=当前电压不足
 
+gtnl.machine.beam_combiner.name=束流合流器
+gtnl.machine.beam_combiner.recipe_type=束流合流器
+gtnl.gui.beam_combiner.inputs=有效输入束流：%s / 4
+gtnl.gui.beam_combiner.particle=输出束流粒子：%s
+gtnl.gui.beam_combiner.no_beam=无
+gtnl.gui.beam_combiner.rate=输出束流通量：%s粒子/秒
+gtnl.gui.beam_combiner.energy=输出束流能量：%.3f keV
+gtnl.gui.beam_combiner.focus=输出束流聚焦：%.2f
+gtnl.gui.beam_combiner.buffered_types=缓存粒子种类：%s
+gtnl.gui.beam_combiner.buffered_particles=缓存粒子数量：%s
+
 gtnl.machine.large_crop_breeder.name=大型作物杂交机
 gtnl.machine.large_crop_breeder.recipe_type=作物杂交机
 gtnl.crop_breeder.run=运行

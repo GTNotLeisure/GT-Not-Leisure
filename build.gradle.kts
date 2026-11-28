@@ -74,7 +74,7 @@ tasks.named<Jar>("jar") {
 }
 
 minecraft {
-    extraRunJvmArguments.addAll("-Xmx8G", "-Xms8G", "-Dgtnhlib.dumpkeys=true")
+    extraRunJvmArguments.addAll("-Xmx8G", "-Xms8G")
 }
 
 tasks.withType<JavaCompile>().configureEach {

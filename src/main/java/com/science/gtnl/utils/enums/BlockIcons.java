@@ -22,6 +22,10 @@ public class BlockIcons {
 
     public static IIconContainer BEAMLINE_PIPE_MIRROR = Textures.BlockIcons
         .custom(RESOURCE_ROOT_ID, BASE + "BEAMLINE_PIPE_MIRROR");
+    public static IIconContainer OVERLAY_FRONT_BEAM_COMBINER = Textures.BlockIcons
+        .custom(RESOURCE_ROOT_ID, BASE + "OVERLAY_FRONT_BEAM_COMBINER");
+    public static IIconContainer OVERLAY_FRONT_BEAM_COMBINER_ACTIVE = Textures.BlockIcons
+        .custom(RESOURCE_ROOT_ID, BASE + "OVERLAY_FRONT_BEAM_COMBINER_ACTIVE");
     public static IIconContainer OVERLAY_FRONT_FULLAUTOMAINTENANCE = Textures.BlockIcons
         .custom(Mods.GregTech.resourceDomain, "iconsets/OVERLAY_FULLAUTOMAINTENANCE");
     public static IIconContainer OVERLAY_FRONT_DUAL_HATCH = Textures.BlockIcons

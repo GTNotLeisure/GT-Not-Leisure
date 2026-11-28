@@ -982,6 +982,17 @@ gtnl.bee_breeder.chance=Вероятность мутации: %.1f%%
 gtnl.bee_breeder.required_voltage=Требуемое напряжение: %s
 gtnl.bee_breeder.low_voltage=Недостаточное напряжение
 
+gtnl.machine.beam_combiner.name=Объединитель пучков
+gtnl.machine.beam_combiner.recipe_type=Объединитель пучков
+gtnl.gui.beam_combiner.inputs=Активные входы: %s / 4
+gtnl.gui.beam_combiner.particle=Частицы на выходе: %s
+gtnl.gui.beam_combiner.no_beam=Нет
+gtnl.gui.beam_combiner.rate=Выходная скорость: %s частиц/с
+gtnl.gui.beam_combiner.energy=Выходная энергия: %.3f кэВ
+gtnl.gui.beam_combiner.focus=Выходной фокус: %.2f
+gtnl.gui.beam_combiner.buffered_types=Типов частиц в буфере: %s
+gtnl.gui.beam_combiner.buffered_particles=Частиц в буфере: %s
+
 gtnl.machine.large_crop_breeder.name=Большой селектор растений
 gtnl.machine.large_crop_breeder.recipe_type=Селектор растений
 gtnl.crop_breeder.run=Работа

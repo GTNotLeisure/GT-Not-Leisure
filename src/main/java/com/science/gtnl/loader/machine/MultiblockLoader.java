@@ -11,6 +11,7 @@ import com.science.gtnl.common.machine.multiblock.AdvancedInfiniteDriller;
 import com.science.gtnl.common.machine.multiblock.AdvancedRareEarthCentrifugal;
 import com.science.gtnl.common.machine.multiblock.AssemblerMatrix;
 import com.science.gtnl.common.machine.multiblock.AtomicEnergyExcitationPlant;
+import com.science.gtnl.common.machine.multiblock.BeamCombiner;
 import com.science.gtnl.common.machine.multiblock.BloodSoulSacrificialArray;
 import com.science.gtnl.common.machine.multiblock.BrickedBlastFurnace;
 import com.science.gtnl.common.machine.multiblock.CheatOreProcessingFactory;
@@ -1484,6 +1485,13 @@ public class MultiblockLoader {
                     StatCollector.translateToLocal("gtnl.machine.large_crop_breeder.name")));
             AnimatedTooltipHandler.addItemTooltip(GTNLItemList.LargeCropBreeder.get(1), AnimatedText.GT_NOT_LEISURE);
         }
+
+        GTNLItemList.BeamCombiner.set(
+            new BeamCombiner(
+                GTNLMachineID.BEAM_COMBINER.ID,
+                "BeamCombiner",
+                StatCollector.translateToLocal("gtnl.machine.beam_combiner.name")));
+        AnimatedTooltipHandler.addItemTooltip(GTNLItemList.BeamCombiner.get(1), AnimatedText.GT_NOT_LEISURE);
 
         // Special Machine
         GTNLItemList.CheatOreProcessingFactory.set(

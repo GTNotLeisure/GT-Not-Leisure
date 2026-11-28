@@ -1777,6 +1777,19 @@ public class AssemblingLineRecipes implements IRecipePool {
             .addTo(AL);
 
         TTRecipeAdder.addResearchableAssemblylineRecipe(
+            CustomItemList.Machine_Multi_Switch.get(1),
+            64_000,
+            128,
+            (int) TierEU.RECIPE_UV,
+            4,
+            new Object[] { CustomItemList.Machine_Multi_Switch.get(1), ItemList.Electromagnet_Tengam.get(1),
+                new ItemStack(LanthItemList.SHIELDED_ACCELERATOR_CASING, 4) },
+            new FluidStack[] { Materials.SuperCoolant.getFluid(16000) },
+            GTNLItemList.BeamCombiner.get(1),
+            60 * GTRecipeBuilder.SECONDS,
+            (int) TierEU.RECIPE_UHV);
+
+        TTRecipeAdder.addResearchableAssemblylineRecipe(
             ItemList.InfiniteFluidDrillingRig.get(1),
             2560000,
             4096,
