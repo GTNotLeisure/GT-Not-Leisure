@@ -1,6 +1,8 @@
 package com.science.gtnl.common.projector;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -14,12 +16,15 @@ import com.gtnewhorizon.structurelib.alignment.enumerable.ExtendedFacing;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
 import com.science.gtnl.common.structureanimation.StructureAnimationStyle;
 
+import gregtech.api.GregTechAPI;
+
 public class ProjectorPlan {
 
     public static final String TAG = "Plan";
     public static final int MAX_MASTER = 64, MAX_CHANNELS = 32, MAX_CHANNEL_NAME = 64, MAX_CHANNEL_VALUE = 1024,
-        MAX_OVERRIDES = 1024, MAX_HATCH_TIER = 14, DEFAULT_HATCH_TIER = 1, MAX_OFFSET = 64, MAX_CHOICES = 256,
-        MAX_CHOICE_KEY = 256, MAX_STACK = 16, MAX_STACK_GAP = 64, MAX_COPIES = 64;
+        MAX_HATCHES = 1024, MAX_ROLES = 256, MAX_ROLE_KEY = 64, MAX_CELL_CHOICES = 1024, MAX_HATCH_TIER = 14,
+        DEFAULT_HATCH_TIER = 1, MAX_OFFSET = 64, MAX_CHOICES = 256, MAX_CHOICE_KEY = 256, MAX_STACK = 16,
+        MAX_STACK_GAP = 64, MAX_COPIES = 64, FORMAT_VERSION = 1;
     public static final int CASING = 0;
     public static final String AIR = "air";
 
@@ -36,14 +41,15 @@ public class ProjectorPlan {
         BLOCKS
     }
 
-    public record Settings(int machine, int master, Map<String, Integer> channels, Map<Long, Integer> overrides,
+    public record Settings(int machine, int master, Map<String, Integer> channels, Map<String, List<Integer>> hatches,
         Map<String, String> choices, Map<Long, String> cellChoices) {}
 
     public int machine;
     public int master = 1;
     public final TreeMap<String, Integer> channels = new TreeMap<>();
     public int hatchTier = DEFAULT_HATCH_TIER;
-    public final TreeMap<Long, Integer> overrides = new TreeMap<>();
+    // For each hatch role, the hatch chosen for its spots in rank order; 0 keeps the spot's default.
+    private final TreeMap<String, List<Integer>> hatches = new TreeMap<>();
     public final TreeMap<String, String> choices = new TreeMap<>();
     public final TreeMap<Long, String> cellChoices = new TreeMap<>();
     public ExtendedFacing facing = ExtendedFacing.DEFAULT;
@@ -57,6 +63,22 @@ public class ProjectorPlan {
     public final int[] stackCount = { 1, 1, 1 };
     public final int[] stackGap = new int[3];
     private Settings settings;
+
+    // A machine id may move to another machine between versions; the class name finds it again, or drops the plan's
+    // machine rather than show a different one.
+    public static String machineClass(int id) {
+        if (id <= 0 || id >= GregTechAPI.METATILEENTITIES.length || GregTechAPI.METATILEENTITIES[id] == null) return "";
+        return GregTechAPI.METATILEENTITIES[id].getClass()
+            .getName();
+    }
+
+    private static int remap(int id, String wanted) {
+        if (wanted.isEmpty() || wanted.equals(machineClass(id))) return id;
+        for (int other = 1; other < GregTechAPI.METATILEENTITIES.length; other++) {
+            if (wanted.equals(machineClass(other))) return other;
+        }
+        return 0;
+    }
 
     public boolean hasMachine() {
         return machine > 0;
@@ -72,8 +94,8 @@ public class ProjectorPlan {
             && last.master() == master
             && last.channels()
                 .equals(channels)
-            && last.overrides()
-                .equals(overrides)
+            && last.hatches()
+                .equals(hatches)
             && last.choices()
                 .equals(choices)
             && last.cellChoices()
@@ -83,7 +105,7 @@ public class ProjectorPlan {
             machine,
             master,
             Collections.unmodifiableMap(new TreeMap<>(channels)),
-            Collections.unmodifiableMap(new TreeMap<>(overrides)),
+            frozenHatches(),
             Collections.unmodifiableMap(new TreeMap<>(choices)),
             Collections.unmodifiableMap(new TreeMap<>(cellChoices)));
     }
@@ -93,10 +115,72 @@ public class ProjectorPlan {
         machine = id;
         master = 1;
         channels.clear();
-        overrides.clear();
+        hatches.clear();
         choices.clear();
         cellChoices.clear();
         clearStack();
+    }
+
+    private Map<String, List<Integer>> frozenHatches() {
+        TreeMap<String, List<Integer>> copy = new TreeMap<>();
+        for (Map.Entry<String, List<Integer>> entry : hatches.entrySet())
+            copy.put(entry.getKey(), Collections.unmodifiableList(new ArrayList<>(entry.getValue())));
+        return Collections.unmodifiableMap(copy);
+    }
+
+    public Map<String, List<Integer>> hatches() {
+        return Collections.unmodifiableMap(hatches);
+    }
+
+    public int hatchAt(String role, int rank) {
+        List<Integer> ids = role == null ? null : hatches.get(role);
+        return ids == null || rank < 0 || rank >= ids.size() ? CASING : ids.get(rank);
+    }
+
+    public boolean hasHatch(String role, int rank) {
+        return hatchAt(role, rank) != CASING;
+    }
+
+    public void setHatch(String role, int rank, int id) {
+        if (role == null || role.isEmpty() || role.length() > MAX_ROLE_KEY || rank < 0) return;
+        List<Integer> ids = hatches.get(role);
+        if (id <= CASING) {
+            if (ids == null || rank >= ids.size()) return;
+            ids.set(rank, CASING);
+        } else {
+            if (ids == null) {
+                if (hatches.size() >= MAX_ROLES) return;
+                ids = new ArrayList<>();
+                hatches.put(role, ids);
+            }
+            if (rank >= ids.size() && hatchCount() - ids.size() + rank + 1 > MAX_HATCHES) return;
+            while (ids.size() <= rank) ids.add(CASING);
+            ids.set(rank, id);
+        }
+        while (!ids.isEmpty() && ids.get(ids.size() - 1) == CASING) ids.remove(ids.size() - 1);
+        if (ids.isEmpty()) hatches.remove(role);
+    }
+
+    public void clearHatches() {
+        hatches.clear();
+    }
+
+    // Drops hatches this game no longer has, such as those of a removed mod.
+    public void dropUnknownHatches() {
+        for (Map.Entry<String, List<Integer>> entry : new ArrayList<>(hatches.entrySet())) {
+            List<Integer> ids = entry.getValue();
+            for (int rank = ids.size() - 1; rank >= 0; rank--) {
+                int id = ids.get(rank);
+                if (id >= GregTechAPI.METATILEENTITIES.length || GregTechAPI.METATILEENTITIES[id] == null)
+                    setHatch(entry.getKey(), rank, CASING);
+            }
+        }
+    }
+
+    private int hatchCount() {
+        int count = 0;
+        for (List<Integer> ids : hatches.values()) count += ids.size();
+        return count;
     }
 
     public static String blockKey(ItemStack stack) {
@@ -141,7 +225,7 @@ public class ProjectorPlan {
         if (Math.abs(counts[axis]) <= 1) counts[axis] = 1;
         if (copies(counts) > MAX_COPIES) return false;
         stackCount[axis] = counts[axis];
-        stackGap[axis] = clamp(gap, 0, MAX_STACK_GAP);
+        stackGap[axis] = clamp(gap, -MAX_STACK_GAP, MAX_STACK_GAP);
         return true;
     }
 
@@ -156,8 +240,8 @@ public class ProjectorPlan {
     public int[] stackOffsets(int[] bounds) {
         int nx = copiesOf(stackCount[0]), ny = copiesOf(stackCount[1]), nz = copiesOf(stackCount[2]);
         int[] step = new int[3];
-        for (int axis = 0; axis < 3; axis++)
-            step[axis] = Integer.signum(stackCount[axis]) * (bounds[axis + 3] - bounds[axis] + 1 + stackGap[axis]);
+        for (int axis = 0; axis < 3; axis++) step[axis] = Integer.signum(stackCount[axis])
+            * Math.max(1, bounds[axis + 3] - bounds[axis] + 1 + stackGap[axis]);
         int[] offsets = new int[nx * ny * nz * 3];
         int i = 0;
         for (int iy = 0; iy < ny; iy++) {
@@ -230,21 +314,27 @@ public class ProjectorPlan {
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tag = new NBTTagCompound();
         tag.setInteger("Machine", machine);
+        tag.setInteger("Version", FORMAT_VERSION);
+        String machineClass = machineClass(machine);
+        if (!machineClass.isEmpty()) tag.setString("MachineClass", machineClass);
         tag.setInteger("Master", master);
         NBTTagCompound channelTag = new NBTTagCompound();
         for (Map.Entry<String, Integer> entry : channels.entrySet())
             channelTag.setInteger(entry.getKey(), entry.getValue());
         tag.setTag("Channels", channelTag);
         tag.setInteger("HatchTier", hatchTier);
-        NBTTagList overrideList = new NBTTagList();
-        for (Map.Entry<Long, Integer> entry : overrides.entrySet()) {
-            if (overrideList.tagCount() >= MAX_OVERRIDES) break;
-            NBTTagCompound overrideTag = new NBTTagCompound();
-            overrideTag.setLong("Pos", entry.getKey());
-            overrideTag.setInteger("Id", entry.getValue());
-            overrideList.appendTag(overrideTag);
+        NBTTagList roleList = new NBTTagList();
+        for (Map.Entry<String, List<Integer>> entry : hatches.entrySet()) {
+            NBTTagCompound roleTag = new NBTTagCompound();
+            roleTag.setString("Role", entry.getKey());
+            int[] ids = new int[entry.getValue()
+                .size()];
+            for (int rank = 0; rank < ids.length; rank++) ids[rank] = entry.getValue()
+                .get(rank);
+            roleTag.setIntArray("Ids", ids);
+            roleList.appendTag(roleTag);
         }
-        tag.setTag("Overrides", overrideList);
+        tag.setTag("HatchRoles", roleList);
         NBTTagList choiceList = new NBTTagList();
         for (Map.Entry<String, String> entry : choices.entrySet()) {
             if (choiceList.tagCount() >= MAX_CHOICES) break;
@@ -256,7 +346,7 @@ public class ProjectorPlan {
         tag.setTag("Choices", choiceList);
         NBTTagList cellChoiceList = new NBTTagList();
         for (Map.Entry<Long, String> entry : cellChoices.entrySet()) {
-            if (cellChoiceList.tagCount() >= MAX_OVERRIDES) break;
+            if (cellChoiceList.tagCount() >= MAX_CELL_CHOICES) break;
             NBTTagCompound cellTag = new NBTTagCompound();
             cellTag.setLong("Pos", entry.getKey());
             cellTag.setString("Block", entry.getValue());
@@ -281,6 +371,7 @@ public class ProjectorPlan {
 
     public void readFromNBT(NBTTagCompound tag) {
         machine = Math.max(0, tag.getInteger("Machine"));
+        if (tag.hasKey("MachineClass")) machine = remap(machine, tag.getString("MachineClass"));
         master = clamp(tag.getInteger("Master"), 1, MAX_MASTER);
         channels.clear();
         NBTTagCompound channelTag = tag.getCompoundTag("Channels");
@@ -291,11 +382,13 @@ public class ProjectorPlan {
         }
         hatchTier = tag.hasKey("HatchTier") ? clamp(tag.getInteger("HatchTier"), 0, MAX_HATCH_TIER)
             : DEFAULT_HATCH_TIER;
-        overrides.clear();
-        NBTTagList overrideList = tag.getTagList("Overrides", Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < overrideList.tagCount() && overrides.size() < MAX_OVERRIDES; i++) {
-            NBTTagCompound overrideTag = overrideList.getCompoundTagAt(i);
-            overrides.put(overrideTag.getLong("Pos"), Math.max(CASING, overrideTag.getInteger("Id")));
+        hatches.clear();
+        NBTTagList roleList = tag.getTagList("HatchRoles", Constants.NBT.TAG_COMPOUND);
+        for (int i = 0; i < roleList.tagCount(); i++) {
+            NBTTagCompound roleTag = roleList.getCompoundTagAt(i);
+            String role = roleTag.getString("Role");
+            int[] ids = roleTag.getIntArray("Ids");
+            for (int rank = ids.length - 1; rank >= 0; rank--) setHatch(role, rank, ids[rank]);
         }
         choices.clear();
         NBTTagList choiceList = tag.getTagList("Choices", Constants.NBT.TAG_COMPOUND);
@@ -309,7 +402,7 @@ public class ProjectorPlan {
         }
         cellChoices.clear();
         NBTTagList cellChoiceList = tag.getTagList("CellChoices", Constants.NBT.TAG_COMPOUND);
-        for (int i = 0; i < cellChoiceList.tagCount() && cellChoices.size() < MAX_OVERRIDES; i++) {
+        for (int i = 0; i < cellChoiceList.tagCount() && cellChoices.size() < MAX_CELL_CHOICES; i++) {
             NBTTagCompound cellTag = cellChoiceList.getCompoundTagAt(i);
             String block = cellTag.getString("Block");
             if (block.isEmpty() || block.length() > MAX_CHOICE_KEY) continue;

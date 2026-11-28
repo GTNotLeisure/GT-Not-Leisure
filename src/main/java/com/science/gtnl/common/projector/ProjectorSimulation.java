@@ -223,18 +223,20 @@ public class ProjectorSimulation {
     }
 
     private void buildRound() {
-        int placedBefore = world.placed;
+        int placedBefore = world.placed, result;
         boolean instrument = !StructureLibAPI.isInstrumentEnabled();
         if (instrument) StructureLibAPI.enableInstrument(this);
         try {
-            ((ISurvivalConstructable) machine).survivalConstruct(trigger, elementBudget, environment);
+            result = ((ISurvivalConstructable) machine).survivalConstruct(trigger, elementBudget, environment);
         } finally {
             if (instrument) StructureLibAPI.disableInstrument();
         }
         rounds++;
         // Blocks that break themselves after placement (portals without a frame) would otherwise loop forever.
         stableRounds = world.placed == placedBefore ? stableRounds + 1 : 0;
-        boolean building = world.consumeChanged() && stableRounds < STABLE_ROUNDS;
+        // A round may place nothing while the machine is still working through its pieces; -1 says it is done.
+        boolean changed = world.consumeChanged();
+        boolean building = (changed || result != -1) && stableRounds < STABLE_ROUNDS;
         if (world.outOfHeight) limit = "height";
         else if (world.placed >= MAX_BLOCKS) limit = "size";
         else if (building && rounds >= MAX_ROUNDS) limit = "rounds";
@@ -266,7 +268,7 @@ public class ProjectorSimulation {
             hatches.replaceHatchesWithCasings();
             new ProjectorChoiceProbe(this).findChoices();
             applier.applyChoices();
-            applier.applyOverrides();
+            applier.applyHatches();
             applier.applyCellChoices();
             checkStructure();
         }
@@ -291,7 +293,7 @@ public class ProjectorSimulation {
             }
             if (!errors.contains(line)) errors.add(line);
         }
-        if (settings.overrides()
+        if (settings.hatches()
             .isEmpty()) return;
         // Tiered machines give their hatches the casing texture of the chosen tier only in their full check.
         try {

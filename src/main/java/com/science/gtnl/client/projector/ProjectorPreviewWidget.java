@@ -2,6 +2,8 @@ package com.science.gtnl.client.projector;
 
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
@@ -12,6 +14,7 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.TextureMap;
+import net.minecraft.item.ItemStack;
 import net.minecraftforge.common.util.ForgeDirection;
 
 import org.jetbrains.annotations.NotNull;
@@ -35,6 +38,7 @@ import com.science.gtnl.common.projector.ProjectorOrientation;
 import com.science.gtnl.common.projector.ProjectorPlan;
 import com.science.gtnl.common.projector.ProjectorStructure;
 import com.science.gtnl.common.projector.ProjectorStructure.Choice;
+import com.science.gtnl.common.projector.ProjectorStructure.HatchSlot;
 import com.science.gtnl.config.ClientConfig;
 
 import cpw.mods.fml.relauncher.Side;
@@ -51,7 +55,8 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
     private static final int BACKGROUND = 0xFF101016, DRAG_THRESHOLD = 3, MAX_MARKED = 4096, PLAIN_TEXT = 0xFFFFFFFF;
     private static final int DIMENSION_ALPHA = 200, X_COLOR = 0xE86464, Y_COLOR = 0x64C864, Z_COLOR = 0xE8C850;
     private static final double DIMENSION_GAP = 6, DIMENSION_OVERSHOOT = 3, DIMENSION_LABEL_GAP = 12;
-    private static final int SELECTED = 0xFFD040, HOVERED = 0xFFFFFF, MARKED = 0x4080FF, OVERRIDDEN = 0x40E060;
+    private static final int SELECTED = 0xFFD040, HOVERED = 0xFFFFFF, MARKED = 0x4080FF, OVERRIDDEN = 0x40E060,
+        FOCUSED = 0xFF60E0;
 
     private final Supplier<ProjectorStructure> source;
     private final FxBlockMesh mesh = new FxBlockMesh();
@@ -60,7 +65,9 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
         labelView = BufferUtils.createFloatBuffer(16), labelLens = BufferUtils.createFloatBuffer(16);
     private final IntBuffer viewport = BufferUtils.createIntBuffer(16);
     private ProjectorStructure structure;
-    private IntSupplier selection = () -> -1;
+    private IntSupplier selection = () -> -1, focusKind = () -> -1;
+    private float[] focusLines = new float[0];
+    private Object focusInputs;
     private IntConsumer onSelect = cell -> {};
     private BooleanSupplier showOutlines = () -> false;
     private ProjectorPlan plan = new ProjectorPlan();
@@ -84,6 +91,11 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
 
     public ProjectorPreviewWidget hoverText(Supplier<String> hoverText) {
         this.hoverText = hoverText;
+        return this;
+    }
+
+    public ProjectorPreviewWidget focusKind(IntSupplier focusKind) {
+        this.focusKind = focusKind;
         return this;
     }
 
@@ -428,6 +440,8 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
         FxVoxelOutline.draw(tessellator, changedLines, OVERRIDDEN, 255);
         GL11.glDepthMask(true);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
+        updateFocus();
+        FxVoxelOutline.draw(tessellator, focusLines, FOCUSED, 255);
         tessellator.startDrawing(GL11.GL_LINES);
         int selected = selection.getAsInt();
         if (selected >= 0 && selected < structure.size) box(tessellator, selected, SELECTED, 0.02);
@@ -435,7 +449,7 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
         tessellator.draw();
     }
 
-    private record MarkerInputs(ProjectorStructure structure, int layer, boolean shown, boolean merge, int overrides,
+    private record MarkerInputs(ProjectorStructure structure, int layer, boolean shown, boolean merge, int hatches,
         int cellChoices, int choices) {}
 
     private void updateMarkers() {
@@ -445,14 +459,20 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
             layer,
             shown,
             merge,
-            plan.overrides.hashCode(),
+            plan.hatches()
+                .hashCode(),
             plan.cellChoices.hashCode(),
             plan.choices.hashCode());
         if (inputs.equals(markerInputs)) return;
         markerInputs = inputs;
         LongOpenHashSet slotCells = new LongOpenHashSet(), changedCells = new LongOpenHashSet();
         if (shown) {
-            markChanged(plan.overrides.keySet(), changedCells);
+            for (int cell = 0; !plan.hatches()
+                .isEmpty() && cell < structure.size; cell++) {
+                HatchSlot slot = structure.slotAt(cell);
+                if (slot != null && plan.hasHatch(slot.role(), structure.rankOf(cell)) && visible(cell))
+                    changedCells.add(outlineKey(cell));
+            }
             markChanged(plan.cellChoices.keySet(), changedCells);
             for (int cell = 0; !plan.choices.isEmpty() && cell < structure.size; cell++) {
                 Choice choice = structure.choiceAt(cell);
@@ -468,6 +488,21 @@ public class ProjectorPreviewWidget extends Widget<ProjectorPreviewWidget> imple
         }
         slotLines = merge ? FxVoxelOutline.mergedLines(slotCells) : FxVoxelOutline.boxLines(slotCells);
         changedLines = merge ? FxVoxelOutline.mergedLines(changedCells) : FxVoxelOutline.boxLines(changedCells);
+    }
+
+    // Outlines every visible block of the material picked in the materials list, drawn through the others.
+    private void updateFocus() {
+        int kind = focusKind.getAsInt();
+        List<Object> inputs = Arrays.asList(structure, layer, kind, facing);
+        if (inputs.equals(focusInputs)) return;
+        focusInputs = inputs;
+        LongOpenHashSet cells = new LongOpenHashSet();
+        for (int cell = 0; kind >= 0 && cell < structure.size && cells.size() < MAX_MARKED; cell++) {
+            ItemStack item = structure.items[cell];
+            if (item != null && Choice.idOf(item.getItem(), item.getItemDamage()) == kind && visible(cell))
+                cells.add(outlineKey(cell));
+        }
+        focusLines = FxVoxelOutline.mergedLines(cells);
     }
 
     private void markChanged(Iterable<Long> keys, LongOpenHashSet changedCells) {

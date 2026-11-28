@@ -3,6 +3,7 @@ package com.science.gtnl.common.projector;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.IdentityHashMap;
+import java.util.List;
 import java.util.Map;
 
 import net.minecraft.block.Block;
@@ -66,26 +67,32 @@ public class ProjectorPlanApplier {
         if (target != null) simulation.place(target, x, y, z);
     }
 
-    public void applyOverrides() {
-        int[] position = new int[3];
-        for (Map.Entry<Long, Integer> override : simulation.settings.overrides()
-            .entrySet()) {
-            toWorld(override.getKey(), position);
-            int x = position[0], y = position[1], z = position[2];
-            IStructureElement<Object> element = simulation.elements.get(ProjectorPlan.pack(x, y, z));
-            Integer slot = element == null ? null : simulation.slotOfElement.get(element);
-            if (slot == null || slot < 0) continue;
-            HatchSlot hatchSlot = simulation.hatchSlots.get(slot);
-            int id = override.getValue();
-            if (id == ProjectorPlan.CASING) {
-                ItemStack casing = casingFor(element, hatchSlot);
-                if (casing == null) continue;
-                world.setBlockToAir(x, y, z);
-                simulation.place(casing, x, y, z);
-            } else if (contains(hatchSlot.candidates(), id)) {
-                world.setBlockToAir(x, y, z);
-                simulation.placeMachine(id, x, y, z);
-            }
+    // Ranks follow the packed simulation positions, the same order the collected structure gives its cells.
+    public void applyHatches() {
+        Map<String, List<Integer>> wanted = simulation.settings.hatches();
+        if (wanted.isEmpty()) return;
+        LongArrayList spots = new LongArrayList();
+        for (Long2ObjectMap.Entry<IStructureElement<Object>> entry : simulation.elements.long2ObjectEntrySet()) {
+            Integer slot = simulation.slotOfElement.get(entry.getValue());
+            if (slot != null && slot >= 0) spots.add(entry.getLongKey());
+        }
+        long[] positions = spots.toLongArray();
+        Arrays.sort(positions);
+        HatchSlot[] slots = new HatchSlot[positions.length];
+        String[] roles = new String[positions.length];
+        for (int i = 0; i < positions.length; i++) {
+            slots[i] = simulation.hatchSlots.get(simulation.slotOfElement.get(simulation.elements.get(positions[i])));
+            roles[i] = slots[i].role();
+        }
+        int[] ranks = ProjectorStructure.ranks(roles);
+        for (int i = 0; i < positions.length; i++) {
+            List<Integer> ids = wanted.get(roles[i]);
+            int id = ids == null || ranks[i] >= ids.size() ? ProjectorPlan.CASING : ids.get(ranks[i]);
+            if (id == ProjectorPlan.CASING || !contains(slots[i].candidates(), id)) continue;
+            int x = ProjectorPlan.unpackA(positions[i]), y = ProjectorPlan.unpackB(positions[i]),
+                z = ProjectorPlan.unpackC(positions[i]);
+            world.setBlockToAir(x, y, z);
+            simulation.placeMachine(id, x, y, z);
         }
     }
 
@@ -96,15 +103,6 @@ public class ProjectorPlanApplier {
         out[0] += ProjectorSimulation.CONTROLLER_X;
         out[1] += ProjectorSimulation.CONTROLLER_Y;
         out[2] += ProjectorSimulation.CONTROLLER_Z;
-    }
-
-    private ItemStack casingFor(IStructureElement<Object> element, HatchSlot slot) {
-        Choice choice = simulation.choiceFor(element);
-        String wanted = choice == null ? null
-            : simulation.settings.choices()
-                .get(choice.key());
-        ItemStack chosen = wanted == null ? null : choice.find(wanted);
-        return chosen != null ? chosen : slot.casing();
     }
 
     public ProjectorStructure collect() {

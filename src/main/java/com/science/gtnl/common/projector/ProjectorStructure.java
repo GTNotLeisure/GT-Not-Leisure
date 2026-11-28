@@ -1,8 +1,11 @@
 package com.science.gtnl.common.projector;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -17,7 +20,16 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 
 public class ProjectorStructure {
 
-    public record HatchSlot(int[] candidates, int[] accepted, ItemStack casing) {}
+    // The role names the kind of spot by the hatches it accepts, so it survives the structure growing or shrinking.
+    public record HatchSlot(int[] candidates, int[] accepted, ItemStack casing, String role) {
+
+        public static HatchSlot of(int[] candidates, int[] accepted, ItemStack casing) {
+            int[] sorted = accepted.clone();
+            Arrays.sort(sorted);
+            String role = Integer.toHexString(Arrays.hashCode(sorted)) + ":" + sorted.length;
+            return new HatchSlot(candidates, accepted, casing, role);
+        }
+    }
 
     public record Material(ItemStack stack, int count) {}
 
@@ -104,6 +116,7 @@ public class ProjectorStructure {
     private final Long2IntOpenHashMap index = new Long2IntOpenHashMap();
     private int[][] simulationPositions;
     private byte[] fronts;
+    private int[] ranks;
 
     public ProjectorStructure(ProjectorSimulation simulation, int size) {
         settings = simulation.settings;
@@ -202,6 +215,36 @@ public class ProjectorStructure {
 
     public HatchSlot slotAt(int cell) {
         return cell < 0 || slots[cell] < 0 ? null : hatchSlots.get(slots[cell]);
+    }
+
+    // A hatch spot's position among the spots of the same role, in cell order, or -1 for other cells.
+    public int rankOf(int cell) {
+        if (cell < 0 || cell >= size) return -1;
+        if (ranks == null) {
+            String[] roles = new String[size];
+            for (int i = 0; i < size; i++) {
+                HatchSlot slot = slotAt(i);
+                roles[i] = slot == null ? null : slot.role();
+            }
+            ranks = ranks(roles);
+        }
+        return ranks[cell];
+    }
+
+    // Spots must come in cell order, which is the order of their packed simulation positions.
+    public static int[] ranks(String[] roles) {
+        int[] result = new int[roles.length];
+        Map<String, Integer> counts = new HashMap<>();
+        for (int i = 0; i < roles.length; i++) {
+            if (roles[i] == null) {
+                result[i] = -1;
+                continue;
+            }
+            int rank = counts.getOrDefault(roles[i], 0);
+            result[i] = rank;
+            counts.put(roles[i], rank + 1);
+        }
+        return result;
     }
 
     public int[] worldBounds(ExtendedFacing facing) {

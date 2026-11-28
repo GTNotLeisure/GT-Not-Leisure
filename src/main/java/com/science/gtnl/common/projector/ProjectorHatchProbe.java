@@ -91,7 +91,7 @@ public class ProjectorHatchProbe {
             if (ProjectorMachines.allowedAt(id, spotKinds, simulation.machine)) allowed.add(id);
         }
         if (allowed.isEmpty()) return -1;
-        simulation.hatchSlots.add(new HatchSlot(allowed.toIntArray(), candidates.toIntArray(), casing));
+        simulation.hatchSlots.add(HatchSlot.of(allowed.toIntArray(), candidates.toIntArray(), casing));
         return simulation.hatchSlots.size() - 1;
     }
 

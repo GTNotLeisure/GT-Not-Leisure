@@ -509,7 +509,7 @@ public class ProjectorHatchPage {
         int cell = selected.getAsInt();
         List<Integer> chosen = new ArrayList<>();
         for (int spot : spots(current)) {
-            if (working.overrides.containsKey(key(current, spot))) chosen.add(spot);
+            if (working.hasHatch(roleOf(current, spot), current.rankOf(spot))) chosen.add(spot);
         }
         rows.add(Row.header(StatCollector.translateToLocalFormatted(LANG + "chosen_slots", chosen.size())));
         for (int spot : chosen) {
@@ -517,7 +517,7 @@ public class ProjectorHatchPage {
             String name = item == null ? current.blocks[spot].getLocalizedName() : item.getDisplayName();
             rows.add(
                 Row.item(item, name, place(current, spot, "slot_place_short"), spot == cell, () -> select.accept(spot))
-                    .onRightClick(() -> working.overrides.remove(key(current, spot))));
+                    .onRightClick(() -> put(current, spot, ProjectorPlan.CASING)));
         }
         return rows;
     }
@@ -532,8 +532,8 @@ public class ProjectorHatchPage {
         int cell = selected.getAsInt();
         if (current == null || current.slotAt(cell) == null) return -1;
         // The shown structure lags behind a choice until the new simulation finishes.
-        Integer chosen = working.overrides.get(key(current, cell));
-        int id = chosen != null ? chosen : current.machines[cell];
+        int chosen = working.hatchAt(roleOf(current, cell), current.rankOf(cell));
+        int id = chosen != ProjectorPlan.CASING ? chosen : current.machines[cell];
         return id > 0 && ProjectorMachines.prototype(id) == null ? -1 : id;
     }
 
@@ -576,7 +576,12 @@ public class ProjectorHatchPage {
     }
 
     private void put(ProjectorStructure current, int cell, int id) {
-        working.overrides.put(key(current, cell), id == 0 ? ProjectorPlan.CASING : id);
+        working.setHatch(roleOf(current, cell), current.rankOf(cell), id);
+    }
+
+    private static String roleOf(ProjectorStructure current, int cell) {
+        HatchSlot slot = current.slotAt(cell);
+        return slot == null ? null : slot.role();
     }
 
     private static boolean accepts(HatchSlot slot, int id) {

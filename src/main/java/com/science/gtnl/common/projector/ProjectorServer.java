@@ -1,8 +1,5 @@
 package com.science.gtnl.common.projector;
 
-import java.util.Iterator;
-import java.util.Map;
-
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.item.ItemStack;
@@ -12,8 +9,6 @@ import com.cleanroommc.modularui.factory.GuiFactories;
 import com.science.gtnl.common.item.items.MultiblockProjector;
 import com.science.gtnl.common.wireless.WirelessCardInventory;
 import com.science.gtnl.common.wireless.WirelessCardInventory.CardSlot;
-
-import gregtech.api.GregTechAPI;
 
 public class ProjectorServer {
 
@@ -33,15 +28,7 @@ public class ProjectorServer {
         ProjectorPlan plan = new ProjectorPlan();
         plan.readFromNBT(tag);
         if (plan.hasMachine() && !ProjectorMachines.isSupported(plan.machine)) plan.clear();
-        Iterator<Map.Entry<Long, Integer>> overrides = plan.overrides.entrySet()
-            .iterator();
-        while (overrides.hasNext()) {
-            int id = overrides.next()
-                .getValue();
-            if (id != ProjectorPlan.CASING
-                && (id >= GregTechAPI.METATILEENTITIES.length || GregTechAPI.METATILEENTITIES[id] == null))
-                overrides.remove();
-        }
+        plan.dropUnknownHatches();
         plan.write(stack);
         WirelessCardInventory.sync(player, stack);
     }
